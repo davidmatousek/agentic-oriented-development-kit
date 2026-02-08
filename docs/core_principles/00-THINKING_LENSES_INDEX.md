@@ -1,8 +1,8 @@
 # Thinking Lenses Selection Guide
 
 **Document Type:** Navigation Index
-**Last Updated:** 2026-01-28
-**Total Lenses:** 11
+**Last Updated:** 2026-02-08
+**Total Lenses:** 14
 
 ---
 
@@ -23,6 +23,9 @@ Use this table to find the right thinking methodology for your situation.
 | **What's wrong with this idea?** | Devil's Advocate | [09-DEVILS_ADVOCATE.md](09-DEVILS_ADVOCATE.md) | 30-45 min |
 | **Which option is best?** | Comparative Analysis | [10-COMPARATIVE_ANALYSIS.md](10-COMPARATIVE_ANALYSIS.md) | 45-60 min |
 | **What are we giving up?** | Opportunity Cost | [11-OPPORTUNITY_COST.md](11-OPPORTUNITY_COST.md) | 20-30 min |
+| **Why does this exist?** | Four Causes | [12-FOUR_CAUSES.md](12-FOUR_CAUSES.md) | 45-60 min |
+| **Is this working or just looking right?** | Cargo Cult Detection | [13-CARGO_CULT_DETECTION.md](13-CARGO_CULT_DETECTION.md) | 45-60 min |
+| **How much is the right amount?** | Golden Mean | [14-GOLDEN_MEAN.md](14-GOLDEN_MEAN.md) | 45-60 min |
 
 ---
 
@@ -55,6 +58,14 @@ When you need to comprehend how things work together.
 | **First Principles** | "What's fundamentally true?" | Challenging inherited assumptions |
 | **Systems Thinking** | "How do parts interact?" | Understanding complex architectures |
 | **Second-Order Effects** | "What happens after?" | Predicting downstream impacts |
+| **Four Causes** | "Why does this exist?" | Complete system understanding (material, form, process, purpose) |
+
+### Calibration (Spectrum Decisions)
+When you need to find the right amount, not choose between options.
+
+| Lens | Core Question | Best For |
+|------|---------------|----------|
+| **Golden Mean** | "Where's the right balance?" | Calibrating autonomy, testing depth, process ceremony |
 
 ### Validation (Critical Review)
 When you need to test or challenge ideas.
@@ -62,6 +73,7 @@ When you need to test or challenge ideas.
 | Lens | Core Question | Best For |
 |------|---------------|----------|
 | **Devil's Advocate** | "What's the strongest counter-argument?" | Stress-testing proposals |
+| **Cargo Cult Detection** | "Is this working or just looking right?" | Detecting process theater and ritualistic practices |
 
 ---
 
@@ -82,7 +94,15 @@ START: What are you trying to do?
 ├─ Understand something → What specifically?
 │   ├─ Why it works that way → First Principles
 │   ├─ How parts connect → Systems Thinking
-│   └─ What happens if we change it → Second-Order Effects
+│   ├─ What happens if we change it → Second-Order Effects
+│   └─ Complete picture (material, form, process, purpose) → Four Causes
+│
+├─ Calibrate something → Finding the right amount?
+│   └─ How much is enough? → Golden Mean
+│
+├─ Validate a practice → Is it actually working?
+│   ├─ Challenge the logic → Devil's Advocate
+│   └─ Check for process theater → Cargo Cult Detection
 │
 ├─ Plan something → What's the concern?
 │   ├─ Risks → Pre-Mortem
@@ -115,6 +135,16 @@ Some lenses work well together or as follow-ups to each other.
 - Understand system interactions
 - Predict if fix has side effects
 
+**Complete Understanding**: Four Causes → Systems Thinking → First Principles
+- Understand why it exists (purpose, material, form, process)
+- Map how parts interact
+- Challenge whether each part is truly necessary
+
+**Calibration Cycle**: Golden Mean → Cargo Cult Detection → Golden Mean
+- Set the initial balance point
+- Check whether the practice is producing real results
+- Recalibrate based on evidence
+
 ### Complementary Pairs
 
 | Lens A | Pairs Well With | Why |
@@ -123,6 +153,9 @@ Some lenses work well together or as follow-ups to each other.
 | First Principles | Devil's Advocate | Challenge, then validate |
 | Pareto Analysis | Opportunity Cost | Prioritize, then understand trade-offs |
 | Systems Thinking | Second-Order Effects | Understand, then predict |
+| Four Causes | Systems Thinking | Understand purpose, then map interactions |
+| Golden Mean | Cargo Cult Detection | Calibrate, then verify it's working |
+| Cargo Cult Detection | First Principles | Detect theater, then rebuild from fundamentals |
 
 ---
 
@@ -166,11 +199,11 @@ Output should follow the template format in that guide."
 
 | Agent | Recommended Lenses |
 |-------|-------------------|
-| **Architect** | First Principles, Systems Thinking, Second-Order Effects |
+| **Architect** | First Principles, Systems Thinking, Second-Order Effects, Four Causes |
 | **Debugger** | 5 Whys, Constraint Analysis |
-| **Head-Honcho** | Pareto Analysis, Opportunity Cost, Pre-Mortem |
+| **Head-Honcho** | Pareto Analysis, Opportunity Cost, Pre-Mortem, Cargo Cult Detection |
 | **Team-Lead** | Constraint Analysis, Pre-Mortem |
-| **Code-Reviewer** | Devil's Advocate, Inversion |
+| **Code-Reviewer** | Devil's Advocate, Inversion, Cargo Cult Detection |
 
 ---
 
@@ -180,21 +213,25 @@ Output should follow the template format in that guide."
 Starting a feature? → **Pre-Mortem** first
 Debugging? → **5 Whys** or **Constraint Analysis**
 Refactoring? → **First Principles** + **Second-Order Effects**
+Understanding unfamiliar code? → **Four Causes** (why does this exist?)
 
 ### Architect
 Reviewing proposal? → **First Principles** + **Devil's Advocate**
-Designing system? → **Systems Thinking** + **Second-Order Effects**
+Designing system? → **Systems Thinking** + **Four Causes**
 Post-incident? → **5 Whys** + **Systems Thinking**
+Calibrating agent autonomy? → **Golden Mean**
 
 ### Product Manager
 Prioritizing backlog? → **Pareto Analysis**
 Cutting scope? → **Opportunity Cost**
 Go/no-go decision? → **Pre-Mortem** + **Comparative Analysis**
+Reviewing adopted processes? → **Cargo Cult Detection**
 
 ### Team Lead
 Estimating? → **Constraint Analysis**
 Planning? → **Pre-Mortem** + **Constraint Analysis**
 Choosing tools? → **Comparative Analysis** + **Opportunity Cost**
+Setting process levels? → **Golden Mean** (how much ceremony?)
 
 ---
 
@@ -213,7 +250,10 @@ Choosing tools? → **Comparative Analysis** + **Opportunity Cost**
 | 09 | Devil's Advocate | "What's wrong with this?" | Validation | ~250 |
 | 10 | Comparative Analysis | "Which option is best?" | Decision Making | ~250 |
 | 11 | Opportunity Cost | "What are we giving up?" | Decision Making | ~250 |
+| 12 | Four Causes | "Why does this exist?" | Understanding | ~280 |
+| 13 | Cargo Cult Detection | "Is this working or looking right?" | Validation | ~280 |
+| 14 | Golden Mean | "Where's the right balance?" | Calibration | ~280 |
 
 ---
 
-*Part of the AI Security Scanner institutional knowledge base.*
+*Part of the Agentic-Oriented Development thinking methodology collection.*
