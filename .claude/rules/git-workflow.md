@@ -1,0 +1,41 @@
+# Git Workflow
+
+<!-- Rule file for Agentic Oriented Development Kit -->
+<!-- This file is referenced from CLAUDE.md using @-syntax -->
+
+## Overview
+
+All development must use feature branches. Never commit to main directly.
+
+---
+
+## Branch Naming
+
+**Format**: `NNN-descriptive-name`
+- **NNN**: Feature ID (e.g., `001`, `002`, `012`)
+- **descriptive-name**: Kebab-case description (e.g., `initial-feature`, `user-auth`)
+
+**Examples**:
+- `001-initial-feature`
+- `012-database-migration`
+- `045-api-authentication`
+
+---
+
+## Commit Standards
+
+- Write clear, descriptive commit messages
+- Use conventional commits format when possible (feat:, fix:, docs:, etc.)
+- Keep commits atomic and focused on single changes
+- Reference feature IDs in commit messages
+
+---
+
+## PR Policies
+
+**Always use feature branches**: `git checkout -b NNN-feature-name`
+- Never commit to main directly
+- Create PR for review before merge
+- Link PR to feature spec (`specs/NNN-feature-name/spec.md`)
+- Ensure CI/CD passes before merge
+- Require at least one approval (if team workflow)
