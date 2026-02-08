@@ -72,7 +72,20 @@ Output: List files updated with brief summary.
 2. **Prompt for learnings**: Ask if any insights for INSTITUTIONAL_KNOWLEDGE.md (allow "skip")
 3. **Validate**: Check `git status`, search for TBD/TODO in docs/
 
-## Step 6: Commit and Push
+## Step 6: Upstream Sync to AOD-kit
+
+Prompt the user to sync deliverable files to the published template repo (`agentic-oriented-development-kit`).
+
+1. **Detect AOD-kit repo**: Check if `../agentic-oriented-development-kit/` exists
+2. **If found**, run `diff -rq` between the two repos (excluding `.git`, `specs/`, `.aod/`, `archive/`, `docs/product/_backlog/`, `docs/product/02_PRD/`) to identify changed files
+3. **If differences found**, display the list and ask:
+   - (A) Sync now — copy changed files, create branch `{NUMBER}-sync-{NAME}`, commit, push, create PR
+   - (B) Skip — continue without syncing (user will handle manually)
+4. **If no differences or AOD-kit not found**, skip silently
+
+**Sync direction is always**: `product-led-spec-kit → agentic-oriented-development-kit`
+
+## Step 7: Commit and Push
 
 Stage `docs/`, `deployment/`, `CLAUDE.md` and commit:
 
@@ -89,7 +102,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 Then `git push origin main`.
 
-## Step 7: Generate Closure Report
+## Step 8: Generate Closure Report
 
 ```markdown
 ## ✅ Feature {NUMBER} Closure Complete
@@ -111,6 +124,7 @@ Then `git push origin main`.
 - [x] All tasks complete
 - [x] No TBD/TODO in docs
 - [x] Committed and pushed
+- [{sync_status}] AOD-kit upstream sync
 
 **Feature {NUMBER} is now officially CLOSED.**
 ```
