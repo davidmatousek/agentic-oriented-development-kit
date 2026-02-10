@@ -102,21 +102,21 @@ All agents include 7 template variables for project customization:
 
 ### Product & Planning
 
-1. **prd-create/**
+1. **~aod-define/**
    - Create Product Requirements Documents (PRDs)
-   - Invoked by `/triad.prd` command
+   - Invoked by `/aod.define` command
 
-2. **implementation-checkpoint/**
+2. **~aod-build/**
    - Create checkpoints for long features
    - Wave completion tracking, progress snapshots
 
 ### Architecture & Validation
 
-3. **architecture-validator/**
+3. **~aod-project-plan/**
    - Validate architectural decisions and consistency
    - Before finalizing plan.md
 
-4. **spec-validator/**
+4. **~aod-spec/**
    - Validate spec.md, plan.md, tasks.md consistency
    - Before PRs, after task generation
 
@@ -150,40 +150,40 @@ All agents include 7 template variables for project customization:
 
 ## Deliverable 3: Commands (12 Total)
 
-### Triad Commands (6) - Automatic Governance
+### AOD Commands (6) - Automatic Governance
 
 **RECOMMENDED for production features**
 
-1. **triad.prd.md**
+1. **aod.define.md**
    - Create PRD with PM + Architect + Tech-Lead validation
    - 3-way sign-off workflow
 
-2. **triad.specify.md**
+2. **aod.spec.md**
    - Create spec.md with automatic PM sign-off
    - 1-way validation (PM approval required)
 
-3. **triad.plan.md**
+3. **aod.project-plan.md**
    - Create plan.md with PM + Architect sign-off
    - 2-way validation (PM + Architect approval)
 
-4. **triad.tasks.md**
+4. **aod.tasks.md**
    - Create tasks.md with triple sign-off
    - 3-way validation (PM + Architect + Tech-Lead)
 
-5. **triad.implement.md**
+5. **aod.build.md**
    - Execute with architect checkpoints at milestones
    - Continuous architecture validation
 
-6. **triad.close-feature.md**
+6. **aod.deliver.md**
    - Close feature with parallel documentation updates
    - Automated cleanup and documentation
 
 ### Utility Commands (4)
 
-7. **triad.clarify.md** - Ask 5 clarification questions
-8. **triad.analyze.md** - Cross-artifact consistency check
-9. **triad.checklist.md** - Generate custom task checklist
-10. **triad.constitution.md** - Create/update project constitution
+7. **aod.clarify.md** - Ask 5 clarification questions
+8. **aod.analyze.md** - Cross-artifact consistency check
+9. **aod.checklist.md** - Generate custom task checklist
+10. **aod.constitution.md** - Create/update project constitution
 
 ### Orchestration Commands (2)
 
@@ -304,17 +304,17 @@ All agents include 7 template variables for project customization:
    ```
 
 2. **Choose Workflow**:
-   - **Production Features**: Use `/triad.*` commands (automatic governance)
-   - **Utility**: Use `/triad.clarify`, `/triad.analyze`, `/triad.checklist`, `/triad.constitution` for support tasks
+   - **Production Features**: Use `/aod.*` commands (automatic governance)
+   - **Utility**: Use `/aod.clarify`, `/aod.analyze`, `/aod.checklist`, `/aod.constitution` for support tasks
 
 3. **Start Development**:
    ```bash
-   /triad.prd "Feature description"  # Create PRD
-   /triad.specify                     # Create spec.md
-   /triad.plan                        # Create plan.md
-   /triad.tasks                       # Generate tasks.md
-   /triad.implement                   # Execute with checkpoints
-   /triad.close-feature 001           # Close and document
+   /aod.define "Feature description"  # Create PRD
+   /aod.spec                     # Create spec.md
+   /aod.project-plan                        # Create plan.md
+   /aod.tasks                       # Generate tasks.md
+   /aod.build                   # Execute with checkpoints
+   /aod.deliver 001           # Close and document
    ```
 
 ### Customization Examples
@@ -358,7 +358,7 @@ sed -i 's/{{PROJECT_NAME}}/enterprise-app/g' .claude/agents/*.md .claude/skills/
 **For Template Users**:
 1. Clone agentic-oriented-development-kit template
 2. Replace template variables with your tech stack
-3. Start using `/triad.*` commands
+3. Start using `/aod.*` commands
 4. Customize agents for project-specific conventions
 
 **For Template Maintainers**:
