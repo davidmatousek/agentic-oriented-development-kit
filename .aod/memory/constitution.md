@@ -214,7 +214,7 @@ Product artifacts in docs/product/ are the strategic foundation, and project arc
 - **Architecture Review**: Sound product strategy without technical consistency creates fragmented systems. The Architect ensures every technical decision aligns with project architecture, maintains system integrity, and avoids technical debt.
 
 **Non-Negotiable Requirements**:
-- ALWAYS create PRD before spec.md (use `/triad.prd`)
+- ALWAYS create PRD before spec.md (use `/aod.define`)
 - ALWAYS validate spec.md aligns with product vision, OKRs, and user stories
 - ALWAYS get PM sign-off on spec.md before creating plan.md
 - ALWAYS get Architect review on plan.md for technical decisions and architecture alignment
@@ -412,7 +412,7 @@ Product Manager is responsible for maintaining alignment between:
 - Architect ensures technical consistency (architecture ↔ plan.md ↔ tasks.md ↔ code)
 
 **Enforcement**:
-- Use `/triad.analyze` to validate product-spec-architecture consistency
+- Use `/aod.analyze` to validate product-spec-architecture consistency
 - Triad workflows enforce dual sign-off (PM + Architect) before progression
 - PRs without PM and Architect approval are blocked from merge
 - Sign-offs are documented in artifact metadata
@@ -420,11 +420,11 @@ Product Manager is responsible for maintaining alignment between:
 **Tools & Skills**:
 - **product-manager agent**: Product Manager with alignment validation expertise
 - **architect agent**: Architect with technical design and review expertise
-- **/triad.prd**: Create PRD documents
-- **/triad.specify**: Create specifications from PRD inputs
-- **/triad.plan**: Create technical plans from specifications
-- **/triad.tasks**: Create implementation tasks from plans
-- **/triad.analyze**: Validate consistency across artifacts
+- **/aod.define**: Create PRD documents
+- **/aod.spec**: Create specifications from PRD inputs
+- **/aod.project-plan**: Create technical plans from specifications
+- **/aod.tasks**: Create implementation tasks from plans
+- **/aod.analyze**: Validate consistency across artifacts
 
 **Reference**: See `.claude/agents/product-manager.md` for PM responsibilities, `.claude/agents/architect.md` for Architect responsibilities, and `docs/standards/PRODUCT_SPEC_ALIGNMENT.md` for comprehensive alignment guide
 
@@ -454,7 +454,7 @@ Product Manager is responsible for maintaining alignment between:
 
 0. **PM**: Analyze product need (What & Why) - read product vision, OKRs, user stories
 0.5. **Architect**: Provide baseline report documenting current infrastructure state
-1. **PM**: Draft PRD via `/triad.prd`, incorporating Architect baseline into "Current State" section
+1. **PM**: Draft PRD via `/aod.define`, incorporating Architect baseline into "Current State" section
 2. **Tech-Lead**: Feasibility review - estimate timeline, identify agents needed, validate capacity
 3. **Architect**: Technical review - validate infrastructure claims match baseline, confirm technical feasibility
 4. **PM**: Finalize PRD incorporating all Triad feedback
@@ -462,7 +462,7 @@ Product Manager is responsible for maintaining alignment between:
 **For Feature PRDs** (greenfield work):
 
 0. **PM**: Analyze product need (What & Why)
-1. **PM**: Draft PRD via `/triad.prd`
+1. **PM**: Draft PRD via `/aod.define`
 2. **[Parallel]** Architect + Tech-Lead: Review PRD for technical feasibility and timeline accuracy
 3. **PM**: Finalize PRD incorporating Triad feedback
 
@@ -537,6 +537,75 @@ All PRDs MUST have:
 | Architect PRD Review | `docs/agents/architect/{date}_{feature}_prd-review_ARCH.md` | Architect | Technical validation report |
 
 **Reference**: See `docs/standards/TRIAD_COLLABORATION.md` for comprehensive Triad workflow guide, artifact templates, and practical examples
+
+---
+
+## AOD Lifecycle Model
+
+### Lifecycle Stages
+
+The AOD Lifecycle is a single, named sequence of **5 stages** organized into **2 phases**. All work passes through these stages in order.
+
+**Discovery Phase** (What to build):
+
+| Stage | Purpose | Primary Command |
+|-------|---------|-----------------|
+| **Discover** | Capture ideas, score with ICE, gather evidence | `/aod.discover` |
+| **Define** | Create PRD with Triad validation | `/aod.define` |
+
+**Delivery Phase** (How to build and ship):
+
+| Stage | Purpose | Primary Command |
+|-------|---------|-----------------|
+| **Plan** | Create spec, architecture plan, and task breakdown | `/aod.plan` |
+| **Build** | Implement tasks with Architect checkpoints | `/aod.build` |
+| **Deliver** | Validate against DoD, run retrospective, close feature | `/aod.deliver` |
+
+### Governance Gates
+
+Governance gates are a **separate layer** from lifecycle stages. Gates are Triad approval checkpoints that operate **at stage boundaries** -- they determine who approves, not what work is done.
+
+| Gate Location | Checkpoint | Approvers |
+|---------------|------------|-----------|
+| Discover exit | ICE score + PM validation | PM |
+| Define exit | PRD Triad review | PM + Architect + Team-Lead |
+| Plan: spec | Spec sign-off | PM |
+| Plan: project-plan | Plan sign-off | PM + Architect |
+| Plan: tasks | Triple sign-off | PM + Architect + Team-Lead |
+| Build (continuous) | Architect checkpoints | Architect |
+| Deliver exit | Definition of Done check | PM + Architect + Team-Lead |
+
+**Invariants**:
+- Triple sign-off (PM + Architect + Team-Lead on tasks.md) is the **minimum governance floor** for all tiers
+- DoD check applies to **all tiers**
+- Architect build checkpoints apply to **all tiers**
+
+### Governance Tiers
+
+Three tiers determine which gates are active. Tiers affect only the Discover, Define, and Plan stage gates.
+
+| Tier | Discover Gate | Define Gate | Plan Gates | Build Gate | Deliver Gate |
+|------|---------------|-------------|------------|------------|--------------|
+| **Light** | Optional | Skip | Triple sign-off only | On | DoD |
+| **Standard** (default) | On | On | PM+Arch + Triple | On | DoD |
+| **Full** | On | On | PM spec + PM+Arch plan + Triple | On | DoD |
+
+**When to use each tier**:
+
+- **Light** (2 gates): Solo developers, prototypes, internal tools. Minimizes ceremony while preserving the governance floor (Triple sign-off + DoD).
+- **Standard** (6 gates, default): Team projects and production features. All Discover, Define, and Plan gates active with Architect checkpoints in Build.
+- **Full** (all gates): Regulated industries, critical systems, high-risk deployments. Adds a separate PM spec sign-off in the Plan stage for maximum traceability.
+
+### Governance Configuration
+
+Configure the active governance tier in the constitution frontmatter or project configuration:
+
+```yaml
+governance:
+  tier: standard  # valid values: light | standard | full
+```
+
+The tier is configured **per project**, not per feature. The default tier is `standard`.
 
 ---
 
@@ -628,7 +697,7 @@ All PRDs MUST have:
 
 - All pull requests MUST verify compliance with constitution principles
 - Architecture decisions MUST reference relevant principles
-- Use `/triad.analyze` to verify consistency across spec, plan, and tasks
+- Use `/aod.analyze` to verify consistency across spec, plan, and tasks
 - Constitution supersedes all other practices and conventions
 
 ### Living Document

@@ -100,8 +100,8 @@ Provide your review in this exact format:
 ## Usage
 
 This skill is invoked during Triad governance workflows:
-- `/triad.specify` - After spec creation
-- `/triad.plan` - After plan creation
-- `/triad.tasks` - After task generation
+- `/aod.spec` - After spec creation
+- `/aod.project-plan` - After plan creation
+- `/aod.tasks` - After task generation
 
 The skill runs in parallel with Architect review when context forking is enabled.

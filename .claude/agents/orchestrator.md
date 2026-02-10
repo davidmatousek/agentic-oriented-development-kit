@@ -99,23 +99,37 @@ Execute feature development workflows efficiently through parallel agent coordin
    - Detect blockers (>30min no progress)
    - Output: Wave completion status
 
-4. **Validate and Report**
-   - Verify all wave tasks marked complete
-   - Check for constitutional compliance
-   - Report completion to team-lead
-   - Output: Completion report with metrics
+4. **Report Wave Completion and STOP**
+   - Verify all current wave tasks marked complete
+   - Display wave completion summary with progress percentage
+   - Run `/continue` to generate handoff file
+   - STOP — do not proceed to next wave
+   - Output: Wave completion report with resume instructions
 
 ### Wave Execution Pattern
 
-**For each wave**:
+**For each wave** (execute ONE wave per conversation):
 ```
 1. Identify ready tasks (dependencies met)
 2. Group by agent type
 3. Launch parallel: Single message with multiple Task calls
 4. Monitor: Watch TodoWrite updates
 5. Validate: All tasks marked [X]
-6. Proceed to next wave
+6. STOP: Run /continue to generate handoff file. Display wave summary and halt.
+   Do NOT proceed to next wave. Output resume prompt for the user.
 ```
+
+**CRITICAL**: Never execute multiple waves in a single conversation. This causes context overflow.
+Each wave runs in its own conversation. The next conversation resumes from the first incomplete wave.
+
+### Resume Protocol
+
+When invoked for a feature with completed waves:
+1. Parse tasks.md — identify tasks marked `[X]`
+2. Cross-reference with agent-assignments.md wave definitions
+3. Skip fully completed waves
+4. Begin execution at first incomplete wave
+5. Display resume status before starting
 
 **Parallel Invocation** (CRITICAL):
 ```python
@@ -227,6 +241,7 @@ Avoid:
 - Skipping blocker detection (leads to stalled workflows)
 - Executing without team-lead approval (governance bypass)
 - Modifying tasks.md structure (only mark completion)
+- Executing multiple waves in one conversation (causes context overflow)
 
 ---
 

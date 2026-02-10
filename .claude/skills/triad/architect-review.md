@@ -116,8 +116,8 @@ Provide your review in this exact format:
 ## Usage
 
 This skill is invoked during Triad governance workflows:
-- `/triad.plan` - After plan creation (parallel with PM)
-- `/triad.tasks` - After task generation (parallel with PM and Tech-Lead)
-- `/triad.implement` - At checkpoint intervals
+- `/aod.project-plan` - After plan creation (parallel with PM)
+- `/aod.tasks` - After task generation (parallel with PM and Tech-Lead)
+- `/aod.build` - At checkpoint intervals
 
 The skill runs in parallel with PM review when context forking is enabled.

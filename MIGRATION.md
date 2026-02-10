@@ -203,7 +203,7 @@ Copy "Commands" section to `.claude/rules/commands.md`:
 ## Triad Commands (Automatic Governance - RECOMMENDED)
 
 ```bash
-/triad.prd <topic>         # Create PRD with Triad validation (includes optional vision workshop)
+/aod.define <topic>         # Create PRD with Triad validation (includes optional vision workshop)
 [... rest of commands ...]
 ```
 
@@ -369,7 +369,7 @@ The SDLC Triad ensures Product-Architecture-Engineering alignment:
 ## Core Constraints
 - Product-Led: Start with product vision, PRDs, and user stories
 - Source of Truth: `.aod/spec.md`
-- Validation Required: Run `/triad.analyze` before PRs
+- Validation Required: Run `/aod.analyze` before PRs
 - Local-First: Always supports local `.aod/` file workflows
 
 ## Git Workflow

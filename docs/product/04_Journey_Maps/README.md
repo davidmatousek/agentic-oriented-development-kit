@@ -15,7 +15,7 @@ Before MVP:
 - You don't know actual pain points vs. imagined ones
 - The onboarding flow doesn't exist yet
 
-**Pre-MVP**: Focus on `/triad.prd` (includes target users in vision) → build MVP
+**Pre-MVP**: Focus on `/aod.define` (includes target users in vision) → build MVP
 **Post-MVP**: Map real user journeys based on actual behavior and feedback
 
 ---

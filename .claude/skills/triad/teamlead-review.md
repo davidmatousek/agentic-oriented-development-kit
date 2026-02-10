@@ -127,6 +127,6 @@ Provide your review in this exact format:
 ## Usage
 
 This skill is invoked during Triad governance workflows:
-- `/triad.tasks` - After task generation (parallel with PM and Architect)
+- `/aod.tasks` - After task generation (parallel with PM and Architect)
 
 The skill runs in parallel with PM and Architect reviews when context forking is enabled.

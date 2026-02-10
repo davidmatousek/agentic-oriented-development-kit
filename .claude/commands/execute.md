@@ -88,6 +88,6 @@ Report completed tasks, files modified, wave timings, and any issues.
 ## Notes
 
 - Use `/execute` for quick, ad-hoc work (< 1 day effort)
-- Use `/triad.*` workflow for larger features requiring governance
+- Use `/aod.*` workflow for larger features requiring governance
 - Architect review is automatic for any code changes
 - Failed tasks don't halt execution - summary reports all outcomes

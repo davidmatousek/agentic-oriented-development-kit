@@ -49,7 +49,7 @@ This document maps an 8-chapter article series to the template files that implem
 
 **Key Template Files**:
 - `.aod/` -- spec.md, plan.md, tasks.md structure
-- `.claude/commands/triad.specify.md` -- The specify command workflow
+- `.claude/commands/aod.spec.md` -- The spec command workflow
 
 ---
 
@@ -68,8 +68,8 @@ This document maps an 8-chapter article series to the template files that implem
 **Theme**: Parallel execution through wave-based task orchestration.
 
 **Key Template Files**:
-- `.claude/commands/triad.implement.md` -- Implementation workflow with checkpoints
-- `.claude/commands/triad.tasks.md` -- Task breakdown with execution waves
+- `.claude/commands/aod.build.md` -- Implementation workflow with checkpoints
+- `.claude/commands/aod.tasks.md` -- Task breakdown with execution waves
 
 ---
 

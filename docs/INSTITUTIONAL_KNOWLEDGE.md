@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 0 / 20 (KB System Upgrade triggers at 20)
+**Entry Count**: 2 / 20 (KB System Upgrade triggers at 20)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -219,6 +219,100 @@ Application crashed on startup in production but worked perfectly in staging. Er
 ### Related Documents:
 - `docs/devops/03_Production/pre-deployment-checklist.md` - Updated checklist
 - `scripts/validate-env-vars.sh` - Automated validation script
+
+---
+
+### Entry 4: Feature 010 — AOD Lifecycle Formalization Retrospective
+
+## [Process] - Large-Scale Namespace Unification with AI-Assisted Development
+
+**Date**: 2026-02-09
+**Context**: Feature 010 formalized the AOD Lifecycle (5 stages, governance tiers, unified `/aod.*` namespace) across 86 tasks, 140+ files, and 1,196+ reference occurrences.
+
+**Problem**:
+- Two separate command namespaces (`/pdl.*` + `/triad.*`) for a single unified lifecycle created a false mental model
+- Discovery stage lacked evidence collection, making prioritization decisions indefensible
+- No feedback loop from delivery back to discovery (open-loop system)
+- Plan stage required users to remember 3 sequential commands across sessions
+
+**Solution**:
+1. **Unified namespace**: All lifecycle commands under `/aod.*` via systematic find-and-replace in 4 sub-waves (longest patterns first to prevent partial matches)
+2. **Plan stage router**: `/aod.plan` auto-detects artifact state and delegates to correct sub-step
+3. **Evidence-enriched discovery**: `/aod.discover` prompts for evidence alongside ICE scoring
+4. **Delivery retrospective**: `/aod.deliver` captures metrics, surprises, and feeds new ideas back to discovery
+5. **GitHub-backed tracking**: GitHub Issues with `stage:*` labels + auto-regenerated BACKLOG.md
+
+**Delivery Metrics**:
+- Estimated: 2-3 sprints (Team-Lead review, assuming human-paced development)
+- Actual: ~2.5 hours (AI-assisted, 6 implementation waves)
+- Tasks: 86/86 complete
+- PR: #9 (merged 2026-02-09)
+
+**What Surprised Us**:
+- GitHub integration scope was more involved than expected (shared bash utilities, duplicate detection, pagination warnings, defensive parsing)
+- Skill merge (3 PDL skills → aod-discover, ~675 lines) was the highest-risk single task but completed cleanly
+- The scale of the rename (140+ files) was manageable thanks to wave-based approach with verification between waves
+- Overall, planning phase accurately predicted the work — no blocking surprises
+
+**Key Learning**: Wave-based find-and-replace with longest-patterns-first ordering prevents partial match corruption. Always verify with grep between sub-waves.
+
+**Why This Matters**:
+- Validates that AI-assisted development can compress multi-sprint features into hours when planning is thorough
+- Demonstrates that the AOD methodology (discover → define → plan → build → deliver) works end-to-end
+- The 6-wave agent strategy (A-F) kept context manageable across the large task set
+
+**Tags**: #process #namespace-unification #ai-assisted #retrospective #feature-010
+
+### Related Files:
+- `specs/010-aod-lifecycle-formalization/` - Full spec, plan, and tasks
+- `docs/product/02_PRD/010-pdlc-sdlc-formalization-2026-02-08.md` - PRD
+- `docs/guides/AOD_LIFECYCLE.md` - Primary lifecycle reference (created in this feature)
+- `docs/guides/AOD_MIGRATION.md` - Command migration reference (created in this feature)
+
+---
+
+### Entry 5: Feature 011 — GitHub Projects Lifecycle Board Retrospective
+
+## [Process] - GitHub Projects v2 Integration with Graceful Degradation
+
+**Date**: 2026-02-09
+**Context**: Feature 011 added a visual kanban board (GitHub Projects v2) over the existing Issue+label lifecycle tracking system, with 5 columns matching AOD lifecycle stages.
+
+**Problem**:
+- Teams using AOD had no visual board view for daily standups or sprint planning
+- The only way to see lifecycle state was to read BACKLOG.md or query Issues with label filters
+- Needed to integrate with GitHub Projects v2 API without breaking existing workflows
+
+**Solution**:
+1. **6 new bash functions** in `github-lifecycle.sh` (879 lines) with session-scoped caching
+2. **7-level graceful degradation hierarchy** — board failures never block core lifecycle
+3. **Automatic board sync** wired into 4 lifecycle commands (`/aod.define`, `/aod.spec`, `/aod.build`, `/aod.deliver`)
+4. **First-run detection** with one-time setup hint and marker file suppression
+
+**Delivery Metrics**:
+- Estimated: 12-17 hours (Team-Lead: optimistic 12h, realistic 15h, pessimistic 20h)
+- Actual: ~3-4 hours (AI-assisted, 2 main commits + 1 fix)
+- Tasks: 22/22 complete (T003 removed during planning)
+- PR: #12
+
+**What Surprised Us**:
+- Had to re-authenticate `gh` CLI and run a setup script to actually create the board — the `project` OAuth scope wasn't included by default
+- The jq parse bug with control characters in issue body JSON was unexpected — `gh project item-add` output became unparseable when the issue body contained newlines
+
+**Key Learning**: When integrating with GitHub's Projects v2 API, always account for authentication scope requirements (`gh auth refresh -s project`) as a first-class setup step. Users will need explicit instructions. Also, always handle JSON output from `gh` commands defensively — issue bodies can contain arbitrary characters that break jq parsing.
+
+**Why This Matters**:
+- Validates the "view layer, not load-bearing" architecture principle — board never blocks core workflow
+- Demonstrates that graceful degradation with 7 explicit levels makes integrations resilient
+- The re-authentication requirement highlights the importance of clear first-run setup docs for upstream users
+
+**Tags**: #process #github-projects #api-integration #graceful-degradation #retrospective #feature-011
+
+### Related Files:
+- `specs/011-github-projects-lifecycle/` — Full spec, plan, and tasks
+- `docs/product/02_PRD/011-github-projects-lifecycle-board-2026-02-09.md` — PRD
+- `.aod/scripts/bash/github-lifecycle.sh` — Implementation (board functions)
+- `specs/011-github-projects-lifecycle/quickstart.md` — User-facing setup guide
 
 ---
 

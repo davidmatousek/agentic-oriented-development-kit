@@ -1,6 +1,6 @@
 # Tasks: Example Feature
 
-> **Example** -- delete this directory after creating your first real feature with `/triad.tasks`.
+> **Example** -- delete this directory after creating your first real feature with `/aod.tasks`.
 
 **Feature ID**: 000
 **Status**: Example

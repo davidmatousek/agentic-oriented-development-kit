@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.0] - 2026-02-09
+
+### BREAKING CHANGES
+
+#### Unified `/aod.*` Command Namespace (Feature 010)
+
+All lifecycle commands unified under `/aod.*` namespace. The dual namespace (`/pdl.*` + `/triad.*`) has been replaced with a single, consistent command set aligned with the 5-stage AOD lifecycle: Discover → Define → Plan → Build → Deliver.
+
+**Command Namespace Migration:**
+
+| Former Command | New Command | Stage | Notes |
+|----------------|-------------|-------|-------|
+| `/pdl.idea` | `/aod.discover` | Discover | Unified capture + score + validate |
+| `/pdl.run` | `/aod.discover` | Discover | Full discovery flow |
+| `/pdl.score` | `/aod.score` | Discover | Re-score existing idea |
+| `/pdl.validate` | *(removed)* | — | Integrated into `/aod.discover` |
+| `/triad.prd` | `/aod.define` | Define | Create PRD with Triad sign-off |
+| `/triad.specify` | `/aod.spec` | Plan | Create spec.md with PM sign-off |
+| `/triad.plan` | `/aod.project-plan` | Plan | Create plan.md with PM+Architect sign-off |
+| `/triad.tasks` | `/aod.tasks` | Plan | Create tasks.md with triple sign-off |
+| `/triad.implement` | `/aod.build` | Build | Execute with Architect checkpoints |
+| `/triad.close-feature` | `/aod.deliver` | Deliver | Close feature with retrospective |
+| `/triad.clarify` | `/aod.clarify` | — | Resolve spec ambiguities |
+| `/triad.analyze` | `/aod.analyze` | — | Cross-artifact consistency check |
+| `/triad.checklist` | `/aod.checklist` | — | Quality checklist |
+| `/triad.constitution` | `/aod.constitution` | — | Governance principles |
+
+**New Commands:**
+- `/aod.plan` — Intelligent router that auto-detects which Plan sub-step (spec → project-plan → tasks) comes next
+- `/aod.status` — Backlog snapshot and lifecycle stage summary
+
+**Migration**: Replace all `/pdl.*` and `/triad.*` commands with their `/aod.*` equivalents. See `docs/guides/AOD_MIGRATION.md` for detailed instructions.
+
+### Added — AOD Lifecycle Formalization (Feature 010)
+
+**Lifecycle Tracking:**
+- GitHub Issues track feature lifecycle stage via `stage:*` labels
+- `BACKLOG.md` auto-regenerated from GitHub Issues grouped by lifecycle stage
+- All `/aod.*` commands auto-update Issue labels on stage transitions
+- New scripts: `github-lifecycle.sh`, `backlog-regenerate.sh`, `migrate-backlog.sh`
+
+**Governance Tiers:**
+- **Light** (2 gates): Prototype/exploration mode
+- **Standard** (6 gates, default): Production features
+- **Full** (all gates): Regulated environments
+
+**Documentation:**
+- `docs/guides/AOD_LIFECYCLE.md` — Full lifecycle documentation
+- `docs/guides/AOD_LIFECYCLE_GUIDE.md` — Practical usage guide
+- `docs/guides/AOD_QUICKSTART.md` — Quick start for new adopters
+- `docs/guides/AOD_MIGRATION.md` — Migration guide from old namespaces
+- `docs/guides/AOD_INFOGRAPHIC.md` — Visual lifecycle diagram
+
+**Skill Consolidation:**
+- 9 old skills (`pdl-*`, `prd-create`, `spec-validator`, `architecture-validator`, `implementation-checkpoint`, `thinking-lens`) replaced by 10 unified `aod-*` skills
+- Skills are now self-contained with no cross-skill Skill tool coupling
+
+### Added — GitHub Projects Lifecycle Board (Feature 011)
+
+Visual kanban board integration via GitHub Projects (v2) with 5 columns matching AOD lifecycle stages.
+
+**Board Functions:**
+- `aod_gh_setup_board` — One-time board creation with 5 Status columns
+- `aod_gh_add_to_board` — Auto-add issues to board on creation
+- `aod_gh_move_on_board` — Auto-move issues between columns on stage transitions
+- `aod_gh_check_board` — Board availability check with session-scoped caching
+
+**Integration:**
+- `/aod.discover` auto-adds issue to "Discover" column
+- `/aod.define`, `/aod.spec`, `/aod.build`, `/aod.deliver` auto-move issues to matching columns
+- 7-level graceful degradation — board failures never block core workflow
+
+**Prerequisites:**
+- GitHub CLI (`gh`) v2.40+
+- OAuth scope: `project` (add via `gh auth refresh -s project`)
+
+### Removed
+- All 14 `/pdl.*` and `/triad.*` command files
+- 9 old skill directories (`pdl-*`, `prd-create`, `spec-validator`, etc.)
+- 3 old guide files (`PDL_TRIAD_INFOGRAPHIC.md`, `PDL_TRIAD_LIFECYCLE.md`, `PDL_TRIAD_QUICKSTART.md`)
+
+---
+
 ## [4.0.0] - 2026-02-08
 
 ### BREAKING CHANGES
@@ -220,23 +303,25 @@ See [MIGRATION.md](MIGRATION.md) for detailed upgrade instructions from v1.x to 
 
 ## Version Comparison
 
-| Feature | v1.0.0 | v1.1.0 | v2.0.0 | v2.1.0 | v3.0.0 | v4.0.0 |
-|---------|--------|--------|--------|--------|--------|--------|
-| Command Set | Triad + Vanilla | Triad + Vanilla | Triad + Vanilla | Triad + Vanilla | Triad only (10 commands) | Triad only (10 commands) |
-| Triad Governance | Sequential | Sequential | Parallel | Parallel | Parallel | Parallel |
-| CLAUDE.md Size | 192 lines | 70 lines | 70 lines | 70 lines | ~80 lines | ~80 lines |
-| Context Loading | Manual | @-references | @-references | @-references | @-references | @-references |
-| Version Detection | - | - | Automatic | Automatic | Automatic | Automatic |
-| Feature Flags | - | - | Supported | Supported | Supported | Supported |
-| Degradation | - | - | Graceful | Graceful | Graceful | Graceful |
-| Agent Count | 13 | 13 | 13 | 13 (refactored) | 13 | 13 |
-| Agent Line Reduction | - | - | - | 58% | 58% | 58% |
-| Skill Tool Coupling | - | - | 3 cross-calls | 3 cross-calls | 0 (self-contained) | 0 (self-contained) |
-| Branding | Spec Kit | Spec Kit | Spec Kit | Spec Kit | Spec Kit | AOD Kit |
-| Thinking Lenses | 5 | 5 | 5 | 5 | 5 | 8 |
+| Feature | v1.0.0 | v1.1.0 | v2.0.0 | v2.1.0 | v3.0.0 | v4.0.0 | **v5.0.0** |
+|---------|--------|--------|--------|--------|--------|--------|--------|
+| Command Set | Triad + Vanilla | Triad + Vanilla | Triad + Vanilla | Triad + Vanilla | Triad only (10) | Triad only (10) | **AOD unified (16)** |
+| Namespace | /speckit + /triad | /speckit + /triad | /speckit + /triad | /speckit + /triad | /triad + /pdl | /triad + /pdl | **/aod.*** |
+| Triad Governance | Sequential | Sequential | Parallel | Parallel | Parallel | Parallel | Parallel |
+| Governance Tiers | - | - | - | - | - | - | **Light/Standard/Full** |
+| CLAUDE.md Size | 192 lines | 70 lines | 70 lines | 70 lines | ~80 lines | ~80 lines | ~80 lines |
+| Context Loading | Manual | @-references | @-references | @-references | @-references | @-references | @-references |
+| Version Detection | - | - | Automatic | Automatic | Automatic | Automatic | Automatic |
+| Degradation | - | - | Graceful | Graceful | Graceful | Graceful | Graceful (7 levels) |
+| Agent Count | 13 | 13 | 13 | 13 (refactored) | 13 | 13 | 13 |
+| Skill Tool Coupling | - | - | 3 cross-calls | 3 cross-calls | 0 (self-contained) | 0 (self-contained) | 0 (self-contained) |
+| Branding | Spec Kit | Spec Kit | Spec Kit | Spec Kit | Spec Kit | AOD Kit | AOD Kit |
+| Thinking Lenses | 5 | 5 | 5 | 5 | 5 | 8 | 14 |
+| Lifecycle Tracking | - | - | - | - | - | - | **GitHub Issues + Board** |
 
 ---
 
+[5.0.0]: https://github.com/davidmatousek/agentic-oriented-development-kit/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/davidmatousek/product-led-spec-kit/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/davidmatousek/product-led-spec-kit/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/davidmatousek/product-led-spec-kit/compare/v2.0.0...v2.1.0

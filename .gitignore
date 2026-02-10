@@ -110,6 +110,7 @@ prisma/dev.db*
 # But ignore local customizations that shouldn't be in template
 .aod/local/
 .aod/*.lock
+.aod/memory/github-project.json
 
 # ============================================================================
 # Product-led specific
