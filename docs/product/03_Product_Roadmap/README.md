@@ -16,7 +16,7 @@ Before MVP, you don't have enough information:
 - No validated assumptions
 - Priorities will change
 
-**Pre-MVP**: Focus on `/triad.prd` → build MVP
+**Pre-MVP**: Focus on `/aod.define` → build MVP
 **Post-MVP**: Create roadmap based on what you learned
 
 ---

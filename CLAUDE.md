@@ -5,7 +5,7 @@
 ## Core Constraints
 - **Product-Led**: Start with product vision, PRDs, and user stories
 - **Source of Truth**: `.aod/spec.md`
-- **Validation Required**: Run `/triad.analyze` before PRs
+- **Validation Required**: Run `/aod.analyze` before PRs
 - **Local-First**: Always supports local `.aod/` file workflows
 
 ## Git Workflow
@@ -36,17 +36,17 @@ agentic-oriented-development-kit/
 
 ## Commands
 **PDL workflow** (optional, before Triad):
-- `/pdl.run` → `/pdl.idea` → `/pdl.score` → `/pdl.validate`
+- `/aod.discover` → `/aod.discover` → `/aod.score` → `/aod.validate`
 
 **Triad workflow**:
-- `/triad.prd` → `/triad.specify` → `/triad.plan` → `/triad.tasks` → `/triad.implement`
+- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build`
 
 **Supporting commands**:
-- `/triad.clarify` — Resolve spec ambiguities
-- `/triad.analyze` — Cross-artifact consistency check
-- `/triad.checklist` — Generate quality checklist
-- `/triad.constitution` — Manage governance principles
-- `/triad.close-feature` — Close completed feature
+- `/aod.clarify` — Resolve spec ambiguities
+- `/aod.analyze` — Cross-artifact consistency check
+- `/aod.checklist` — Generate quality checklist
+- `/aod.constitution` — Manage governance principles
+- `/aod.deliver` — Close completed feature
 
 ## SDLC Triad Governance
 | Role | Defines | Authority |
@@ -64,7 +64,7 @@ agentic-oriented-development-kit/
 All deployments must go through the devops agent. Never deploy without verification.
 
 ## Key Principles
-- **Vision First**: `/triad.prd` (includes vision) → spec → plan → tasks
+- **Vision First**: `/aod.define` (includes vision) → spec → plan → tasks
 - **Triple Sign-off**: PM + Architect + Team-Lead approval on tasks.md
 - **Definition of Done**: 3-step validation before marking complete
 

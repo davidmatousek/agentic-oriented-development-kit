@@ -13,7 +13,17 @@ No governance gates — this is a read-only utility command.
 
 ## How It Works
 
-### Step 1: Regenerate BACKLOG.md
+### Step 1: Reconcile Board
+
+Run board reconciliation to fix any label↔board column drift before generating the snapshot:
+
+```bash
+source .aod/scripts/bash/github-lifecycle.sh && aod_gh_reconcile_board
+```
+
+This compares each open issue's `stage:*` label to its board column and fixes mismatches. If the board or `gh` is unavailable, it skips silently.
+
+### Step 2: Regenerate BACKLOG.md
 
 Run the backlog regeneration script with JSON output mode:
 
@@ -28,7 +38,7 @@ bash .aod/scripts/bash/backlog-regenerate.sh --json
 
 **If the script fails or `gh` is unavailable**: Display a warning and attempt to read the existing BACKLOG.md file instead. If no BACKLOG.md exists either, report that no backlog data is available.
 
-### Step 2: Display Stage Summary
+### Step 3: Display Stage Summary
 
 Present a formatted summary table:
 
@@ -49,7 +59,7 @@ AOD LIFECYCLE STATUS
 BACKLOG.md regenerated at {file_path}.
 ```
 
-### Step 3: Show Active Feature Context (Optional)
+### Step 4: Show Active Feature Context (Optional)
 
 If the current git branch matches a feature pattern (`NNN-*`), display the active feature context:
 
@@ -78,12 +88,14 @@ If not on a feature branch, skip this section.
 ## Integration
 
 ### Reads
+- `.aod/scripts/bash/github-lifecycle.sh` — reconciliation functions
 - `.aod/scripts/bash/backlog-regenerate.sh` — regeneration script (JSON mode)
 - `docs/product/_backlog/BACKLOG.md` — fallback if script fails
 - `specs/{NNN}-*/spec.md`, `plan.md`, `tasks.md` — active feature context
 
 ### Invokes
-- None (utility — no sub-commands or governance gates)
+- `aod_gh_reconcile_board` — fixes label↔board drift before snapshot
 
 ### Updates
 - `docs/product/_backlog/BACKLOG.md` — regenerated from GitHub Issues
+- GitHub Projects board — reconciles mismatched columns

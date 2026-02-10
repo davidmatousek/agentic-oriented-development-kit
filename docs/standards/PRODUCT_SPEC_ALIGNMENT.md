@@ -37,7 +37,7 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
 ### Required Workflow (NON-NEGOTIABLE)
 
 ```
-1. /triad.prd <topic>             → Product Manager creates PRD
+1. /aod.define <topic>             → Product Manager creates PRD
    │
    ├─ PM researches product context (vision, OKRs, roadmap)
    ├─ PM documents requirements in industry-standard format
@@ -50,7 +50,7 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
    ├─ PM addresses feedback and finalizes PRD
    └─ PRD marked as "Approved" in INDEX.md
 
-3. /triad.specify                 → Create spec.md from PRD
+3. /aod.spec                 → Create spec.md from PRD
    │
    ├─ Architect reads approved PRD
    ├─ Architect creates spec.md referencing PRD
@@ -64,7 +64,7 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
    ├─ PM uses sign-off checklist (see below)
    └─ PM approves OR exercises veto with required changes
 
-5. /triad.plan                    → Create plan.md from spec
+5. /aod.project-plan                    → Create plan.md from spec
    │
    ├─ Architect creates technical plan
    ├─ plan.md references product docs
@@ -76,7 +76,7 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
    ├─ PM checks technical approach serves user stories
    └─ PM approves OR exercises veto
 
-7. /triad.tasks                   → Create tasks.md from plan
+7. /aod.tasks                   → Create tasks.md from plan
    │
    ├─ Team Lead breaks down implementation
    ├─ tasks.md prioritization considers user value
@@ -88,7 +88,7 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
    ├─ PM checks MVP scope matches PRD in-scope items
    └─ PM approves OR exercises veto
 
-9. /triad.implement               → Execute implementation
+9. /aod.build               → Execute implementation
    │
    └─ Implementation begins ONLY after PM approval
 ```
@@ -220,7 +220,7 @@ Product Manager adds this section to spec.md, plan.md, or tasks.md after validat
 
 **Status**: ✅ Approved for implementation
 
-**Next Step**: [/triad.plan / /triad.tasks / /triad.implement]
+**Next Step**: [/aod.project-plan / /aod.tasks / /aod.build]
 
 ---
 ```
@@ -390,10 +390,10 @@ Constitution v1.2.0, Principle X makes PM sign-off **NON-NEGOTIABLE**.
 ### 2. Workflow Integration
 
 Triad commands enforce PM sign-off:
-- `/triad.specify` requires approved PRD
-- `/triad.plan` requires PM-approved spec.md
-- `/triad.tasks` requires PM-approved plan.md
-- `/triad.implement` requires PM-approved tasks.md
+- `/aod.spec` requires approved PRD
+- `/aod.project-plan` requires PM-approved spec.md
+- `/aod.tasks` requires PM-approved plan.md
+- `/aod.build` requires PM-approved tasks.md
 
 ### 3. Pull Request Requirements
 
@@ -417,7 +417,7 @@ pm_approver: product-manager
 
 ### 5. Validation Commands
 
-Use `/triad.analyze` to validate product-spec consistency:
+Use `/aod.analyze` to validate product-spec consistency:
 - Checks PRD → spec → plan → tasks traceability
 - Validates all artifacts have PM sign-off
 - Identifies misalignments and missing approvals
@@ -431,10 +431,10 @@ Use `/triad.analyze` to validate product-spec consistency:
 - `root-cause-analyzer` - Dig into complex requirement ambiguities
 
 **Commands**:
-- `/triad.prd <topic>` - Create new PRD
-- `/triad.specify` - Create spec from PRD
-- `/triad.analyze` - Validate product-spec consistency
-- `/triad.clarify` - Ask clarifying questions
+- `/aod.define <topic>` - Create new PRD
+- `/aod.spec` - Create spec from PRD
+- `/aod.analyze` - Validate product-spec consistency
+- `/aod.clarify` - Ask clarifying questions
 
 **Agents**:
 - `product-manager` - Product Manager with alignment validation expertise

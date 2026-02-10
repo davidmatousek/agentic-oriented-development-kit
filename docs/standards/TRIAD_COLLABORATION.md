@@ -101,7 +101,7 @@ Step 0.5: Architect Provides Baseline (INFRASTRUCTURE ONLY)
 ├─ Create: specs/{feature-id}/architect-baseline.md
 └─ Output: Infrastructure baseline report handed to PM
 
-Step 1: PM Drafts PRD (via /triad.prd)
+Step 1: PM Drafts PRD (via /aod.define)
 ├─ Reads architecture docs
 ├─ Incorporate Architect baseline into "Current State" section
 ├─ Define product requirements (What & Why) but NOT timeline
@@ -126,7 +126,7 @@ Step 4: PM Finalizes PRD
 ├─ Incorporate: Tech-Lead timeline + Architect feedback
 ├─ Validate: Product requirements still achievable
 ├─ Publish: Approved PRD with triple validation
-└─ Output: Final PRD ready for /triad.specify
+└─ Output: Final PRD ready for /aod.spec
 ```
 
 **Timeline**: ~2-4 hours for full Triad review cycle
@@ -143,7 +143,7 @@ Step 4: PM Finalizes PRD
 Step 0: PM Analyzes Product Need
 └─ Same as infrastructure workflow
 
-Step 1: PM Drafts PRD (via /triad.prd)
+Step 1: PM Drafts PRD (via /aod.define)
 ├─ Define product requirements
 ├─ Mark timeline as "TBD"
 └─ Output: Draft PRD
@@ -401,7 +401,7 @@ Step 3: PM Finalizes PRD
 **Automated Triad (Future)**:
 ```bash
 # Auto-invoke Triad for PRD creation
-/triad.prd <topic>
+/aod.define <topic>
 
 # What it does:
 # 1. Auto-detect infrastructure vs feature work
