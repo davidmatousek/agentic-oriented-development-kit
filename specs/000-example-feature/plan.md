@@ -1,6 +1,6 @@
 # Plan: Example Feature
 
-> **Example** -- delete this directory after creating your first real feature with `/triad.plan`.
+> **Example** -- delete this directory after creating your first real feature with `/aod.project-plan`.
 
 **Feature ID**: 000
 **Status**: Example

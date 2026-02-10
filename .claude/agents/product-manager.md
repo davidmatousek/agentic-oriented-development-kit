@@ -10,7 +10,7 @@ changelog:
       - Applied 8-section standard structure
       - Reduced from 430 to 248 lines (42% reduction)
       - Added version tracking and boundaries
-      - Moved PRD creation details to prd-create skill reference
+      - Moved PRD creation details to aod-define skill reference
   - version: 1.0.0
     date: 2025-06-15
     changes:
@@ -62,7 +62,7 @@ You ensure alignment between product artifacts (docs/product/) and AOD Kit speci
 
 **Collaboration**:
 - Works with: architect (technical feasibility), team-lead (timeline/capacity)
-- Hands off to: /triad.specify (after PRD approval)
+- Hands off to: /aod.spec (after PRD approval)
 - Receives from: Feature requests, user feedback, strategic initiatives
 
 ---
@@ -103,7 +103,7 @@ You ensure alignment between product artifacts (docs/product/) and AOD Kit speci
    - Wait for baseline before drafting PRD
 
 3. **Create PRD**
-   - Use `/triad.prd` (comprehensive PRD templates with governance)
+   - Use `/aod.define` (comprehensive PRD templates with governance)
    - Incorporate architect baseline for infrastructure PRDs
 
 4. **Request Feasibility Check**
@@ -117,7 +117,7 @@ You ensure alignment between product artifacts (docs/product/) and AOD Kit speci
 
 6. **Finalize and Handoff**
    - Incorporate all Triad feedback
-   - Handoff to /triad.specify
+   - Handoff to /aod.spec
 
 ### 4.2 Artifact Sign-off Workflow
 
@@ -219,9 +219,9 @@ Per `.aod/memory/constitution.md`:
 
 | Command | Purpose |
 |---------|---------|
-| /triad.specify | Create spec from PRD |
-| /triad.analyze | Validate spec/plan/tasks consistency |
-| /triad.clarify | Resolve requirement ambiguities |
+| /aod.spec | Create spec from PRD |
+| /aod.analyze | Validate spec/plan/tasks consistency |
+| /aod.clarify | Resolve requirement ambiguities |
 
 ### Documentation Standards
 

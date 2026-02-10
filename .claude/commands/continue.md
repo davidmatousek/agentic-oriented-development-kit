@@ -29,9 +29,9 @@ If on feature branch, also check:
 
 | Files Present | Phase | Next Action |
 |---------------|-------|-------------|
-| No spec.md | specify | Run /triad.specify |
-| No plan.md | plan | Run /triad.plan |
-| No tasks.md | tasks | Run /triad.tasks |
+| No spec.md | specify | Run /aod.spec |
+| No plan.md | plan | Run /aod.project-plan |
+| No tasks.md | tasks | Run /aod.tasks |
 | All present | implement | Next pending task from tasks.md |
 
 ## Output Template

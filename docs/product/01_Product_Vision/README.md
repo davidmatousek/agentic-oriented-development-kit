@@ -116,7 +116,7 @@ All PRDs in `docs/product/02_PRD/` must reference this vision:
 - PRD user stories must serve defined personas
 
 ### Spec Validation
-When creating `spec.md` with `/triad.specify`:
+When creating `spec.md` with `/aod.spec`:
 - product-manager validates spec aligns with product vision
 - Architect ensures technical approach serves user needs
 - Team-lead prioritizes work based on persona value
@@ -195,7 +195,7 @@ docs/product/01_Product_Vision/
 
 **Agent Tools**:
 - `.claude/agents/product-manager.md` - Product Manager agent
-- `/triad.prd` - Create PRD with Triad governance
+- `/aod.define` - Create PRD with Triad governance
 
 ---
 

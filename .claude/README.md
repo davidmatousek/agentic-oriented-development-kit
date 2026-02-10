@@ -67,15 +67,15 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| **prd-create** *(internal)* | PRD content generation (called by `/triad.prd`) | Invoked automatically — use `/triad.prd` instead |
-| **implementation-checkpoint** | Create implementation checkpoints for long features | Mid-feature progress tracking, wave completion |
+| **aod-define** *(internal)* | PRD content generation (called by `/aod.define`) | Invoked automatically — use `/aod.define` instead |
+| **aod-build** | Create implementation checkpoints for long features | Mid-feature progress tracking, wave completion |
 
 ### Architecture & Validation Skills
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| **architecture-validator** | Validate architectural decisions and consistency | Before finalizing plan.md, after major design changes |
-| **spec-validator** | Validate spec.md, plan.md, tasks.md consistency | Before PRs, after task generation |
+| **aod-project-plan** | Validate architectural decisions and consistency | Before finalizing plan.md, after major design changes |
+| **aod-spec** | Validate spec.md, plan.md, tasks.md consistency | Before PRs, after task generation |
 
 ### Knowledge Management Skills
 
@@ -96,7 +96,7 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| **thinking-lens** | Apply structured thinking methodologies | Systematic analysis, risk assessment, decision-making |
+| **aod-lens** | Apply structured thinking methodologies | Systematic analysis, risk assessment, decision-making |
 
 **Skills are domain-agnostic** and require minimal customization beyond `{{PROJECT_NAME}}` substitution.
 
@@ -110,21 +110,21 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 
 | Command | Purpose | Auto Sign-offs |
 |---------|---------|----------------|
-| `/triad.prd <topic>` | Create PRD with PM + Architect + Tech-Lead validation | 3-way (PM, Architect, Tech-Lead) |
-| `/triad.specify` | Create spec.md with PM sign-off | 1-way (PM) |
-| `/triad.plan` | Create plan.md with PM + Architect sign-off | 2-way (PM, Architect) |
-| `/triad.tasks` | Create tasks.md with triple sign-off | 3-way (PM, Architect, Tech-Lead) |
-| `/triad.implement` | Execute with architect checkpoints | Architect checkpoints at milestones |
-| `/triad.close-feature {NNN}` | Close feature with parallel doc updates | Automatic documentation |
+| `/aod.define <topic>` | Create PRD with PM + Architect + Tech-Lead validation | 3-way (PM, Architect, Tech-Lead) |
+| `/aod.spec` | Create spec.md with PM sign-off | 1-way (PM) |
+| `/aod.project-plan` | Create plan.md with PM + Architect sign-off | 2-way (PM, Architect) |
+| `/aod.tasks` | Create tasks.md with triple sign-off | 3-way (PM, Architect, Tech-Lead) |
+| `/aod.build` | Execute with architect checkpoints | Architect checkpoints at milestones |
+| `/aod.deliver {NNN}` | Close feature with parallel doc updates | Automatic documentation |
 
 ### Utility Commands
 
 | Command | Purpose | Governance |
 |---------|---------|-----------|
-| `/triad.clarify` | Ask 5 clarification questions | N/A |
-| `/triad.analyze` | Cross-artifact consistency check | N/A |
-| `/triad.checklist` | Generate custom task checklist | N/A |
-| `/triad.constitution` | Create/update project constitution | N/A |
+| `/aod.clarify` | Ask 5 clarification questions | N/A |
+| `/aod.analyze` | Cross-artifact consistency check | N/A |
+| `/aod.checklist` | Generate custom task checklist | N/A |
+| `/aod.constitution` | Create/update project constitution | N/A |
 
 ### Orchestration Commands
 
@@ -141,22 +141,22 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 
 ```bash
 # 1. Create PRD with automatic validation
-/triad.prd "User authentication with OAuth2"
+/aod.define "User authentication with OAuth2"
 
 # 2. Create specification with PM sign-off
-/triad.specify
+/aod.spec
 
 # 3. Create architecture with PM + Architect sign-off
-/triad.plan
+/aod.project-plan
 
 # 4. Generate tasks with triple sign-off (PM + Architect + Tech-Lead)
-/triad.tasks
+/aod.tasks
 
 # 5. Execute implementation with architect checkpoints
-/triad.implement
+/aod.build
 
 # 6. Close feature with documentation updates
-/triad.close-feature 001
+/aod.deliver 001
 ```
 
 **Automatic Sign-offs**: PM approves product requirements, Architect approves technical design, Tech-Lead optimizes task assignment for parallel execution.
@@ -211,7 +211,7 @@ Expected Output: backend/src/auth/* implementation
 ### Using SlashCommand Tool
 
 ```
-SlashCommand: /triad.tasks
+SlashCommand: /aod.tasks
 Context: .aod/spec.md and plan.md must exist
 Expected Output: .aod/tasks.md with dependency-ordered tasks
 ```
@@ -246,29 +246,33 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 │   ├── ux-ui-designer.md
 │   └── security-analyst.md
 │
-├── skills/           → 10 automation capabilities
-│   ├── prd-create/
-│   ├── implementation-checkpoint/
-│   ├── architecture-validator/
-│   ├── spec-validator/
+├── skills/           → 12 automation capabilities
+│   ├── aod-define/
+│   ├── aod-discover/
+│   ├── aod-score/
+│   ├── aod-build/
+│   ├── aod-project-plan/
+│   ├── aod-spec/
+│   ├── aod-lens/
 │   ├── kb-create/
 │   ├── kb-query/
 │   ├── root-cause-analyzer/
 │   ├── code-execution-helper/
-│   ├── git-workflow-helper/
-│   └── thinking-lens/
+│   └── git-workflow-helper/
 │
-├── commands/         → 10 slash commands
-│   ├── triad.prd.md
-│   ├── triad.specify.md
-│   ├── triad.plan.md
-│   ├── triad.tasks.md
-│   ├── triad.implement.md
-│   ├── triad.close-feature.md
-│   ├── triad.clarify.md
-│   ├── triad.analyze.md
-│   ├── triad.checklist.md
-│   ├── triad.constitution.md
+├── commands/         → 14 slash commands
+│   ├── aod.define.md
+│   ├── aod.spec.md
+│   ├── aod.project-plan.md
+│   ├── aod.tasks.md
+│   ├── aod.build.md
+│   ├── aod.deliver.md
+│   ├── aod.clarify.md
+│   ├── aod.analyze.md
+│   ├── aod.checklist.md
+│   ├── aod.constitution.md
+│   ├── aod.discover.md
+│   ├── aod.score.md
 │   ├── execute.md
 │   └── continue.md
 │
@@ -279,7 +283,7 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 
 ## Key Principles
 
-1. **Triad Workflow** - Use `/triad.*` commands for automatic governance (PM + Architect + Tech-Lead sign-offs)
+1. **Triad Workflow** - Use `/aod.*` commands for automatic governance (PM + Architect + Tech-Lead sign-offs)
 2. **Parallel Execution** - Team-lead orchestrates agents working on different files simultaneously
 3. **Constitutional Compliance** - All agents respect `.aod/memory/constitution.md` principles
 4. **Knowledge Capture** - Use KB skills to document patterns, bugs, and architectural decisions
@@ -289,10 +293,10 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 
 ## Tips
 
-- **Start with Triad**: Use `/triad.*` commands for all features (automatic governance)
-- **Parallel Orchestration**: Use `/triad.implement` for features with architect checkpoints
+- **Start with Triad**: Use `/aod.*` commands for all features (automatic governance)
+- **Parallel Orchestration**: Use `/aod.build` for features with architect checkpoints
 - **Research First**: Use `web-researcher` agent before implementing with unfamiliar libraries
-- **Checkpoint Long Features**: Use `implementation-checkpoint` skill for features spanning multiple sessions
+- **Checkpoint Long Features**: Use `aod-build` skill for features spanning multiple sessions
 - **Review Before Deploy**: Always invoke `code-reviewer` agent in Phase 5 before production deployment
 
 ---

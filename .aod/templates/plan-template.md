@@ -37,12 +37,12 @@
 
 ```
 specs/[###-feature]/
-├── plan.md              # This file (/triad.plan output)
+├── plan.md              # This file (/aod.project-plan output)
 ├── research.md          # Research phase output
 ├── data-model.md        # Design artifact (if applicable)
 ├── quickstart.md        # Design artifact (if applicable)
 ├── contracts/           # API contracts (if applicable)
-└── tasks.md             # Task breakdown (/triad.tasks output)
+└── tasks.md             # Task breakdown (/aod.tasks output)
 ```
 
 ### Source Code (repository root)

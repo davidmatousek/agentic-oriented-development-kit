@@ -16,21 +16,21 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 ### SDLC Workflow Commands
 
 ```bash
-/triad.prd <topic>         # Create PRD with Triad validation (includes optional vision workshop)
-/triad.specify             # Create spec.md with auto PM sign-off
-/triad.plan                # Create plan.md with auto PM + Architect sign-off
-/triad.tasks               # Create tasks.md with auto triple sign-off
-/triad.implement           # Execute with auto architect checkpoints
-/triad.close-feature {NNN} # Close feature with parallel doc updates
+/aod.define <topic>         # Create PRD with Triad validation (includes optional vision workshop)
+/aod.spec             # Create spec.md with auto PM sign-off
+/aod.project-plan                # Create plan.md with auto PM + Architect sign-off
+/aod.tasks               # Create tasks.md with auto triple sign-off
+/aod.build           # Execute with auto architect checkpoints
+/aod.deliver {NNN} # Close feature with parallel doc updates
 ```
 
 ### Utility Commands
 
 ```bash
-/triad.clarify             # Ask clarification questions about current feature
-/triad.analyze             # Verify spec/plan/task consistency
-/triad.checklist           # Run Definition of Done checklist
-/triad.constitution        # View or update governance constitution
+/aod.clarify             # Ask clarification questions about current feature
+/aod.analyze             # Verify spec/plan/task consistency
+/aod.checklist           # Run Definition of Done checklist
+/aod.constitution        # View or update governance constitution
 ```
 
 **When to Use**:
@@ -44,13 +44,13 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 
 ## PDL Commands (Optional Discovery)
 
-Use PDL commands for lightweight product discovery before the Triad workflow. PDL is optional — you can start directly at `/triad.prd` if you prefer.
+Use PDL commands for lightweight product discovery before the Triad workflow. PDL is optional — you can start directly at `/aod.define` if you prefer.
 
 ```bash
-/pdl.run <idea>            # Full discovery flow: capture → score → validate → backlog
-/pdl.idea <idea>           # Capture idea + ICE scoring
-/pdl.score IDEA-NNN        # Re-score an existing idea
-/pdl.validate IDEA-NNN     # PM validation gate + user story generation
+/aod.discover <idea>            # Full discovery flow: capture → score → validate → backlog
+/aod.discover <idea>           # Capture idea + ICE scoring
+/aod.score IDEA-NNN        # Re-score an existing idea
+/aod.validate IDEA-NNN     # PM validation gate + user story generation
 ```
 
 **When to Use**:

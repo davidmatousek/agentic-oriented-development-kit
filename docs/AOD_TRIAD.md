@@ -1,51 +1,83 @@
-# SDLC Triad - Quick Reference Guide
+# AOD Triad Governance - Quick Reference Guide
 
-**Version**: 2.0.0 (Constitution v1.4.0 Principle XI)
+**Version**: 3.0.0 (AOD Lifecycle Formalization)
 **Status**: Template
 
 ---
 
-## What is the SDLC Triad?
+## What is the AOD Triad?
 
-**The SDLC Triad** is a lightweight collaboration framework ensuring Product-Architecture-Engineering alignment for all PRDs and specs.
+**The AOD Triad** is the governance layer of the AOD Lifecycle, ensuring Product-Architecture-Engineering alignment at every stage boundary. While the AOD Lifecycle defines five stages (Discover, Define, Plan, Build, Deliver), the Triad provides the approval gates that control progression between them.
 
 **The Three Roles**:
 1. **PM (product-manager)**: Defines **What** & **Why** (user value, business goals)
 2. **Architect**: Defines **How** (technical approach, infrastructure baseline)
 3. **Tech-Lead (team-lead)**: Defines **When** & **Who** (timeline, agent assignments)
 
-**Purpose**: Prevent PRD technical inaccuracies through structured review and validation gates
+**Purpose**: Govern stage transitions through structured review and validation gates, preventing misalignment between product intent and technical execution
 
 ---
 
-## Complete Triad Workflow (Simple)
+## Lifecycle Context
+
+The **AOD Lifecycle** defines 5 stages that every feature progresses through:
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│              │     │              │     │              │     │              │     │              │
-│ /triad.prd   │ --> │/triad.specify│ --> │ /triad.plan  │ --> │ /triad.tasks │ --> │/triad.       │
-│              │     │              │     │              │     │              │     │ implement    │
-│              │     │              │     │              │     │              │     │              │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-      ↓                    ↓                    ↓                    ↓                    ↓
- PM + Arch +           Research +          PM + Arch           PM + Arch +         Arch checkpoints
- Tech-Lead             PM sign-off         sign-off            Tech-Lead           during execution
- validation                                                    sign-off
-
-Creates PRD         Research phase →     Creates plan.md     Creates tasks.md    Executes tasks
-with Triad          Creates spec.md      with architecture   with breakdown      with reviews
+Discover → Define → Plan → Build → Deliver
 ```
 
-**Each step auto-validates before proceeding** ✅
+The **Triad** operates as a governance layer at stage boundaries (gates), not as stages themselves:
+
+```
+  Discover    │ G1 │    Define     │ G2 │     Plan      │ G3 │    Build     │ G4 │   Deliver
+              │    │               │    │               │    │              │    │
+  Ideas,      │gate│  PRD,        │gate│  spec.md,     │gate│  Execute    │gate│  Close,
+  scoring     │    │  research    │    │  plan.md,     │    │  tasks,     │    │  verify,
+              │    │               │    │  tasks.md     │    │  review     │    │  document
+```
+
+**Governance Tiers** (configurable per project):
+
+| Tier | Gates | Best For |
+|------|-------|----------|
+| **Light** | G2 (spec sign-off) + G3 (tasks sign-off) | Small features, quick iterations |
+| **Standard** | G1 + G2 + G3 + G4 (6 checkpoints) | Most production features |
+| **Full** | All gates with extended reviews | Critical infrastructure, security changes |
+
+See `docs/guides/AOD_LIFECYCLE.md` for the full lifecycle reference.
+
+---
+
+## Complete Lifecycle with Triad Governance (Simple)
+
+```
+ DISCOVER        │ DEFINE          │         PLAN                          │ BUILD           │ DELIVER
+                 │                 │                                       │                 │
+┌──────────────┐ │ ┌──────────────┐ │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │ ┌──────────────┐
+│              │ │ │              │ │ │              │ │              │ │              │ │ │              │
+│  /aod.define │ │ │  /aod.spec   │ │ │/aod.project- │ │  /aod.tasks  │ │  /aod.build  │ │ │  /aod.close  │
+│  (PRD)       │ │ │  (spec.md)   │ │ │ plan         │ │  (tasks.md)  │ │  (execute)   │ │ │  (deliver)   │
+│              │ │ │              │ │ │  (plan.md)   │ │              │ │              │ │ │              │
+└──────────────┘ │ └──────────────┘ │ └──────────────┘ └──────────────┘ └──────────────┘ │ └──────────────┘
+      ↓          │       ↓          │       ↓                ↓                ↓          │       ↓
+ PM + Arch +    G1   Research +    G2   PM + Arch       PM + Arch +     Arch checkpts   G4   Verify +
+ Tech-Lead           PM sign-off        sign-off        Tech-Lead       during exec          document
+ validation                                             sign-off (G3)
+
+Creates PRD          Research →        Creates plan.md  Creates tasks    Executes tasks      Close feature
+with Triad           Creates spec.md   with architecture with breakdown  with reviews        with docs
+```
+
+**Governance gates (G1-G4) auto-validate before stage transitions** ✅
 
 ---
 
 ## Quick Start
 
-### Creating a PRD with Triad
+### Creating a PRD with Triad Governance
 
 ```bash
-/triad.prd <topic>
+/aod.define <topic>
 ```
 
 **Auto-detects workflow type**:
@@ -53,7 +85,7 @@ with Triad          Creates spec.md      with architecture   with breakdown     
 - Feature keywords (UI, component, API, feature) → Parallel Triad
 
 **What happens automatically**:
-1. PM drafts PRD (via `/triad.prd`)
+1. PM drafts PRD (via `/aod.define`)
 2. Architect creates baseline (if infrastructure) or reviews (if feature)
 3. Tech-Lead performs feasibility check with timeline estimate
 4. Architect performs technical review
@@ -160,7 +192,7 @@ docs/agents/architect/
 
 ## Research Phase (Before Specification)
 
-`/triad.specify` includes a **mandatory research phase** before generating the specification. This ensures specs are grounded in reality rather than assumptions.
+`/aod.spec` includes a **mandatory research phase** before generating the specification. This ensures specs are grounded in reality rather than assumptions.
 
 ### What Gets Researched (in parallel)
 
@@ -186,7 +218,7 @@ Creates `specs/{NNN}-*/research.md` with:
 
 ## Triple Sign-Off Requirements
 
-**After `/triad.prd` completes, you must have**:
+**After `/aod.define` completes, you must have**:
 
 ### For PRDs
 - ✅ **Architect baseline** (if infrastructure) or **Architect review** (if feature)
@@ -194,18 +226,18 @@ Creates `specs/{NNN}-*/research.md` with:
 - ✅ **Architect technical review** with APPROVED verdict
 - ✅ **PM approval** (marks PRD as "Approved")
 
-### For Spec.md (after `/triad.specify`)
+### For Spec.md (after `/aod.spec`)
 - ✅ **Research phase completed**: KB, codebase, architecture, web research
 - ✅ **research.md created**: Findings documented
 - ✅ **PM sign-off**: Product alignment validated
 - ✅ **PM approval**: Spec ready for planning
 
-### For Plan.md (after `/triad.plan`)
+### For Plan.md (after `/aod.project-plan`)
 - ✅ **PM sign-off**: Feasibility validated
 - ✅ **Architect sign-off**: Architecture decisions validated
 - ✅ **PM approval**: Plan ready for tasks
 
-### For Tasks.md (after `/triad.tasks`)
+### For Tasks.md (after `/aod.tasks`)
 - ✅ **PM sign-off**: Prioritization validated
 - ✅ **Architect sign-off**: Technical approach validated
 - ✅ **Team-Lead sign-off**: Agent assignments and parallel execution optimized
@@ -215,25 +247,26 @@ Creates `specs/{NNN}-*/research.md` with:
 
 ---
 
-## Triad Commands
+## AOD Lifecycle Commands (with Triad Governance)
 
-### Automatic Triad (Recommended)
+### Automatic Governance (Recommended)
 
-**Complete Production Workflow** (ALL `/triad.*`):
+**Complete Production Workflow** (ALL `/aod.*`):
 ```bash
-/triad.prd <topic>         # Create PRD with auto-Triad validation
-/triad.specify             # Create spec.md with auto PM sign-off
-/triad.plan                # Create plan.md with auto PM + Architect sign-off
-/triad.tasks               # Create tasks.md with auto PM + Architect + Team-Lead sign-off
-/triad.implement           # Execute with auto architect checkpoints
+/aod.define <topic>        # Define stage: Create PRD with auto-Triad validation
+/aod.spec                  # Plan stage: Create spec.md with auto PM sign-off
+/aod.project-plan          # Plan stage: Create plan.md with auto PM + Architect sign-off
+/aod.tasks                 # Plan stage: Create tasks.md with auto PM + Architect + Team-Lead sign-off
+/aod.build                 # Build stage: Execute with auto architect checkpoints
 ```
 
-**Benefits of `/triad.*` Commands**:
+**Benefits of `/aod.*` Commands**:
+- ✅ Lifecycle stages with built-in governance gates
 - ✅ Automatic agent sign-off validation (no manual invocation)
 - ✅ Frontmatter auto-updated with verdicts
 - ✅ Blocking on CHANGES_REQUESTED (prevents proceeding with issues)
 - ✅ Constitution compliance enforced automatically
-- ✅ Upgrade-safe wrapper architecture (open source commands stay pristine)
+- ✅ Configurable governance tiers (Light, Standard, Full)
 
 ---
 
@@ -250,7 +283,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 
 ### Run Cross-Artifact Analysis
 ```bash
-/triad.analyze  # Validates PRD-spec-plan-tasks alignment + Triad completeness
+/aod.analyze  # Validates PRD-spec-plan-tasks alignment + Triad completeness
 ```
 
 ---
@@ -259,11 +292,11 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 
 ### "PRD has inaccuracies"
 - **Cause**: PM didn't read architect baseline before drafting
-- **Fix**: Re-run `/triad.prd` which will auto-invoke baseline first
+- **Fix**: Re-run `/aod.define` which will auto-invoke baseline first
 
 ### "Timeline estimate unrealistic"
 - **Cause**: Tech-Lead didn't account for dependencies
-- **Fix**: Re-run `/triad.tasks` after clarifying scope
+- **Fix**: Re-run `/aod.tasks` after clarifying scope
 
 ### "Architect blocked PRD"
 - **Cause**: Technical infeasibility or inaccuracies ≥3
@@ -271,7 +304,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 
 ### "Triad cycle too slow (>4 hours)"
 - **Cause**: Rework loops from inaccuracies or missing baseline
-- **Prevention**: Always run `/triad.prd` (auto-Triad) instead of manual PM draft
+- **Prevention**: Always run `/aod.define` (auto-Triad governance) instead of manual PM draft
 
 ---
 
@@ -280,7 +313,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 ### Example 1: Infrastructure PRD
 ```bash
 # User request: "Create PRD for production deployment setup"
-/triad.prd production-deployment-setup
+/aod.define production-deployment-setup
 
 # Auto-detects "production" + "deployment" → Infrastructure PRD
 # Runs Sequential Triad:
@@ -296,7 +329,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 ### Example 2: Feature PRD
 ```bash
 # User request: "Create PRD for user dashboard feature"
-/triad.prd user-dashboard-feature
+/aod.define user-dashboard-feature
 
 # Auto-detects "feature" (no infrastructure keywords) → Feature PRD
 # Runs Parallel Triad:
@@ -313,7 +346,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 ## Best Practices
 
 ### DO ✅
-- Use `/triad.prd` for automatic Triad workflow (recommended)
+- Use `/aod.define` for automatic Triad governance (recommended)
 - Create architect baseline BEFORE PM drafts (infrastructure PRDs)
 - Use Tech-Lead timeline estimate (not PM guess)
 - Cross-check all infrastructure claims against baseline
@@ -331,7 +364,7 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 ## Related Documentation
 
 **Constitutional Authority**:
-- [Constitution, Principle XI](.aod/memory/constitution.md) - SDLC Triad Collaboration
+- [Constitution, Principle XI](.aod/memory/constitution.md) - AOD Triad Governance
 
 **Detailed Guides**:
 - [TRIAD_COLLABORATION.md](standards/TRIAD_COLLABORATION.md) - Comprehensive guide
@@ -343,14 +376,17 @@ cat docs/product/02_PRD/INDEX.md | grep {NNN}
 - [team-lead agent](.claude/agents/team-lead.md) - Feasibility + execution
 
 **Command Reference**:
-- [/triad.prd](.claude/commands/triad.prd.md) - Auto-Triad PRD creation
-- [/triad.specify](.claude/commands/triad.specify.md) - Spec creation with auto PM sign-off
-- [/triad.plan](.claude/commands/triad.plan.md) - Plan creation with auto dual sign-off
-- [/triad.tasks](.claude/commands/triad.tasks.md) - Task creation with auto triple sign-off
-- [/triad.implement](.claude/commands/triad.implement.md) - Implementation with auto checkpoints
+- [/aod.define](.claude/commands/aod.define.md) - Define stage: PRD creation with Triad governance
+- [/aod.spec](.claude/commands/aod.spec.md) - Plan stage: Spec creation with auto PM sign-off
+- [/aod.project-plan](.claude/commands/aod.project-plan.md) - Plan stage: Plan creation with auto dual sign-off
+- [/aod.tasks](.claude/commands/aod.tasks.md) - Plan stage: Task creation with auto triple sign-off
+- [/aod.build](.claude/commands/aod.build.md) - Build stage: Implementation with auto checkpoints
+
+**Lifecycle Reference**:
+- [AOD_LIFECYCLE.md](guides/AOD_LIFECYCLE.md) - Full lifecycle stage reference
 
 ---
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-02-09
 **Maintained By**: Team Lead (workflow orchestration)
 **Review Trigger**: After every 5 PRDs or major process change

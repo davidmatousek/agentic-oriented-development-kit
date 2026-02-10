@@ -10,16 +10,16 @@ The Product Discovery Lifecycle (PDL) provides structured backlog management thr
 
 | File | Purpose | Managed By |
 |------|---------|------------|
-| `01_IDEAS.md` | All captured ideas with ICE scores and status | `/pdl.idea`, `/pdl.run`, `/pdl.score` |
-| `02_USER_STORIES.md` | PM-validated user stories prioritized for development | `/pdl.validate`, `/pdl.run` |
+| `01_IDEAS.md` | All captured ideas with ICE scores and status | `/aod.discover`, `/aod.discover`, `/aod.score` |
+| `02_USER_STORIES.md` | PM-validated user stories prioritized for development | `/aod.validate`, `/aod.discover` |
 
 ### How It Works
 
-1. **Capture**: Run `/pdl.idea` or `/pdl.run` to add ideas with ICE scoring
+1. **Capture**: Run `/aod.discover` or `/aod.discover` to add ideas with ICE scoring
 2. **Score**: Ideas are scored on Impact, Confidence, and Effort (1-10 each)
-3. **Validate**: Run `/pdl.validate` to submit ideas for PM review
+3. **Validate**: Run `/aod.validate` to submit ideas for PM review
 4. **Backlog**: Approved ideas become user stories in `02_USER_STORIES.md`
-5. **Handoff**: Run `/triad.prd` to create a PRD from a backlog item
+5. **Handoff**: Run `/aod.define` to create a PRD from a backlog item
 
 ### Single-User Assumption
 
@@ -29,11 +29,11 @@ PDL assumes single-user/single-agent editing of backlog files. No concurrent edi
 
 Existing individual backlog files (e.g., `feature-idea-name.md`) are preserved alongside the new table-based files. To migrate:
 
-1. Run `/pdl.idea` for each existing backlog item to add it to `01_IDEAS.md`
-2. Run `/pdl.validate` for items ready for development to add them to `02_USER_STORIES.md`
+1. Run `/aod.discover` for each existing backlog item to add it to `01_IDEAS.md`
+2. Run `/aod.validate` for items ready for development to add them to `02_USER_STORIES.md`
 3. Optionally archive or delete the original individual files after migration
 
-New ideas should use `/pdl.idea` or `/pdl.run` to add entries directly to the consolidated tables.
+New ideas should use `/aod.discover` or `/aod.discover` to add entries directly to the consolidated tables.
 
 ---
 
@@ -43,8 +43,8 @@ For projects not using PDL, individual backlog files are still supported.
 
 ## What Goes Here
 
-- Features identified during `/triad.prd` that are "nice to have"
-- Ideas from `/triad.prd` that were descoped from MVP
+- Features identified during `/aod.define` that are "nice to have"
+- Ideas from `/aod.define` that were descoped from MVP
 - User requests that align with vision but aren't prioritized yet
 - Technical improvements that aren't urgent
 
@@ -64,7 +64,7 @@ _backlog/
 # [Feature Name]
 
 **Added**: YYYY-MM-DD
-**Source**: [/triad.prd | User Request | Team Idea]
+**Source**: [/aod.define | User Request | Team Idea]
 **Priority**: [High | Medium | Low]
 **Effort Estimate**: [Small | Medium | Large | Unknown]
 
@@ -85,7 +85,7 @@ _backlog/
 
 When a backlog item is ready to build:
 
-1. Create a PRD: `/triad.prd <feature-name>`
+1. Create a PRD: `/aod.define <feature-name>`
 2. Reference the backlog item in the PRD
 3. Move or delete the backlog file
 4. Follow normal Triad workflow
@@ -93,7 +93,7 @@ When a backlog item is ready to build:
 ## Review Cadence
 
 Review the backlog:
-- **Quarterly**: During OKR planning — re-score deferred ideas with `/pdl.score`
+- **Quarterly**: During OKR planning — re-score deferred ideas with `/aod.score`
 - **After MVP Launch**: Prioritize next wave of features from `02_USER_STORIES.md`
 - **When Capacity Opens**: Look for quick wins — check P2 items in `01_IDEAS.md`
 - **Monthly**: Review deferred ideas for changed circumstances

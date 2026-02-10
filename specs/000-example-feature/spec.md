@@ -1,6 +1,6 @@
 # Spec: Example Feature
 
-> **Example** -- delete this directory after creating your first real feature with `/triad.specify`.
+> **Example** -- delete this directory after creating your first real feature with `/aod.spec`.
 
 **Feature ID**: 000
 **Status**: Example
