@@ -192,6 +192,8 @@ After all waves complete:
 
 ## Step 6: Report Completion
 
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute checkpoint/review commentary into the template structure.
+
 Display summary:
 ```
 IMPLEMENTATION COMPLETE

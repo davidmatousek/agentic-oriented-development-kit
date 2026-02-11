@@ -111,6 +111,10 @@ prisma/dev.db*
 .aod/local/
 .aod/*.lock
 .aod/memory/github-project.json
+# Runtime state files (created by /aod.run orchestrator)
+.aod/run-state.json
+.aod/run-state.json.tmp
+.aod/run-state.json.corrupt.*
 
 # ============================================================================
 # Product-led specific

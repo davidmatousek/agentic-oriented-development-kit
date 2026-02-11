@@ -27,6 +27,7 @@ High-level system design and component diagrams
 ### 02_ADRs/ (Architecture Decision Records)
 Significant technical decisions with context and trade-offs
 - `ADR-000-template.md` - ADR template and example
+- `ADR-001-atomic-state-persistence.md` - Write-then-rename for orchestrator state (Feature 022)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

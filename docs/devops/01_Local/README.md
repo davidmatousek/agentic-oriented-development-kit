@@ -15,6 +15,7 @@
 ### Optional Software
 - **VS Code**: Recommended IDE
 - **Postman/Insomnia**: API testing
+- **jq**: JSON processor, required by `.aod/scripts/bash/run-state.sh` for the Full Lifecycle Orchestrator (`brew install jq` on macOS, `apt-get install jq` on Linux)
 
 ---
 

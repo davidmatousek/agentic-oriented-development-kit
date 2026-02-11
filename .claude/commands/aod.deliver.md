@@ -123,6 +123,8 @@ This is the terminal lifecycle state — the issue is now fully closed and remov
 
 ## Step 10: Generate Closure Report
 
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute retrospective commentary into the template structure.
+
 ```markdown
 ## ✅ Feature {NUMBER} Closure Complete
 

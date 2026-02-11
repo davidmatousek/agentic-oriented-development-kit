@@ -267,6 +267,8 @@ triad:
 
 ## Step 7: Report Completion
 
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute reviewer recommendations for the `Next:` line — it must always be `/aod.plan SPEC: {feature_number} - {feature_name}`.
+
 Display summary:
 ```
 SPECIFICATION CREATION COMPLETE

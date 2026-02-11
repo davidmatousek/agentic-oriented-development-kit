@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 5 / 20 (KB System Upgrade triggers at 20)
+**Entry Count**: 10 / 20 (KB System Upgrade triggers at 20)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -463,6 +463,67 @@ The entire lifecycle completed in ~1.6 hours vs. the 4-6 hour estimate. The Buil
 - `specs/012-e2e-lifecycle-test/spec.md` — Feature spec (8 FRs, 8 SCs)
 - `specs/012-e2e-lifecycle-test/tasks.md` — Master task list (66 tasks)
 - `docs/product/02_PRD/012-e2e-lifecycle-test-2026-02-09.md` — PRD
+
+---
+
+### Entry 9: Post-Review Output Re-grounding — Preventing Template Drift
+
+**Date**: 2026-02-11
+**Category**: Pattern
+**Severity**: Medium
+**Feature**: 022 (Full Lifecycle Orchestrator)
+**Discovery**: 5 Whys root cause analysis
+
+**Problem**: After processing variable-length Triad review outputs (PM, Architect, Team-Lead), the agent composed the `/aod.define` completion report from memory instead of re-reading the Step 8 template. The `Next:` line was contaminated by reviewer recommendations (`/aod.spec` after spike) instead of the template's correct value (`/aod.plan PRD: {prd_number} - {topic}`).
+
+**Root Cause**: Command completion steps lacked an explicit "re-read this template" instruction. After processing large review outputs (often 1000+ words per reviewer), the agent relied on memory for the final output format, making it susceptible to reviewer-framing contamination.
+
+**Solution**: Added a **re-grounding instruction** to every `/aod.*` command's completion step:
+
+```
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase
+or substitute reviewer recommendations for the `Next:` line.
+```
+
+Applied to all 7 commands: `aod.define`, `aod.spec`, `aod.project-plan`, `aod.tasks`, `aod.build`, `aod.deliver`, `aod.sync-upstream`.
+
+**Pattern**: When a workflow step follows variable-length agent output (reviews, research, analysis), always include an explicit re-grounding instruction before the templated output step. The longer and more opinionated the preceding content, the higher the drift risk.
+
+**Key Insight**: This is analogous to "prompt injection via review output" — reviewer recommendations about next steps can override the command's own template if the executor doesn't re-read the template. The fix is defensive: force a re-read at the output boundary.
+
+**Tags**: #pattern #agent-drift #template-output #re-grounding #5-whys #commands
+
+### Related Files:
+- `.claude/commands/aod.define.md` — Step 8 (original fix)
+- `.claude/commands/aod.spec.md` — Step 7
+- `.claude/commands/aod.project-plan.md` — Step 7
+- `.claude/commands/aod.tasks.md` — Step 7
+- `.claude/commands/aod.build.md` — Step 6
+- `.claude/commands/aod.deliver.md` — Step 10
+- `.claude/commands/aod.sync-upstream.md` — Step 8
+
+### Entry 10: Feature 022 — Full Lifecycle Orchestrator Retrospective
+
+**Date**: 2026-02-11
+**Category**: Retrospective
+**Severity**: Low
+**Feature**: 022 (Full Lifecycle Orchestrator)
+**PR**: #26
+
+**Summary**: Implemented `/aod.run` — a full lifecycle orchestrator that chains all 5 AOD stages (Discover → Define → Plan → Build → Deliver) with disk-persisted state for session resilience and governance gates at every boundary. 37 tasks across 9 waves, all checkpoints passed, 8/8 quickstart scenarios verified.
+
+**Surprise**: The Triad governance process (PM + Architect + Team-Lead sign-offs) worked smoothly with no blocking issues across all artifacts, validating the governance model designed in earlier features.
+
+**Key Lesson**: The skill chaining pattern — where one skill invokes another skill via the Skill tool, passing arguments and reading results from disk artifacts — proved viable for complex multi-stage workflows. The AOD orchestrator successfully delegates to 7 different stage skills (`~aod-discover`, `aod.define`, `aod.spec`, `aod.project-plan`, `aod.tasks`, `aod.build`, `aod.deliver`) without needing to understand their internals, only their input/output contracts.
+
+**Pattern**: When composing skills into a pipeline, define clear contracts at each boundary: (1) what arguments the skill expects, (2) what artifact it produces on disk, (3) how success/failure is signaled (e.g., YAML frontmatter `triad.*.status`). This enables loose coupling — the orchestrator only reads frontmatter, never parses skill internals.
+
+**Metrics**:
+- Estimated: 1 day | Actual: 1 day
+- Tasks: 37/37 | Waves: 9/9
+- New ideas spawned: 2 (#27 dry-run mode, #28 multi-feature orchestration)
+
+**Tags**: #retrospective #orchestrator #skill-chaining #governance #state-management
 
 ---
 

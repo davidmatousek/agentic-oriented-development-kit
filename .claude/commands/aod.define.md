@@ -168,6 +168,8 @@ Run `.aod/scripts/bash/backlog-regenerate.sh`. If `gh` is unavailable, skip sile
 
 ## Step 8: Report Completion
 
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute reviewer recommendations for the `Next:` line — it must always be `/aod.plan PRD: {prd_number} - {topic}`.
+
 Display summary:
 ```
 ✅ PRD CREATION COMPLETE

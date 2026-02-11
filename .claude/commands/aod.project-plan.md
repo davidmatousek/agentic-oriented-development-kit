@@ -163,6 +163,8 @@ After plan creation, regenerate BACKLOG.md to reflect current state:
 
 ## Step 7: Report Completion
 
+**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute reviewer recommendations for the `Next:` line — it must always be `/aod.plan PLAN: {feature_number} - {feature_name}`.
+
 Display summary including branch, IMPL_PLAN path, and generated artifacts:
 ```
 IMPLEMENTATION PLAN COMPLETE
