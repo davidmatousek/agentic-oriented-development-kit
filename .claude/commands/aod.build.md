@@ -215,7 +215,7 @@ Final Validation:
 
 Deferred Issues: {count}
 
-Next: Create PR, deploy to staging, run acceptance tests
+Next: /aod.deliver FEATURE: {feature_number} - {feature_name}
 ```
 
 ## Quality Checklist

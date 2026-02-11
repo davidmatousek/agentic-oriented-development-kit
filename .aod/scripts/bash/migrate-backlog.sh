@@ -91,7 +91,7 @@ while IFS='|' read -r _ id idea source date status ice_score _; do
     esac
 
     # Build issue body
-    body="# [$id] $idea
+    body="# $idea
 
 ## ICE Score
 $ice_score
@@ -105,7 +105,7 @@ Migrated from legacy backlog — no evidence captured at original time.
 - Original Status: $status
 - Migrated: $(date +%Y-%m-%d)"
 
-    title="[$id] $idea"
+    title="$idea"
     # Truncate title to 256 chars (GitHub limit)
     if [[ ${#title} -gt 256 ]]; then
         title="${title:0:253}..."
@@ -115,7 +115,7 @@ Migrated from legacy backlog — no evidence captured at original time.
         echo "[dry-run] Would create Issue: $id → stage:$local_stage"
         echo "          Title: ${title:0:80}..."
     else
-        result=$(aod_gh_create_issue "$title" "$body" "$local_stage" "$id")
+        result=$(aod_gh_create_issue "$title" "$body" "$local_stage" "idea")
         if [[ -n "$result" ]]; then
             echo "[aod] Migrated $id → Issue #$result (stage:$local_stage)"
             ((MIGRATED++))

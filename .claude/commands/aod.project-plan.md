@@ -176,7 +176,7 @@ Dual Sign-offs:
 - PM: {pm_status}
 - Architect: {architect_status}
 
-Next: /aod.tasks
+Next: /aod.plan PLAN: {feature_number} - {feature_name}
 ```
 
 ## Key Rules

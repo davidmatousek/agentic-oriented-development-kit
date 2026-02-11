@@ -18,10 +18,10 @@
 #   aod_gh_create_issue       — create issue with stage:* label (or update existing)
 #   aod_gh_update_stage       — transition issue to new stage label
 #   aod_gh_reconcile_board    — reconcile all open issues: label ↔ board column
-#   aod_gh_find_issue         — find existing issue by title or IDEA-NNN tag
+#   aod_gh_find_issue         — find existing issue by number or title match
 #
 # Expected Issue body format:
-#   # [IDEA-NNN] Title
+#   # Title
 #   ## ICE Score
 #   Impact: N, Confidence: N, Effort: N = **Total**
 #   ## Evidence
@@ -740,8 +740,8 @@ aod_gh_check_available() {
     return 0
 }
 
-# Find an existing GitHub Issue by title match or [IDEA-NNN] tag
-# Args: $1 = search query (title or IDEA-NNN tag)
+# Find an existing GitHub Issue by number or title match
+# Args: $1 = search query (issue number, #NNN, title, or [IDEA-NNN] tag)
 # Returns: issue number on stdout, or empty string if not found
 aod_gh_find_issue() {
     local search_query="${1:-}"
@@ -750,7 +750,16 @@ aod_gh_find_issue() {
         return 0
     fi
 
-    # Search by exact title or IDEA tag in issue title
+    # Numeric input bypasses API validation for performance — caller is
+    # responsible for providing a valid issue number
+    local stripped
+    stripped=$(echo "$search_query" | sed 's/^#//')
+    if echo "$stripped" | grep -q '^[0-9][0-9]*$'; then
+        echo "$stripped"
+        return 0
+    fi
+
+    # Fallback: search by exact title or tag in issue title
     local result
     result=$(gh issue list --search "\"$search_query\" in:title" --json number --limit 1 2>/dev/null) || return 0
 
@@ -768,13 +777,13 @@ aod_gh_find_issue() {
 #   $1 = title (required)
 #   $2 = body (required, markdown)
 #   $3 = stage (required, one of: discover, define, plan, build, deliver)
-#   $4 = idea_id (optional, e.g., "IDEA-003" for duplicate detection)
+#   $4 = issue_type (optional, e.g., "idea" or "retro" — adds type:* label)
 # Returns: 0 always (graceful degradation), issue number on stdout if created
 aod_gh_create_issue() {
     local title="${1:-}"
     local body="${2:-}"
     local stage="${3:-discover}"
-    local idea_id="${4:-}"
+    local issue_type="${4:-}"
 
     if [[ -z "$title" ]]; then
         echo "[aod] Warning: No title provided for GitHub Issue. Skipping." >&2
@@ -787,21 +796,27 @@ aod_gh_create_issue() {
 
     local label="stage:${stage}"
 
-    # Duplicate detection: check by IDEA-NNN tag first, then by title
+    # Ensure type:* label exists (idempotent — no error if already present)
+    if [[ -n "$issue_type" ]]; then
+        gh label create "type:${issue_type}" --force 2>/dev/null || true
+    fi
+
+    # Duplicate detection: title-based matching (sole mechanism)
     local existing_number=""
-    if [[ -n "$idea_id" ]]; then
-        existing_number=$(aod_gh_find_issue "[$idea_id]")
-    fi
-    if [[ -z "$existing_number" ]]; then
-        existing_number=$(aod_gh_find_issue "$title")
-    fi
+    existing_number=$(aod_gh_find_issue "$title")
 
     if [[ -n "$existing_number" ]]; then
         # Update existing issue instead of creating duplicate
         echo "[aod] Found existing Issue #${existing_number} — updating instead of creating duplicate." >&2
-        gh issue edit "$existing_number" --body "$body" --add-label "$label" 2>/dev/null || {
-            echo "[aod] Warning: Failed to update Issue #${existing_number}. Continuing." >&2
-        }
+        if [[ -n "$issue_type" ]]; then
+            gh issue edit "$existing_number" --body "$body" --add-label "$label" --add-label "type:${issue_type}" 2>/dev/null || {
+                echo "[aod] Warning: Failed to update Issue #${existing_number}. Continuing." >&2
+            }
+        else
+            gh issue edit "$existing_number" --body "$body" --add-label "$label" 2>/dev/null || {
+                echo "[aod] Warning: Failed to update Issue #${existing_number}. Continuing." >&2
+            }
+        fi
         # Remove old stage labels
         for old_label in "${AOD_STAGE_LABELS[@]}"; do
             if [[ "$old_label" != "$label" ]]; then
@@ -822,10 +837,17 @@ aod_gh_create_issue() {
 
     # Create new issue
     local issue_number
-    issue_number=$(gh issue create --title "$title" --body "$body" --label "$label" 2>/dev/null | grep -o '[0-9]*$') || {
-        echo "[aod] Warning: Failed to create GitHub Issue. Continuing without tracking." >&2
-        return 0
-    }
+    if [[ -n "$issue_type" ]]; then
+        issue_number=$(gh issue create --title "$title" --body "$body" --label "$label" --label "type:${issue_type}" 2>/dev/null | grep -o '[0-9]*$') || {
+            echo "[aod] Warning: Failed to create GitHub Issue. Continuing without tracking." >&2
+            return 0
+        }
+    else
+        issue_number=$(gh issue create --title "$title" --body "$body" --label "$label" 2>/dev/null | grep -o '[0-9]*$') || {
+            echo "[aod] Warning: Failed to create GitHub Issue. Continuing without tracking." >&2
+            return 0
+        }
+    fi
 
     if [[ -n "$issue_number" ]]; then
         echo "[aod] Created Issue #${issue_number} with label ${label}." >&2

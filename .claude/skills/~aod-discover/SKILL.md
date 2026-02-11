@@ -30,12 +30,13 @@ Determine the entry point from the invoking command:
 
 Extract the idea description from user arguments. If no description is provided, ask the user to describe their idea.
 
-## Step 2: Generate IDEA-NNN ID
+## Step 2: ID Assignment
 
-1. Search existing GitHub Issues for `[IDEA-NNN]` title patterns using: `source .aod/scripts/bash/github-lifecycle.sh && gh issue list --json number,title --state all --limit 100`
-2. Parse all titles matching `[IDEA-NNN]` to find the highest NNN value
-3. Increment by 1, zero-pad to 3 digits
-4. If no existing IDEA issues found, start at IDEA-001
+The GitHub Issue number is the canonical idea ID. There is no separate `IDEA-NNN` numbering scheme.
+
+- The ID is assigned automatically when `gh issue create` runs in Step 5a
+- Refer to ideas by their GitHub Issue number using `#NNN` format (e.g., `#42`)
+- No scanning, parsing, or incrementing is needed — GitHub handles ID assignment
 
 ## Step 3: Capture Source and ICE Score
 
@@ -132,7 +133,7 @@ Determine status based on ICE total:
 ```
 IDEA CAPTURED — AUTO-DEFERRED
 
-ID: IDEA-{NNN}
+ID: #{NNN}
 Idea: {description}
 Source: {source}
 Evidence: {evidence}
@@ -141,8 +142,8 @@ Priority Tier: Deferred
 Status: Deferred
 
 This idea was auto-deferred (score < 12).
-To request PM override: `/aod.validate IDEA-{NNN}`
-To re-score with new information: `/aod.score IDEA-{NNN}`
+To request PM override: `/aod.validate #{NNN}`
+To re-score with new information: `/aod.score #{NNN}`
 ```
 
 **If auto-deferred AND entry point is Capture Only (`/aod.idea`)**: Create GitHub Issue, display same result, exit.
@@ -152,7 +153,7 @@ To re-score with new information: `/aod.score IDEA-{NNN}`
 ```
 IDEA CAPTURED
 
-ID: IDEA-{NNN}
+ID: #{NNN}
 Idea: {description}
 Source: {source}
 Evidence: {evidence}
@@ -161,7 +162,7 @@ ICE Score: {total} (I:{impact} C:{confidence} E:{effort})
 Priority Tier: {tier}
 Status: Scoring
 
-Next: Run `/aod.validate IDEA-{NNN}` to submit for PM review, or continue capturing ideas with `/aod.idea`.
+Next: Run `/aod.validate #{NNN}` to submit for PM review, or continue capturing ideas with `/aod.idea`.
 ```
 
 **If NOT auto-deferred AND entry point is Full Flow (`/aod.discover`)**: Continue to Step 5a, then Step 5c.
@@ -190,12 +191,14 @@ Create a GitHub Issue for lifecycle tracking:
    ```
 
 2. Call `aod_gh_create_issue` (from `.aod/scripts/bash/github-lifecycle.sh`):
-   - Title: `[IDEA-{NNN}] {idea_description}`
+   - Title: `{idea_description}` (clean title, no prefix)
    - Body: structured markdown above
    - Stage: `discover`
-   - Idea ID: `IDEA-{NNN}` (for duplicate detection)
+   - Issue type: `"idea"` (applies `type:idea` label automatically)
 
-3. If `gh` is unavailable, skip silently (graceful degradation).
+3. Capture the returned issue number — this becomes the canonical idea ID (`#NNN`).
+
+4. If `gh` is unavailable, skip silently (graceful degradation).
 
 ## Step 5b: Regenerate BACKLOG.md
 
@@ -211,8 +214,8 @@ Before proceeding to PM validation in the Full Flow (`/aod.discover`), check the
 
 **If tier is `light`**:
 - PM validation is **optional** — skip Steps 6-7 in the Full Flow
-- Display note: "Note: Light governance tier — PM validation skipped. Run `/aod.validate IDEA-{NNN}` to manually request PM review."
-- Exit. The user can still manually invoke `/aod.validate IDEA-{NNN}` at any time
+- Display note: "Note: Light governance tier — PM validation skipped. Run `/aod.validate #NNN` to manually request PM review."
+- Exit. The user can still manually invoke `/aod.validate #NNN` at any time
 
 **If tier is `standard` or `full`**: Continue to Step 6 as normal.
 
@@ -222,16 +225,28 @@ Before proceeding to PM validation in the Full Flow (`/aod.discover`), check the
 
 ### For `/aod.validate` entry point: Parse and find idea
 
-Extract the IDEA-NNN or RETRO-NNN identifier from user arguments. Validate format matches `IDEA-` or `RETRO-` followed by a number. If invalid or missing, display: `Usage: /aod.validate IDEA-NNN`
+Extract the idea identifier from user arguments. Accept three formats:
+- **`NNN`** (bare number, e.g., `21`): Direct GitHub Issue lookup
+- **`#NNN`** (hash-prefixed, e.g., `#21`): Strip `#` prefix, direct lookup
+- **`IDEA-NNN`** (legacy, e.g., `IDEA-009`): Search issue titles for `[IDEA-NNN]` bracket tag
+
+If invalid or missing, display: `Usage: /aod.validate NNN` (or `#NNN` or `IDEA-NNN`)
 
 Find the matching GitHub Issue:
+
+For numeric input (`NNN` or `#NNN`):
+```bash
+source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue NNN
+```
+
+For legacy `IDEA-NNN` input:
 ```bash
 source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "[IDEA-NNN]"
 ```
 
 **Error conditions**:
-- Issue not found: `"Error: No GitHub Issue found for IDEA-{NNN}"`
-- Issue already has `stage:define` or later: `"Error: IDEA-{NNN} has already progressed past discovery"`
+- Issue not found: `"Error: No GitHub Issue found for {identifier}"`
+- Issue already has `stage:define` or later: `"Error: #{issue_number} has already progressed past discovery"`
 
 Read the issue body to extract idea details (description, ICE score, evidence, source, status).
 
@@ -240,8 +255,7 @@ Display idea for review:
 ```
 IDEA FOR PM VALIDATION
 
-ID: IDEA-{NNN}
-GitHub Issue: #{issue_number}
+ID: #{issue_number}
 Idea: {description}
 Source: {source}
 Evidence: {evidence}
@@ -297,13 +311,12 @@ If PM returns **REJECTED**:
 ```
 PM VALIDATION: REJECTED
 
-ID: IDEA-{NNN}
-GitHub Issue: #{issue_number}
+ID: #{issue_number}
 Idea: {description}
 PM Rationale: {rationale}
 
 The idea has been marked as Rejected on GitHub Issue #{issue_number}.
-To re-submit: re-score with `/aod.score IDEA-{NNN}`, then run `/aod.validate IDEA-{NNN}` again.
+To re-submit: re-score with `/aod.score #{issue_number}`, then run `/aod.validate #{issue_number}` again.
 ```
 
 ### Handle Approval
@@ -335,7 +348,7 @@ If PM returns **APPROVED**: Continue to Step 7.
 3. Add a comment documenting PM approval with rationale and evidence quality
 4. If idea was auto-deferred and PM approved, add PM override note as a comment:
    ```
-   **PM Override**: IDEA-{NNN} was auto-deferred (ICE score {total} < 12) but approved by PM. Rationale: {pm_rationale}
+   **PM Override**: #{issue_number} was auto-deferred (ICE score {total} < 12) but approved by PM. Rationale: {pm_rationale}
    ```
 
 ### Regenerate BACKLOG.md
@@ -348,8 +361,7 @@ Run `.aod/scripts/bash/backlog-regenerate.sh` to update the backlog snapshot.
 ```
 PM VALIDATION: APPROVED
 
-ID: IDEA-{NNN}
-GitHub Issue: #{issue_number}
+ID: #{issue_number}
 Idea: {description}
 Evidence Quality: {evidence_quality}
 PM Rationale: {rationale}
@@ -369,8 +381,7 @@ Next: Run `/aod.define {topic}` to create a PRD from this user story.
 AOD DISCOVERY COMPLETE
 
 Idea Captured:
-  ID: IDEA-{NNN}
-  GitHub Issue: #{issue_number}
+  ID: #{issue_number}
   Description: {description}
   Source: {source}
   Evidence: {evidence}
@@ -414,17 +425,16 @@ Next: Run `/aod.define {topic}` to create a PRD from this user story.
 
 ### Auto-Defer Gate
 
-Ideas scoring below 12 are automatically deferred. In the full flow (`/aod.discover`), the flow stops and no PM validation occurs. Use `/aod.validate IDEA-NNN` to request PM override for deferred ideas.
+Ideas scoring below 12 are automatically deferred. In the full flow (`/aod.discover`), the flow stops and no PM validation occurs. Use `/aod.validate #NNN` to request PM override for deferred ideas.
 
 ---
 
 ## Edge Cases
 
-- **No existing IDEA issues**: Start ID at IDEA-001
 - **No description provided**: Prompt user for idea description
 - **Custom ICE score outside 1-10**: Clamp to valid range (1 minimum, 10 maximum)
-- **Duplicate idea text**: Allow it — the IDEA-NNN ID is the unique identifier
-- **IDEA-NNN not found** (validate): Search GitHub Issues, display error if not found
+- **Duplicate idea text**: Allow it — GitHub assigns a unique issue number automatically
+- **Issue not found** (validate): Search GitHub Issues by number, display error if not found
 - **Already Rejected** (validate): Cannot re-validate directly — user must re-score first with `/aod.score`
 - **Already past discovery** (validate): Cannot re-validate — idea has progressed
 - **PM timeout or error**: Report the error and suggest retrying
@@ -436,13 +446,13 @@ Ideas scoring below 12 are automatically deferred. In the full flow (`/aod.disco
 ## Quality Checklist
 
 - [ ] Entry point correctly detected (discover/idea/validate)
-- [ ] IDEA-NNN ID generated correctly (sequential, zero-padded, from GitHub Issues)
+- [ ] Idea ID is the GitHub Issue number (`#NNN`), assigned by `gh issue create`
 - [ ] Source captured from user selection
 - [ ] Evidence prompted after ICE scoring (predefined categories + free text)
 - [ ] Evidence included in GitHub Issue body and display outputs
 - [ ] ICE score computed correctly (additive I+C+E)
 - [ ] Auto-defer gate applied (< 12 = Deferred, flow stops in full flow)
-- [ ] GitHub Issue created with structured body and `stage:discover` label
+- [ ] GitHub Issue created with structured body, `stage:discover` label, and `type:idea` label
 - [ ] BACKLOG.md regenerated after Issue creation
 - [ ] Governance tier read from constitution (light/standard/full, default: standard)
 - [ ] Light tier: PM validation skipped in full flow, with note to user

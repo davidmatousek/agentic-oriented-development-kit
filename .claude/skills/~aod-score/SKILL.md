@@ -15,25 +15,36 @@ Update an existing idea's ICE (Impact, Confidence, Effort) score when circumstan
 
 ## Inputs
 
-- **IDEA-NNN**: The identifier of the idea to re-score (from user arguments)
+- **NNN**, **#NNN**, or **IDEA-NNN** (legacy): The identifier of the idea to re-score (from user arguments)
 
 ## Workflow
 
 ### Step 1: Parse Input
 
-Extract the IDEA-NNN identifier from user arguments. Validate the format matches `IDEA-` followed by a number (e.g., `IDEA-001`). If invalid or missing, display usage: `Usage: /aod.score IDEA-NNN`
+Extract the idea identifier from user arguments. Accept three formats:
+- **`NNN`** (bare number, e.g., `21`): Direct GitHub Issue lookup
+- **`#NNN`** (hash-prefixed, e.g., `#21`): Strip `#` prefix, direct lookup
+- **`IDEA-NNN`** (legacy, e.g., `IDEA-009`): Search issue titles for `[IDEA-NNN]` bracket tag
+
+If invalid or missing, display usage: `Usage: /aod.score NNN` (or `#NNN` or `IDEA-NNN`)
 
 ### Step 2: Find GitHub Issue
 
 Search for the matching GitHub Issue:
 
+For numeric input (`NNN` or `#NNN`):
+```bash
+source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue NNN
+```
+
+For legacy `IDEA-NNN` input:
 ```bash
 source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "[IDEA-NNN]"
 ```
 
 If no issue is found, display an error and exit:
 ```
-Error: No GitHub Issue found for IDEA-{NNN}
+Error: No GitHub Issue found for {identifier}
 ```
 
 ### Step 3: Read Current Scores
@@ -50,7 +61,7 @@ Read the GitHub Issue body using `gh issue view {number} --json body,title`. Par
 Show the existing idea details:
 
 ```
-CURRENT SCORES — IDEA-{NNN}
+CURRENT SCORES — #{issue_number}
 
 GitHub Issue: #{issue_number}
 Idea: {description}
@@ -136,7 +147,7 @@ Display the comparison:
 ```
 IDEA RE-SCORED
 
-ID: IDEA-{NNN}
+ID: #{issue_number}
 GitHub Issue: #{issue_number}
 Idea: {description}
 
@@ -171,12 +182,12 @@ Date updated: {YYYY-MM-DD}
 
 ### Auto-Defer Gate
 
-Ideas scoring below 12 are automatically deferred. The PM can override this gate using `/aod.validate IDEA-NNN`.
+Ideas scoring below 12 are automatically deferred. The PM can override this gate using `/aod.validate #NNN`.
 
 ## Edge Cases
 
-- **IDEA-NNN not found**: Search GitHub Issues, display error with the ID that was searched for
-- **Invalid ID format**: Display usage guidance
+- **Idea not found**: Search GitHub Issues by number (NNN, #NNN) or title tag (IDEA-NNN), display error with the identifier that was searched for
+- **Invalid ID format**: Display usage guidance showing accepted formats (NNN, #NNN, or IDEA-NNN)
 - **Validated status**: Preserve — PM has already approved, re-scoring only updates the numeric score
 - **Rejected status**: Re-opens to Scoring (>= 12) or Deferred (< 12) — allows re-submission to PM via `/aod.validate`
 - **Custom ICE score outside 1-10**: Clamp to valid range (1 minimum, 10 maximum)
@@ -185,7 +196,7 @@ Ideas scoring below 12 are automatically deferred. The PM can override this gate
 
 ## Quality Checklist
 
-- [ ] IDEA-NNN parsed and validated
+- [ ] Idea identifier parsed and validated (NNN, #NNN, or IDEA-NNN)
 - [ ] GitHub Issue found for the idea
 - [ ] Current scores displayed before re-scoring
 - [ ] New ICE score computed correctly (additive I+C+E)

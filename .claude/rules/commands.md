@@ -40,6 +40,17 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 - When you need documented governance trail
 - Clarifying requirements or verifying consistency at any phase
 
+### Maintenance Commands
+
+```bash
+/aod.sync-upstream       # Sync template files to upstream agentic-oriented-development-kit repo
+```
+
+**When to Use**:
+- Ad-hoc fixes, refactors, or direct commits to main that bypass `/aod.deliver`
+- Any time template content changes and needs to be propagated upstream
+- Standalone alternative to Step 7 of `/aod.deliver`
+
 ---
 
 ## PDL Commands (Optional Discovery)
@@ -49,8 +60,8 @@ Use PDL commands for lightweight product discovery before the Triad workflow. PD
 ```bash
 /aod.discover <idea>            # Full discovery flow: capture → score → validate → backlog
 /aod.discover <idea>           # Capture idea + ICE scoring
-/aod.score IDEA-NNN        # Re-score an existing idea
-/aod.validate IDEA-NNN     # PM validation gate + user story generation
+/aod.score #NNN            # Re-score an existing idea (NNN = GitHub Issue number)
+/aod.validate #NNN         # PM validation gate + user story generation
 ```
 
 **When to Use**:

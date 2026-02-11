@@ -28,15 +28,18 @@ This document defines the git workflow standards for {{PROJECT_NAME}} developmen
 - Supports parallel multi-agent development
 
 **Branch Naming Convention:**
+
+The branch number **NNN** is the **GitHub Issue number**, zero-padded to 3 digits (e.g., GitHub Issue #1 becomes `001`, Issue #42 becomes `042`). NNN is **not** an independently generated Feature ID — it always corresponds directly to a GitHub Issue.
+
 ```
-<number>-<description>
+NNN-<description>
 
 Examples:
-✅ 001-task-locking-api
-✅ 042-vector-search-optimization
-✅ 089-mcp-timeout-handling
+✅ 001-task-locking-api        (GitHub Issue #1)
+✅ 042-vector-search-optimization  (GitHub Issue #42)
+✅ 089-mcp-timeout-handling    (GitHub Issue #89)
 
-❌ feature/task-locking      (missing number)
+❌ feature/task-locking      (missing Issue number)
 ❌ fix_bug                    (use hyphens, not underscores)
 ❌ my-work                    (not descriptive)
 ```
@@ -625,7 +628,7 @@ git push origin <branch>
 ### Common Commands
 
 ```bash
-# Start new feature
+# Start new feature (NNN = GitHub Issue number, zero-padded to 3 digits)
 git checkout -b NNN-feature-name
 
 # Check status

@@ -134,10 +134,10 @@ Options:
 **If "Yes"**: Ask the user to describe each idea. For each idea provided:
 
 1. Create a GitHub Issue with `stage:discover` label using `aod_gh_create_issue` from `.aod/scripts/bash/github-lifecycle.sh`:
-   - Title: `[RETRO] {idea_description}`
+   - Title: `{idea_description}`
    - Body:
      ```markdown
-     # [RETRO] {idea_description}
+     # {idea_description}
 
      ## ICE Score
      Impact: —, Confidence: —, Effort: — = **Not yet scored**
@@ -153,6 +153,9 @@ Options:
      - Origin Feature: {feature_name}
      ```
    - Stage: `discover`
+   - Type: `retro` (4th parameter to `aod_gh_create_issue`)
+
+   The `type:retro` label is applied automatically by `aod_gh_create_issue` when `"retro"` is passed as the 4th parameter.
 
 2. If `gh` is unavailable, log the idea to stdout with guidance:
    ```
@@ -281,7 +284,7 @@ Lessons Learned:
 
 Feedback Loop:
   New Ideas: {count or "None"}
-  {for each idea: "  - [RETRO] {description} → Issue #{number}"}
+  {for each idea: "  - {description} → Issue #{number} (type:retro)"}
 
 Next Steps:
   - Review KB entry in docs/INSTITUTIONAL_KNOWLEDGE.md

@@ -52,12 +52,12 @@ GitHub Issue   PRD doc      spec.md +         Implemented    Closed feature +
 **Command**: `/aod.discover "your idea"` (full flow with PM validation) or `/aod.discover` with capture-only mode
 
 **What happens**:
-1. A unique IDEA-NNN identifier is generated
+1. A GitHub Issue is created with a descriptive title and `type:idea` label
 2. The idea description is recorded
 3. ICE scoring (Impact, Confidence, Effort) is applied
 4. Evidence prompt: "Who has this problem, and how do you know?"
 5. PM validation gate (tier-dependent)
-6. If approved: user story generated, GitHub Issue created with `stage:discover` label
+6. If approved: user story generated, `stage:discover` label applied to the GitHub Issue
 
 **Output**: GitHub Issue with `stage:discover` label, scored idea with evidence.
 
@@ -78,7 +78,7 @@ GitHub Issue   PRD doc      spec.md +         Implemented    Closed feature +
 2. If a backlog item is selected, PRD frontmatter includes source traceability:
    ```yaml
    source:
-     idea_id: IDEA-001
+     github_issue: 21
      story_id: US-001
    ```
 3. PM drafts, Architect + Team-Lead review, PM finalizes
@@ -182,7 +182,7 @@ The Plan stage has 3 sequential sub-steps. The `/aod.plan` router auto-detects w
 The complete traceability chain from idea to delivery:
 
 ```
-IDEA-001 (GitHub Issue, stage:discover)
+GitHub Issue #21 (type:idea label, stage:discover)
   └── US-001 (User Story)
         └── PRD 005 (docs/product/02_PRD/005-*.md)
               └── spec.md (specs/005-*/spec.md)
@@ -192,8 +192,8 @@ IDEA-001 (GitHub Issue, stage:discover)
 ```
 
 Each artifact references its source:
-- User Story → links to IDEA-NNN via Source column
-- PRD → links to IDEA-NNN and US-NNN via `source` frontmatter
+- User Story → links to GitHub Issue #NNN via Source column
+- PRD → links to GitHub Issue #NNN and US-NNN via `source` frontmatter
 - Spec → links to PRD via `prd_reference` frontmatter
 - Plan → links to Spec via `spec_reference`
 - Tasks → links to Plan via `plan_reference`
@@ -228,7 +228,7 @@ stage:discover → stage:define → stage:plan → stage:build → stage:deliver
 /aod.discover "Add dark mode support for the dashboard"
 ```
 
-- **IDEA-001** created, GitHub Issue with `stage:discover`
+- GitHub Issue **#21** created with `type:idea` and `stage:discover` labels
 - ICE Score: 24 (I:9 C:9 E:6) — P1 (High)
 - Evidence: "Customer feedback — 12 requests in last quarter"
 - PM agent reviews: APPROVED
@@ -239,7 +239,7 @@ stage:discover → stage:define → stage:plan → stage:build → stage:deliver
 /aod.define dark-mode-support
 ```
 
-- PRD created with `source.idea_id: IDEA-001`
+- PRD created with `source.github_issue: 21`
 - GitHub Issue label updated to `stage:define`
 
 ### Step 3: Plan (3 sessions)

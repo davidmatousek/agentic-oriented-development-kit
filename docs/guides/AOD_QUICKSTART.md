@@ -102,7 +102,7 @@ ICE stands for **Impact**, **Confidence**, and **Effort** (ease of implementatio
 
 ### Auto-Defer Gate
 
-Ideas scoring below 12 are automatically deferred. The PM can override this gate using `/aod.validate IDEA-NNN`.
+Ideas scoring below 12 are automatically deferred (labeled `type:idea` on GitHub). The PM can override this gate using `/aod.validate NNN` where NNN is the GitHub Issue number.
 
 ---
 
@@ -171,7 +171,7 @@ Product Artifacts:
 ## Troubleshooting
 
 **"Idea auto-deferred but I want to build it"**
-Use `/aod.validate IDEA-NNN` to submit the idea for PM review. The PM can override the auto-defer gate with documented rationale.
+Use `/aod.validate NNN` (where NNN is the GitHub Issue number) to submit the idea for PM review. The PM can override the auto-defer gate with documented rationale.
 
 **"Is Discovery mandatory?"**
 No. You can start directly at `/aod.define` without any Discovery artifacts.

@@ -12,7 +12,7 @@ All development must use feature branches. Never commit to main directly.
 ## Branch Naming
 
 **Format**: `NNN-descriptive-name`
-- **NNN**: Feature ID (e.g., `001`, `002`, `012`)
+- **NNN**: GitHub Issue number, zero-padded to 3 digits (e.g., `001`, `002`, `012`)
 - **descriptive-name**: Kebab-case description (e.g., `initial-feature`, `user-auth`)
 
 **Examples**:
@@ -27,7 +27,7 @@ All development must use feature branches. Never commit to main directly.
 - Write clear, descriptive commit messages
 - Use conventional commits format when possible (feat:, fix:, docs:, etc.)
 - Keep commits atomic and focused on single changes
-- Reference feature IDs in commit messages
+- Reference GitHub Issue numbers in commit messages (e.g., "feat(021): add dark mode")
 
 ---
 

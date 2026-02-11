@@ -82,18 +82,16 @@ Run the `~aod-deliver` skill's retrospective flow (Steps 2-8 from `.claude/skill
 1. **Delete feature branch** (local and remote, ignore if already deleted)
 2. **Validate**: Check `git status`, search for TBD/TODO in docs/
 
-## Step 7: Upstream Sync to AOD-kit
+## Step 7: Upstream Sync (Optional)
 
-Prompt the user to sync deliverable files to the published template repo (`agentic-oriented-development-kit`).
+If the project has an upstream template repo to sync to, prompt the user now.
 
-1. **Detect AOD-kit repo**: Check if `../agentic-oriented-development-kit/` exists
-2. **If found**, run `diff -rq` between the two repos (excluding `.git`, `specs/`, `.aod/`, `archive/`, `docs/product/_backlog/`, `docs/product/02_PRD/`) to identify changed files
-3. **If differences found**, display the list and ask:
-   - (A) Sync now — copy changed files, create branch `{NUMBER}-sync-{NAME}`, commit, push, create PR
-   - (B) Skip — continue without syncing (user will handle manually)
-4. **If no differences or AOD-kit not found**, skip silently
-
-**Sync direction is always**: `product-led-spec-kit → agentic-oriented-development-kit`
+1. Check if `scripts/extract.sh` exists **and** `../agentic-oriented-development-kit/` exists
+2. **If both found**: Ask the user: "Run upstream sync?"
+   - (A) Yes — run `scripts/extract.sh --sync` (or invoke `/aod.sync-upstream` if available)
+   - (B) Skip — continue without syncing
+3. **If either is missing**: Skip silently
+4. If skipped, note it in the closure report (Step 9) as `[ ] Upstream sync`
 
 ## Step 8: Commit and Push
 

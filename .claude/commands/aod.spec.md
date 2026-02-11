@@ -277,7 +277,7 @@ Spec: {spec_path}
 
 PM Sign-off: {pm_status}
 
-Next: /aod.project-plan
+Next: /aod.plan SPEC: {feature_number} - {feature_name}
 ```
 
 ## Quality Checklist

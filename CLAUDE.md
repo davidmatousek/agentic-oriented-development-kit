@@ -10,9 +10,10 @@
 
 ## Git Workflow
 **Always use feature branches**: `git checkout -b NNN-feature-name`
+- **NNN** = GitHub Issue number, zero-padded to 3 digits
 - Never commit to main directly
 - Create PR for review before merge
-- Branch format: `NNN-descriptive-name` (e.g., `001-initial-feature`)
+- Branch format: `NNN-descriptive-name` (e.g., `021-feature-name` for Issue #21)
 
 ## Project Structure
 ```

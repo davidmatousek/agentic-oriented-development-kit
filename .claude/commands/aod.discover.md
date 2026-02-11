@@ -27,7 +27,7 @@ Captures a raw feature idea, scores it with ICE (Impact, Confidence, Effort), an
 
 Follow the workflow defined in the ~aod-discover skill (`.claude/skills/~aod-discover/SKILL.md`):
 
-1. Generate IDEA-NNN ID (search existing GitHub Issues for highest `[IDEA-NNN]`, increment)
+1. Create GitHub Issue and use the auto-assigned Issue number as the canonical ID
 2. Capture source via AskUserQuestion (Brainstorm / Customer Feedback / Team Idea / User Request)
 3. ICE scoring via AskUserQuestion (Impact, Confidence, Effort — each H9/M6/L3 or custom 1-10)
 4. Evidence prompt via AskUserQuestion
@@ -39,7 +39,7 @@ Follow the workflow defined in the ~aod-discover skill (`.claude/skills/~aod-dis
 ## Quality Checklist
 
 - [ ] Idea description captured from user
-- [ ] IDEA-NNN ID generated correctly from GitHub Issues
+- [ ] GitHub Issue created and Issue number used as canonical ID
 - [ ] Source captured from user selection
 - [ ] Evidence captured from user
 - [ ] ICE score computed and auto-defer gate applied

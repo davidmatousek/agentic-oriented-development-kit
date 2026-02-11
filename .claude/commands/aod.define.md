@@ -56,11 +56,18 @@ Q3: What are the 2-3 core features?
 3. Check `docs/product/02_PRD/` for existing PRD with same topic
 4. If exists: Use AskUserQuestion with options: View existing, Create with suffix (v2), Abort
 5. **GitHub Lifecycle Update (early)**: Move the feature's GitHub Issue to `stage:define` at the *start* of PRD creation. Detection order (use first match):
-   1. Extract `[IDEA-NNN]` or `[RETRO-NNN]` tag from `$ARGUMENTS` and search GitHub Issues: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "[TAG]"`
+   1. If `$ARGUMENTS` contains a numeric value (`#NNN` or bare `NNN`), look up the GitHub Issue directly: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue NNN`
    2. Search GitHub Issues by topic title: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "TOPIC_TITLE"`
+   3. Legacy fallback: Extract `[IDEA-NNN]` or `[RETRO-NNN]` tag from `$ARGUMENTS` and search: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "[TAG]"`
    Once the issue number is found, run: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage ISSUE_NUMBER define`
    Then regenerate BACKLOG.md: `.aod/scripts/bash/backlog-regenerate.sh`
-   If no issue is found or `gh` is unavailable, skip silently (graceful degradation).
+   **Issue-Required Gate**: If no issue is found after all detection methods:
+   1. Use `AskUserQuestion` with three options:
+      - **Auto-create Issue** (Recommended): Run `gh issue create --title "TOPIC" --label "stage:define"` to create a new Issue automatically. Use the returned Issue number as the PRD number.
+      - **Provide Issue number**: User enters an existing GitHub Issue number manually. Validate it exists via `gh issue view NNN` before proceeding.
+      - **Abort**: Cancel PRD creation cleanly with message "PRD creation requires a backing GitHub Issue. Create one at your repo's Issues page and re-run /aod.define."
+   2. If `gh` CLI is unavailable and user cannot provide a number, abort with guidance: "The `gh` CLI is not available. Please create a GitHub Issue manually and re-run `/aod.define <topic> #NNN`."
+   3. Store the resolved Issue number for use in Steps 5 and 6.
 
 ## Step 2: Classify PRD Type
 
@@ -119,8 +126,8 @@ NOTES: [Your detailed feedback]
 
 ## Step 5: Assign PRD Number
 
-1. Scan `docs/product/02_PRD/` for `NNN-*.md` files
-2. Extract max NNN, assign next_number = max + 1 (or 1 if empty)
+1. Use the GitHub Issue number (resolved in Step 1) as the PRD number
+2. Zero-pad to 3 digits (e.g., Issue #25 → 025)
 3. Format: `{NNN}-{topic}-{YYYY-MM-DD}.md`
 
 ## Step 6: Write PRD with Frontmatter
@@ -139,8 +146,8 @@ triad:
   pm_signoff: {agent: product-manager, date: ..., status: ..., notes: ...}
   architect_signoff: {agent: architect, date: ..., status: ..., notes: ...}
   techlead_signoff: {agent: team-lead, date: ..., status: ..., notes: ...}
-source:           # Optional — populated when PRD originates from discovery
-  idea_id: null   # IDEA-NNN or RETRO-NNN reference (GitHub Issue)
+source:           # Automatically populated from GitHub Issue
+  idea_id: null   # Always equals prd.number (GitHub Issue number)
   story_id: null  # Deprecated — user stories now stored in GitHub Issue body
 ---
 ```
@@ -175,7 +182,7 @@ Triple Sign-offs:
 - Architect: {architect_status}
 - Team-Lead: {techlead_status}
 
-Next: /aod.spec
+Next: /aod.plan PRD: {prd_number} - {topic}
 ```
 
 ## Step 10: Quality Checklist
@@ -185,7 +192,7 @@ Next: /aod.spec
 - [ ] PRD drafted via ~aod-define skill
 - [ ] Reviews executed (sequential for infra, parallel for feature)
 - [ ] Blockers handled (resolved, overridden, or aborted)
-- [ ] PRD number assigned sequentially
+- [ ] PRD number matches GitHub Issue number
 - [ ] Frontmatter injected with all three sign-offs
 - [ ] INDEX.md updated with new row
 - [ ] Completion summary displayed

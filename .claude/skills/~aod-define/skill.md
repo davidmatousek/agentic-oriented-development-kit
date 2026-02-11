@@ -617,11 +617,12 @@ Before starting, collect:
    - If validated ideas exist, present them to the user as candidates
    - If user selects a backlog item, populate `source.idea_id` in PRD frontmatter:
      ```yaml
-     source:           # Optional — populated when PRD originates from discovery
-       idea_id: null   # IDEA-NNN or RETRO-NNN reference (GitHub Issue)
+     source:           # Automatically populated from GitHub Issue
+       idea_id: null   # GitHub Issue number — always equals prd.number
        story_id: null  # Deprecated — user stories now stored in GitHub Issue body
      ```
-   - If user starts fresh (no backlog item selected), leave source fields as null
+   - `source.idea_id` is automatically set from the GitHub Issue number (resolved in Step 1 of `/aod.define`) and always equals `prd.number`
+   - If user starts fresh (no backlog item selected), `idea_id` is still set to the GitHub Issue number
 
 ### Step 2: Draft PRD Sections
 

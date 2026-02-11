@@ -248,7 +248,7 @@ Triple Sign-offs:
 - Architect: {architect_status}
 - Team-Lead: {techlead_status}
 
-Next: /aod.build
+Next: /aod.build FEATURE: {feature_number} - {feature_name}
 ```
 
 ## Quality Checklist
