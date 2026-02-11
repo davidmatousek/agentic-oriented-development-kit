@@ -37,7 +37,7 @@
 set -euo pipefail
 
 # All stage labels used by the AOD lifecycle
-AOD_STAGE_LABELS=("stage:discover" "stage:define" "stage:plan" "stage:build" "stage:deliver")
+AOD_STAGE_LABELS=("stage:discover" "stage:define" "stage:plan" "stage:build" "stage:deliver" "stage:done")
 
 # Board column mapping: AOD stage name → GitHub Projects Status option name
 # Note: Uses a function instead of `declare -A` for bash 3.2 compatibility (macOS default).
@@ -48,6 +48,7 @@ aod_stage_to_column() {
         plan)     echo "Plan" ;;
         build)    echo "Build" ;;
         deliver)  echo "Deliver" ;;
+        done)     echo "Done" ;;
         *)        echo "" ;;
     esac
 }
@@ -143,8 +144,8 @@ aod_gh_validate_cache() {
     # Verify status_options has exactly 5 entries with non-empty option IDs
     local option_count
     option_count=$(jq '.status_options | length' "$AOD_BOARD_CACHE" 2>/dev/null)
-    if [[ "$option_count" != "5" ]]; then
-        echo "[aod] Warning: Board cache has $option_count status options (expected 5). Clearing cache — run 'aod_gh_setup_board' to reconfigure." >&2
+    if [[ "$option_count" != "6" ]]; then
+        echo "[aod] Warning: Board cache has $option_count status options (expected 6). Clearing cache — run 'aod_gh_setup_board' to reconfigure." >&2
         rm -f "$AOD_BOARD_CACHE"
         return 1
     fi
@@ -347,7 +348,8 @@ mutation($fieldId: ID!) {
       {name: "Define", color: PURPLE, description: ""},
       {name: "Plan", color: YELLOW, description: ""},
       {name: "Build", color: ORANGE, description: ""},
-      {name: "Deliver", color: GREEN, description: ""}
+      {name: "Deliver", color: GREEN, description: ""},
+      {name: "Done", color: GRAY, description: ""}
     ]
   }) {
     projectV2Field {
@@ -366,7 +368,7 @@ mutation($fieldId: ID!) {
         local fallback_result
         fallback_result=$(gh project field-create "$project_number" --owner "$owner" \
             --name "AOD Stage" --data-type "SINGLE_SELECT" \
-            --single-select-options "Discover,Define,Plan,Build,Deliver" --format json 2>/dev/null) || {
+            --single-select-options "Discover,Define,Plan,Build,Deliver,Done" --format json 2>/dev/null) || {
             echo "[aod] Warning: Failed to create custom 'AOD Stage' field. Board setup skipped." >&2
             return 0
         }
@@ -389,21 +391,22 @@ mutation($fieldId: ID!) {
     }
 
     # Parse option IDs from mutation response
-    local discover_id define_id plan_id build_id deliver_id
+    local discover_id define_id plan_id build_id deliver_id done_id
 
     discover_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Discover") | .id' 2>/dev/null)
     define_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Define") | .id' 2>/dev/null)
     plan_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Plan") | .id' 2>/dev/null)
     build_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Build") | .id' 2>/dev/null)
     deliver_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Deliver") | .id' 2>/dev/null)
+    done_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Done") | .id' 2>/dev/null)
 
     # Validate all option IDs are non-empty
-    if [[ -z "$discover_id" || -z "$define_id" || -z "$plan_id" || -z "$build_id" || -z "$deliver_id" ]]; then
-        echo "[aod] Warning: Could not parse all 5 option IDs from Status field configuration. Board setup skipped." >&2
+    if [[ -z "$discover_id" || -z "$define_id" || -z "$plan_id" || -z "$build_id" || -z "$deliver_id" || -z "$done_id" ]]; then
+        echo "[aod] Warning: Could not parse all 6 option IDs from Status field configuration. Board setup skipped." >&2
         return 0
     fi
 
-    echo "[aod] Status field configured with 5 AOD stages." >&2
+    echo "[aod] Status field configured with 6 AOD stages." >&2
 
     # --- Section 4: Cache writing and cleanup ---
 
@@ -421,6 +424,7 @@ mutation($fieldId: ID!) {
         --arg plan_id "$plan_id" \
         --arg build_id "$build_id" \
         --arg deliver_id "$deliver_id" \
+        --arg done_id "$done_id" \
         --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         '{
             project_number: $project_number,
@@ -434,7 +438,8 @@ mutation($fieldId: ID!) {
                 Define: $define_id,
                 Plan: $plan_id,
                 Build: $build_id,
-                Deliver: $deliver_id
+                Deliver: $deliver_id,
+                Done: $done_id
             },
             created_at: $created_at
         }')
@@ -461,7 +466,7 @@ mutation($fieldId: ID!) {
 # Add an issue to the GitHub Projects board and set its Status column
 # Args:
 #   $1 = issue_url (required, full GitHub issue URL)
-#   $2 = stage (required, one of: discover, define, plan, build, deliver)
+#   $2 = stage (required, one of: discover, define, plan, build, deliver, done)
 # Returns: 0 always (graceful degradation), item ID on stdout on success
 # Stderr: warnings on any failure
 aod_gh_add_to_board() {
@@ -514,7 +519,7 @@ aod_gh_add_to_board() {
     column_name=$(aod_stage_to_column "$stage")
 
     if [[ -z "$column_name" ]]; then
-        echo "[aod] Warning: Unknown stage '$stage'. Valid stages: discover, define, plan, build, deliver. Board add skipped." >&2
+        echo "[aod] Warning: Unknown stage '$stage'. Valid stages: discover, define, plan, build, deliver, done. Board add skipped." >&2
         return 0
     fi
 
@@ -592,7 +597,7 @@ aod_gh_add_to_board() {
 # without duplicating — so we skip the expensive item-list search.
 # Args:
 #   $1 = issue_url (required, full GitHub issue URL)
-#   $2 = new_stage (required, one of: discover, define, plan, build, deliver)
+#   $2 = new_stage (required, one of: discover, define, plan, build, deliver, done)
 # Returns: 0 always (graceful degradation)
 # Stderr: warnings on any failure
 aod_gh_move_on_board() {
@@ -645,7 +650,7 @@ aod_gh_move_on_board() {
     column_name=$(aod_stage_to_column "$new_stage")
 
     if [[ -z "$column_name" ]]; then
-        echo "[aod] Warning: Unknown stage '$new_stage'. Valid stages: discover, define, plan, build, deliver. Board move skipped." >&2
+        echo "[aod] Warning: Unknown stage '$new_stage'. Valid stages: discover, define, plan, build, deliver, done. Board move skipped." >&2
         return 0
     fi
 
@@ -776,7 +781,7 @@ aod_gh_find_issue() {
 # Args:
 #   $1 = title (required)
 #   $2 = body (required, markdown)
-#   $3 = stage (required, one of: discover, define, plan, build, deliver)
+#   $3 = stage (required, one of: discover, define, plan, build, deliver, done)
 #   $4 = issue_type (optional, e.g., "idea" or "retro" — adds type:* label)
 # Returns: 0 always (graceful degradation), issue number on stdout if created
 aod_gh_create_issue() {
@@ -868,7 +873,7 @@ aod_gh_create_issue() {
 # Update a GitHub Issue's stage label (remove old stage:* labels, add new one)
 # Args:
 #   $1 = issue number (required)
-#   $2 = new stage (required, one of: discover, define, plan, build, deliver)
+#   $2 = new stage (required, one of: discover, define, plan, build, deliver, done)
 # Returns: 0 always (graceful degradation)
 aod_gh_update_stage() {
     local issue_number="${1:-}"

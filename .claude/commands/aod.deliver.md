@@ -74,7 +74,7 @@ Run the `~aod-deliver` skill's retrospective flow (Steps 2-8 from `.claude/skill
 2. **Surprise Log**: Prompt for "what surprised us" (1 sentence minimum, required)
 3. **Feedback Loop**: Prompt for new ideas — each creates a GitHub Issue with `stage:discover` label and source "Retrospective"
 4. **Lessons Learned**: Capture key lesson with category, append KB entry to `docs/INSTITUTIONAL_KNOWLEDGE.md`
-5. **GitHub Update**: Post delivery metrics as comment on feature's GitHub Issue, transition to `stage:deliver`
+5. **GitHub Update**: Post delivery metrics as comment on feature's GitHub Issue, transition to `stage:deliver` (at retrospective start)
 6. **BACKLOG.md**: Regenerate via `.aod/scripts/bash/backlog-regenerate.sh`
 
 ## Step 6: Cleanup Tasks
@@ -110,7 +110,18 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 Then `git push origin main`.
 
-## Step 9: Generate Closure Report
+## Step 9: Close GitHub Issue
+
+After commit and push, finalize the GitHub Issue lifecycle:
+
+1. Transition from `stage:deliver` to `stage:done`: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$issue_number" "done"`
+2. Close the issue: `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete."`
+3. Regenerate BACKLOG.md: `.aod/scripts/bash/backlog-regenerate.sh`
+4. If `gh` is unavailable, skip silently (graceful degradation)
+
+This is the terminal lifecycle state — the issue is now fully closed and removed from the active backlog.
+
+## Step 10: Generate Closure Report
 
 ```markdown
 ## ✅ Feature {NUMBER} Closure Complete
@@ -139,6 +150,7 @@ Then `git push origin main`.
 - [x] All tasks complete
 - [x] No TBD/TODO in docs
 - [x] Committed and pushed
+- [x] GitHub Issue closed (`stage:done`)
 - [{sync_status}] AOD-kit upstream sync
 
 **Feature {NUMBER} is now officially CLOSED.**

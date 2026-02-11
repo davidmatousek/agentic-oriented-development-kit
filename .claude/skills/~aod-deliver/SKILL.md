@@ -294,6 +294,19 @@ Next Steps:
 
 ---
 
+## Step 10: Close Issue and Transition to Done
+
+After all retrospective steps are complete, metrics posted, and KB entries created:
+
+1. **Transition to `stage:done`**: Run `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$issue_number" "done"` to move the label from `stage:deliver` to `stage:done`. This moves the issue to the Done column on the Projects board.
+2. **Close the GitHub Issue**: Run `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete. See INSTITUTIONAL_KNOWLEDGE.md for lessons learned."` to close the issue.
+3. **Regenerate BACKLOG.md**: Run `.aod/scripts/bash/backlog-regenerate.sh` to remove the now-done item from the active backlog.
+4. If `gh` is unavailable, skip silently (graceful degradation).
+
+This step MUST be the very last GitHub operation, after all metrics, KB entries, and backlog regeneration from Step 8 are complete.
+
+---
+
 ## Edge Cases
 
 - **No tasks.md**: Skip DoD validation, warn user
@@ -316,6 +329,8 @@ Next Steps:
 - [ ] Lessons learned captured with category and full description
 - [ ] KB entry appended to INSTITUTIONAL_KNOWLEDGE.md with correct entry number
 - [ ] Delivery metrics posted to GitHub Issue as comment
-- [ ] Issue transitioned to `stage:deliver` label
+- [ ] Issue transitioned to `stage:deliver` label (start of retrospective)
 - [ ] BACKLOG.md regenerated
 - [ ] Retrospective summary displayed with all metrics
+- [ ] Issue transitioned to `stage:done` label (end of retrospective)
+- [ ] GitHub Issue closed with closing comment

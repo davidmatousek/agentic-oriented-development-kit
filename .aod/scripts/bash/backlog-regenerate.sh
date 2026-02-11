@@ -197,7 +197,7 @@ for issue in data:
     untracked=$(echo "$RAW_JSON" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver'}
+stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:done'}
 for issue in data:
     labels = {l['name'] for l in issue.get('labels', [])}
     if not labels.intersection(stage_labels):
@@ -232,8 +232,8 @@ if $JSON_MODE; then
     python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-counts = {'discover': 0, 'define': 0, 'plan': 0, 'build': 0, 'deliver': 0, 'untracked': 0}
-stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver'}
+counts = {'discover': 0, 'define': 0, 'plan': 0, 'build': 0, 'deliver': 0, 'done': 0, 'untracked': 0}
+stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:done'}
 for issue in data:
     labels = {l['name'] for l in issue.get('labels', [])}
     matched = labels.intersection(stage_labels)
