@@ -10,9 +10,9 @@ $ARGUMENTS
 
 ## Overview
 
-Single-command lifecycle orchestrator. Accepts 4 input modes and delegates to the `~aod-run` skill.
+Single-command lifecycle orchestrator. Accepts 4 input modes and 1 combinable flag (`--dry-run`), and delegates to the `~aod-run` skill.
 
-**Usage**: `/aod.run <idea | #NNN | --resume | --status>`
+**Usage**: `/aod.run <idea | #NNN | --resume | --status | --dry-run>`
 
 **Entry Points**:
 
@@ -23,14 +23,31 @@ Single-command lifecycle orchestrator. Accepts 4 input modes and delegates to th
 | `/aod.run --resume` | Resume | Continues from last state checkpoint on disk |
 | `/aod.run --status` | Status | Read-only display of current orchestration state |
 | `/aod.run --status #22` | Status | Inferred status for a specific issue (no state file needed) |
+| `/aod.run --dry-run "Add dark mode"` | Dry-run | Preview full lifecycle without executing |
+| `/aod.run --dry-run #22` | Dry-run | Preview from issue without executing |
+| `/aod.run --dry-run --resume` | Dry-run | Preview resume without executing |
 
 **State File**: `.aod/run-state.json` — persisted after every stage transition for session resilience.
 
 **Skill Reference**: `.claude/skills/~aod-run/SKILL.md` — full orchestration logic.
 
+## Step 0: Parse Dry-Run Flag
+
+Check if `$ARGUMENTS` starts with `--dry-run`:
+
+1. If `$ARGUMENTS` starts with `--dry-run`:
+   - Set `dry_run = true`
+   - Strip `--dry-run` from the beginning of `$ARGUMENTS` (trim leading whitespace from remainder)
+   - Continue to Step 1 with the remaining arguments
+   - **Note**: The `--dry-run` flag must appear at the start of arguments (e.g., `/aod.run --dry-run #22`, not `/aod.run #22 --dry-run`)
+
+2. If `$ARGUMENTS` does NOT start with `--dry-run`:
+   - Set `dry_run = false`
+   - Continue to Step 1 with `$ARGUMENTS` unchanged
+
 ## Step 1: Parse Input Mode
 
-Read `$ARGUMENTS` and determine the entry mode:
+Read the (possibly stripped) arguments and determine the entry mode:
 
 1. **Status mode**: Arguments start with `--status`
    - If followed by `#NNN` or `NNN`: set mode = `status`, issue = NNN
@@ -47,7 +64,7 @@ Read `$ARGUMENTS` and determine the entry mode:
 
 5. **No arguments**: Display usage help and exit:
    ```
-   Usage: /aod.run <idea | #NNN | --resume | --status>
+   Usage: /aod.run <idea | #NNN | --resume | --status | --dry-run>
 
    Examples:
      /aod.run "Add dark mode toggle"    Start new lifecycle from idea
@@ -55,6 +72,9 @@ Read `$ARGUMENTS` and determine the entry mode:
      /aod.run --resume                   Continue from last checkpoint
      /aod.run --status                   View current orchestration state
      /aod.run --status #22               View status for issue #22
+     /aod.run --dry-run "Add feature"   Preview lifecycle without executing
+     /aod.run --dry-run #22             Preview from issue without executing
+     /aod.run --dry-run --resume        Preview resume without executing
 
    Lifecycle stages: Discover → Define → Plan (spec → plan → tasks) → Build → Deliver
    Governance gates pause at each stage boundary for Triad sign-offs.
@@ -73,6 +93,7 @@ Format the invocation as:
 Mode: {mode}
 Issue: {issue_number or "none"}
 Idea: {idea_text or "none"}
+DryRun: {true or false}
 ```
 
 The `~aod-run` skill will take over from here.
@@ -101,3 +122,10 @@ The `~aod-run` skill will take over from here.
 1. Read-only display — never modifies state or artifacts
 2. Shows stage map, feature name, governance gate results
 3. With `#NNN`: infers status from GitHub label + disk artifacts if no state file
+
+### Dry-Run (`--dry-run`)
+1. Read-only preview — never modifies state, git, or GitHub
+2. Shows planned stages (EXECUTE/SKIP), governance gates, and expected artifacts
+3. Combinable with idea, issue, or resume modes (flag must appear first)
+4. Exits immediately after preview display
+5. If combined with `--status`: the `--dry-run` flag is ignored (status is already read-only)

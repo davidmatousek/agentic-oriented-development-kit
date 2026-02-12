@@ -44,6 +44,13 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Atomic File Write (Write-Then-Rename)](#pattern-atomic-file-write)
 - [Function Library Sourcing](#pattern-function-library-sourcing)
 - [Graceful CLI Degradation](#pattern-graceful-cli-degradation)
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields)
+
+### Skill Patterns (AOD Kit)
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation)
+- [Compound State Helpers](#pattern-compound-state-helpers)
+- [Governance Result Caching](#pattern-governance-result-caching)
+- [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview)
 
 ---
 
@@ -151,6 +158,277 @@ bash .aod/scripts/bash/backlog-regenerate.sh 2>/dev/null || true
 
 #### When NOT to Use
 - Core dependencies that the feature cannot function without (e.g., `jq` for JSON state)
+
+---
+
+### Pattern: Additive Optional State Fields
+
+**Added**: Feature 032 (Real-time Token Budget Tracking)
+**ADR**: [ADR-003](../02_ADRs/ADR-003-heuristic-token-estimation.md)
+
+#### Problem
+New features need to extend the orchestrator state file (`run-state.json`) with additional data objects (e.g., `governance_cache` in Feature 030, `token_budget` in Feature 032). However, existing state files created by earlier features do not contain these new fields. Requiring a schema migration or version bump would break backward compatibility and force users to recreate state files.
+
+#### Solution
+Every function that reads a new state field checks whether that field exists before accessing it. If the field is absent, the function returns a safe default value and exits cleanly (return 0). Functions that write to a new field first check for the parent object's existence and skip the write if it is absent. This makes the new state object purely opt-in: it is created only when a new orchestration is initialized with the feature enabled.
+
+The key rules:
+1. **Read functions**: Check for field existence; return a default if absent
+2. **Write functions**: Check for parent object existence; return 0 (success) if absent
+3. **Initialization**: New state object is included in the initial state template for new runs
+4. **No migration**: Existing state files from prior features continue to work without modification
+
+#### Example
+```bash
+# From .aod/scripts/bash/run-state.sh (Feature 032)
+
+aod_state_update_budget() {
+    # ... (args: stage, checkpoint, tokens)
+    local state
+    state=$(aod_state_read) || return 1
+
+    # Check if token_budget exists; skip gracefully if absent (backward compat)
+    local has_budget
+    has_budget=$(echo "$state" | jq -r 'if .token_budget then "yes" else "no" end')
+    if [[ "$has_budget" != "yes" ]]; then
+        return 0  # Pre-032 state file — no budget tracking, no error
+    fi
+
+    # Proceed with update only if the field exists
+    state=$(echo "$state" | jq --argjson tok "$tokens" \
+        '.token_budget.estimated_total = (.token_budget.estimated_total + $tok)')
+    aod_state_write "$state"
+}
+
+aod_state_get_budget_summary() {
+    # Returns defaults when token_budget is absent
+    echo "$state" | jq -r '
+        if .token_budget then
+            [(.token_budget.estimated_total // 0),
+             (.token_budget.usable_budget // 120000),
+             (.token_budget.threshold_percent // 80),
+             (.token_budget.adaptive_mode // false)] | map(tostring) | join("|")
+        else
+            "0|120000|80|false"
+        end'
+}
+```
+
+#### When to Use
+- Adding new top-level objects to a shared JSON state file across feature releases
+- Any schema extension where existing consumers must not break
+- When a feature is opt-in and should not require manual state file migration
+- State files managed by multiple features at different version levels
+
+#### When NOT to Use
+- Breaking changes where the old schema is fundamentally incompatible (use schema version bump)
+- Fields that are required for core functionality (missing field = hard failure is correct behavior)
+- When the number of optional fields grows large enough to warrant a formal migration system
+
+#### Related Patterns
+- [Atomic File Write](#pattern-atomic-file-write) -- all state writes (including optional field updates) use write-then-rename
+- [Compound State Helpers](#pattern-compound-state-helpers) -- budget summary helpers follow the same pipe-delimited extraction approach
+- [Governance Result Caching](#pattern-governance-result-caching) -- `governance_cache` was the first use of this pattern (Feature 030)
+
+---
+
+### Pattern: On-Demand Reference File Segmentation
+
+**Added**: Feature 030 (Context Efficiency of /aod.run)
+**ADR**: [ADR-002](../02_ADRs/ADR-002-prompt-segmentation.md)
+
+#### Problem
+A monolithic SKILL.md file loads its entire content into the agent's context window at invocation, even when large sections are only needed conditionally (e.g., governance rules at stage boundaries, error recovery on failure). This wastes context tokens that could be used for implementation work.
+
+#### Solution
+Split the monolithic skill file into a compact core (~400-500 lines) containing the always-needed execution loop, plus co-located reference files loaded via the Read tool only when their content is needed. Each branch point in the core file includes a MANDATORY Read instruction that loads the relevant reference file before proceeding.
+
+A Navigation table in the core file maps every conditionally-needed section to its reference file, making the structure discoverable.
+
+#### Example
+```
+# Directory structure
+.claude/skills/~aod-run/
+  SKILL.md                     # Core loop (~405 lines, always loaded)
+  references/
+    governance.md              # Loaded at governance gates
+    entry-modes.md             # Loaded once per entry mode
+    dry-run.md                 # Loaded only with --dry-run
+    error-recovery.md          # Loaded on error/completion
+
+# In SKILL.md — branch point with MANDATORY Read instruction
+**MANDATORY**: You MUST use the Read tool to load `references/governance.md`
+before proceeding with governance gate detection. Do NOT rely on memory of
+prior governance content. If the file cannot be read, display an error and STOP.
+```
+
+#### When to Use
+- Skill files exceeding ~500 lines where content divides into always-needed vs. conditionally-needed
+- Skills with distinct operational modes (e.g., normal vs. dry-run vs. error recovery)
+- When context window pressure limits the agent's ability to perform downstream work
+
+#### When NOT to Use
+- Skills under ~500 lines where the entire content is routinely needed
+- Content that is heavily cross-referenced (splitting creates circular Read dependencies)
+- When Read tool latency is unacceptable for the use case
+
+#### Related Patterns
+- [Compound State Helpers](#pattern-compound-state-helpers) -- reduces state read tokens within the segmented core
+- [Governance Result Caching](#pattern-governance-result-caching) -- reduces how often governance.md needs to be loaded
+
+---
+
+### Pattern: Compound State Helpers
+
+**Added**: Feature 030 (Context Efficiency of /aod.run)
+
+#### Problem
+Reading the full JSON state file into context at every loop iteration consumes ~315 tokens per read. In a lifecycle with ~15 state reads before the Build stage, this totals ~4,725 tokens for state management alone. Most reads only need 2-3 fields.
+
+#### Solution
+Provide compound Bash helper functions that read the JSON once internally, extract multiple fields via a single `jq` query, and return only a pipe-delimited string of the extracted values. The full JSON never enters the agent's context.
+
+#### Example
+```bash
+# From .aod/scripts/bash/run-state.sh
+
+# Generic multi-field extraction
+# Returns: "plan|spec|standard"
+aod_state_get_multi ".current_stage" ".current_substage" ".governance_tier"
+
+# Purpose-specific helper for the Core Loop
+# Returns: "plan|spec|in_progress"
+aod_state_get_loop_context
+
+# Usage in the orchestrator Core Loop (step 1):
+# Instead of: state=$(aod_state_read)  → ~315 tokens
+# Use:        context=$(aod_state_get_loop_context)  → ~5 tokens
+```
+
+#### When to Use
+- State files read repeatedly in a loop where only a few fields are needed per iteration
+- Any scenario where the full state is large but the consumer needs a small subset
+- When cumulative token savings across multiple reads justify adding helper functions
+
+#### When NOT to Use
+- One-time reads where the full state is needed (initialization, validation)
+- State files small enough that full reads are negligible (~50 tokens or less)
+
+#### Related Patterns
+- [Atomic File Write](#pattern-atomic-file-write) -- compound helpers use the same atomic read/write infrastructure
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- both patterns reduce context consumption
+
+---
+
+### Pattern: Governance Result Caching
+
+**Added**: Feature 030 (Context Efficiency of /aod.run)
+
+#### Problem
+Checking governance approval status requires reading full artifact files (spec.md, plan.md, tasks.md) and parsing their YAML frontmatter. Each artifact read consumes ~500 tokens. Governance is checked at stage boundaries and during resume validation, leading to ~3,000 tokens of redundant reads when verdicts have not changed.
+
+#### Solution
+Cache governance verdicts (status, date, summary) in the state file under a `governance_cache` object, keyed by artifact and reviewer. On subsequent governance checks, read the cached verdict (~11 tokens) instead of re-reading the artifact (~500 tokens). Invalidate the cache when an artifact is regenerated after a CHANGES_REQUESTED verdict.
+
+#### Example
+```bash
+# From .aod/scripts/bash/run-state.sh
+
+# Cache a verdict after a governance review completes
+aod_state_cache_governance "spec" "pm" "APPROVED" "PM approved spec"
+
+# Check cache before reading artifact (returns "APPROVED|2026-02-11|summary" or "null")
+aod_state_get_governance_cache "spec" "pm"
+
+# Invalidate cache when artifact is regenerated
+aod_state_clear_governance_cache "spec"
+```
+
+```json
+{
+  "governance_cache": {
+    "spec": {
+      "pm": {
+        "status": "APPROVED",
+        "date": "2026-02-11T14:30:00Z",
+        "summary": "PM approved spec"
+      }
+    }
+  }
+}
+```
+
+#### When to Use
+- Governance or approval checks that are read frequently but change rarely
+- Any expensive read operation whose result is deterministic until the source is modified
+- Multi-gate workflows where the same verdict is checked at multiple points
+
+#### When NOT to Use
+- When the source artifact changes frequently (cache churn exceeds read savings)
+- When governance rules require always-fresh reads (e.g., compliance audits)
+- Single-check scenarios where caching adds complexity without savings
+
+#### Related Patterns
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- cache hits avoid loading governance.md entirely
+- [Compound State Helpers](#pattern-compound-state-helpers) -- cache reads use the same incremental extraction approach
+
+---
+
+### Pattern: Read-Only Dry-Run Preview
+
+**Added**: Feature 027 (Orchestrator Dry-Run Mode)
+
+#### Problem
+Skills and commands that perform multi-step mutations (writing state files, creating branches, updating GitHub labels, invoking sub-skills) are difficult to reason about before execution. Users cannot predict what the orchestrator will do -- which stages will execute, which will be skipped, and what governance gates will trigger -- without actually running it and potentially creating irreversible side effects.
+
+#### Solution
+Add a `--dry-run` flag that reuses the existing detection and classification logic but suppresses all write operations. The pattern has four phases:
+
+1. **Detect**: Run the same read-only detection steps as the normal mode (read state files, query GitHub, scan artifacts on disk)
+2. **Classify**: Build the planned execution sequence, governance gate predictions, and artifact predictions using the detected state
+3. **Display**: Render a structured preview showing what would happen for each stage
+4. **Exit**: Stop immediately without entering the execution loop
+
+The key insight is that detection logic is already separated from mutation logic in well-structured skills. Dry-run reuses detection verbatim and replaces mutation with display.
+
+#### Example
+```
+# Skill routing (pseudocode from SKILL.md)
+if DryRun == true:
+    # Phase 1: Detect (reuse existing detection steps, read-only)
+    run_detection_phase(mode, suppress_writes=true)
+
+    # Phase 2: Classify
+    execution_plan = classify_stages(detected_state)
+    gate_predictions = predict_governance_gates(execution_plan, tier)
+    artifact_predictions = predict_artifacts(execution_plan, feature_id)
+
+    # Phase 3: Display
+    render_preview(execution_plan, gate_predictions, artifact_predictions)
+
+    # Phase 4: Exit -- do NOT enter Core Loop
+    EXIT
+```
+
+Mutations explicitly suppressed during dry-run:
+- No state file writes (`.aod/run-state.json`)
+- No git branch creation or switching
+- No GitHub label updates
+- No sub-skill invocations
+- No backlog regeneration
+
+#### When to Use
+- Commands or skills with multi-step side effects where users need confidence before committing
+- Orchestrators that chain multiple sub-commands with governance gates
+- Any workflow where the execution plan depends on detected state (existing artifacts, labels, prior progress)
+
+#### When NOT to Use
+- Simple commands with a single, obvious action (e.g., "read this file")
+- Commands that are already read-only (e.g., `--status`)
+- When the detection phase itself has significant side effects that cannot be separated from mutations
+
+#### Related Patterns
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- dry-run inherits the same `gh` fallback behavior during detection
 
 ---
 

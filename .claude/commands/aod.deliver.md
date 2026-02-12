@@ -72,7 +72,7 @@ Run the `~aod-deliver` skill's retrospective flow (Steps 2-8 from `.claude/skill
 
 1. **Delivery Metrics**: Capture estimated vs. actual duration (actual computed from branch creation date)
 2. **Surprise Log**: Prompt for "what surprised us" (1 sentence minimum, required)
-3. **Feedback Loop**: Prompt for new ideas — each creates a GitHub Issue with `stage:discover` label and source "Retrospective"
+3. **Feedback Loop**: Prompt for new ideas — each creates a GitHub Issue with `stage:discover` label and source "Retrospective", then adds it to the Projects board: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$new_issue_number" "discover"`
 4. **Lessons Learned**: Capture key lesson with category, append KB entry to `docs/INSTITUTIONAL_KNOWLEDGE.md`
 5. **GitHub Update**: Post delivery metrics as comment on feature's GitHub Issue, transition to `stage:deliver` (at retrospective start)
 6. **BACKLOG.md**: Regenerate via `.aod/scripts/bash/backlog-regenerate.sh`

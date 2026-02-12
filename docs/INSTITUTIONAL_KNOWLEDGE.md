@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 10 / 20 (KB System Upgrade triggers at 20)
+**Entry Count**: 14 / 20 (KB System Upgrade triggers at 20)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -524,6 +524,105 @@ Applied to all 7 commands: `aod.define`, `aod.spec`, `aod.project-plan`, `aod.ta
 - New ideas spawned: 2 (#27 dry-run mode, #28 multi-feature orchestration)
 
 **Tags**: #retrospective #orchestrator #skill-chaining #governance #state-management
+
+---
+
+### Entry 11: Feature 027 — Orchestrator Dry-Run Mode Retrospective
+
+**Date**: 2026-02-11
+**Category**: Retrospective
+**Severity**: Medium
+**Feature**: 027 (Orchestrator Dry-Run Mode)
+**PR**: #29
+
+**Summary**: Added `--dry-run` flag to `/aod.run` that previews the full orchestration plan without executing any writes. Supports 3 sub-modes (issue, idea, resume) with 4 edge cases. 23 tasks across 5 waves.
+
+**Surprise**: The implementation failed halfway through execution. The `/aod.run` command consumed too much context window, preventing completion of the full lifecycle within a single session. This highlighted that context efficiency is a critical constraint for single-session orchestration features.
+
+**Key Lesson**: Single-session context management needs dedicated research. The current `/aod.run` skill is too context-hungry — it loads full skill content, governance rules, and detection logic simultaneously. Future improvements should explore lazy loading, context compression, or skill segmentation to stay within window limits.
+
+**Pattern**: When building read-only preview modes (dry-run), separate detection logic from mutation logic in the original skill design. If detection and mutation are already cleanly separated, dry-run becomes a natural extension — reuse detection, replace mutation with display, exit immediately. See the "Read-Only Dry-Run Preview" pattern in `docs/architecture/03_patterns/README.md`.
+
+**Metrics**:
+- Estimated: 2 hours | Actual: 1 day (implementation succeeded, but aod.run execution failed midway)
+- Tasks: 23/23 | Waves: 5/5
+- New ideas spawned: 1 (#30 improve context efficiency of aod.run)
+
+**Tags**: #retrospective #dry-run #context-management #orchestrator #read-only-preview
+
+### Entry 12: Feature 030 — Context Efficiency of /aod.run Retrospective
+
+**Date**: 2026-02-11
+**Category**: Retrospective
+**Severity**: High
+**Feature**: 030 (Context Efficiency of /aod.run)
+**PR**: #31
+
+**Summary**: Reduced `/aod.run` orchestrator context consumption by splitting the 1,884-line monolithic SKILL.md into a ~405-line core plus 4 on-demand reference files, adding compound state helpers for incremental reads, and implementing governance result caching. Core SKILL.md tokens dropped from ~25,800 to ~5,690 (78% reduction). Pre-Build total context from ~149,300 to ~122,536 tokens.
+
+**Surprise**: Context gains were larger than expected — the 78% reduction in core SKILL.md exceeded the <8,000 token target significantly (actual ~5,690). The segmentation split was cleaner than anticipated because the original SKILL.md had natural section boundaries that mapped directly to reference files.
+
+**Key Lesson**: Prompt segmentation is high-ROI — splitting large skill files yields disproportionate context savings for moderate effort. The key insight is that most skill content is conditionally needed (governance rules only at gates, entry modes only once, error recovery only on failure), so moving conditional content to reference files loaded via Read tool dramatically reduces persistent context load.
+
+**Pattern**: Three new patterns documented in `docs/architecture/03_patterns/README.md`: (1) On-Demand Reference File Segmentation — split monolithic skills into core + references, (2) Compound State Helpers — extract targeted fields instead of full JSON reads, (3) Governance Result Caching — cache verdicts to avoid redundant artifact reads. See also ADR-002 in `docs/architecture/02_ADRs/`.
+
+**Metrics**:
+- Estimated: 2-3 sessions | Actual: 3 sessions (1 day)
+- Tasks: 47/47 | Waves: 3/3 | Phases: 8/8
+- New ideas spawned: 1 (#32 real-time token budget tracking)
+
+**Tags**: #retrospective #context-efficiency #prompt-segmentation #orchestrator #performance
+
+---
+
+### Entry 13: Feature 032 — Real-time Token Budget Tracking Retrospective
+
+**Date**: 2026-02-11
+**Category**: Retrospective
+**Severity**: Medium
+**Feature**: 032 (Real-time Token Budget Tracking)
+
+**Summary**: Added heuristic token consumption estimation to the `/aod.run` orchestrator. Extends `run-state.sh` with 4 budget functions, enhances the stage map with utilization percentages, introduces adaptive context loading when budget exceeds 80% threshold, and adds proactive resume recommendations when remaining budget is insufficient for the next stage. All changes are additive — pre-032 state files continue to work without error.
+
+**Key Lesson**: Budget tracking for LLM orchestrators is inherently heuristic since actual token counts are not exposed. The critical design choice was overestimating via a 1.5x safety multiplier — triggering adaptive mode early is far better than triggering it late. The 6-layer backward compatibility approach (every function checks for `token_budget` existence) ensures zero regression risk for existing state files.
+
+**Pattern**: Additive optional state fields with graceful degradation. Every new function that reads `token_budget` has a default fallback (returns safe defaults if absent). This pattern enables incremental feature adoption without schema version bumps or migration scripts.
+
+**Surprise**: The adaptive context loading and resume recommendation could be consolidated cleanly into the existing Core Loop structure. Adding a new step 12 (resume recommendation) between post-stage checkpoint and GitHub label update was architecturally clean — no existing step numbering was fragile because all cross-references are by description, not step number.
+
+**Metrics**:
+- Estimated: 2-3 sessions | Actual: 2 sessions
+- Tasks: 26/26 | Waves: 3/3 | Phases: 6/6
+- Files modified: 3 (run-state.sh, SKILL.md, entry-modes.md) + 1 (governance.md)
+
+**Tags**: #retrospective #token-budget #adaptive-loading #orchestrator #heuristic-estimation
+
+---
+
+### Entry 14: Feature 034 — Cross-Session Budget History Retrospective
+
+**Date**: 2026-02-11
+**Category**: Retrospective
+**Severity**: Medium
+**Feature**: 034 (Cross-Session Budget History)
+
+**Summary**: Added trend analysis and session predictions to the `/aod.run` orchestrator by mining the `prior_sessions` array introduced in Feature 032. A single compound `aod_state_get_trend_summary` jq function computes per-stage averages, predicted sessions remaining, and confidence levels. The Stage Map Display and Resume Entry now show trend lines with historical context. Core Loop step 12 (resume recommendation) now uses a 3-tier fallback chain: historical per-stage average → current-session average → 15,000 default.
+
+**Key Lesson**: Lightweight features that modify only markdown skill files and shell scripts can still hit session limits when the orchestrator itself consumes significant context during the build stage. The irony: a feature designed to predict session splits itself needed a session split. This validates the feature's value proposition — without trend data, users have no visibility into when splits will occur.
+
+**Pattern**: Compound jq state helpers with pipe-delimited output. The `aod_state_get_trend_summary` function returns 9 fields in a single call, avoiding multiple round-trips. This pattern (established by `aod_state_get_budget_summary` in Feature 032) is efficient for skill files that need to parse multiple values from state.
+
+**Surprise**: The build stage hit context limits despite being a lightweight 3-file feature. The orchestrator's own context (SKILL.md, governance.md, entry-modes.md reference files) consumes substantial budget, making even small features span 2 sessions.
+
+**Metrics**:
+- Estimated: 1 session | Actual: 2 sessions
+- Tasks: 15/15 | Waves: 4/4 | Phases: 6/6
+- Files modified: 3 (run-state.sh, SKILL.md, entry-modes.md) + 2 (INDEX.md, spec.md)
+- New ideas spawned: 2 (#35 visual budget dashboard, #36 auto-pause at predicted limits)
+
+**Tags**: #retrospective #trend-analysis #session-prediction #orchestrator #cross-session
+
+---
 
 ---
 

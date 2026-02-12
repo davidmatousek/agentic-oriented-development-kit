@@ -104,7 +104,7 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 **Key scripts**:
 | Script | Purpose | Added |
 |--------|---------|-------|
-| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`) | Feature 022 |
+| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads, governance caching, and token budget tracking | Feature 022, extended Feature 030, 032 |
 | `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions | Pre-022 |
 | `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues | Pre-022 |
 
@@ -117,13 +117,33 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 
 **Note**: `gh` degrades gracefully -- the orchestrator falls back to artifact-only detection when `gh` is unavailable or unauthenticated.
 
+### Orchestrator Skill Architecture
+
+**Skill file**: `.claude/skills/~aod-run/SKILL.md` (~405 lines, core execution loop)
+- Architecture: Segmented prompt with on-demand reference loading (Feature 030)
+- Core file contains routing, state machine loop, and stage mapping
+- Reference files loaded via Read tool only when needed:
+
+| Reference File | Purpose | Loaded When |
+|----------------|---------|-------------|
+| `references/governance.md` | Governance gate detection, tiers, rejection handling | Governance cache miss |
+| `references/entry-modes.md` | New-idea, issue, resume, status entry handlers | Mode routing |
+| `references/dry-run.md` | Read-only preview handler | `--dry-run` flag |
+| `references/error-recovery.md` | Corrupted state and lifecycle complete handlers | Error or completion |
+
+- See ADR-002 for the design decision behind prompt segmentation
+
 ### Orchestrator State
 
 **State file**: `.aod/run-state.json`
 - Format: JSON (managed via `jq`)
 - Atomicity: Write-then-rename pattern (`write to .tmp`, then `mv`) for crash safety
 - Schema version: `1.0`
+- Governance cache: Verdicts stored in `governance_cache` object to eliminate redundant artifact reads (Feature 030)
+- Token budget: Heuristic token consumption tracking in `token_budget` object with adaptive context loading at configurable threshold (Feature 032)
+- Compound helpers: `aod_state_get_multi`, `aod_state_get_loop_context`, `aod_state_get_governance_cache`, `aod_state_get_budget_summary`, `aod_state_check_adaptive` for incremental reads (Feature 030, 032)
 - See ADR-001 for the design decision behind atomic state management
+- See ADR-003 for the design decision behind heuristic token estimation
 
 ---
 

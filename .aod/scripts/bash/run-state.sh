@@ -19,6 +19,15 @@
 #   aod_state_get <field>   — Extract a top-level field from state
 #   aod_state_set <field> <value> — Update a top-level field atomically
 #   aod_state_append <field> <json> — Append JSON object to array field
+#   aod_state_get_multi <f1> <f2>.. — Extract multiple fields, pipe-delimited
+#   aod_state_get_loop_context      — Core Loop context: stage|substage|status
+#   aod_state_get_governance_cache <art> <rev> — Read cached governance verdict
+#   aod_state_cache_governance <art> <rev> <status> <summary> — Cache verdict
+#   aod_state_clear_governance_cache <art> — Invalidate cache for artifact
+#   aod_state_estimate_tokens [text]        — Estimate token count (positional or stdin)
+#   aod_state_update_budget <stg> <cp> <n>  — Update budget at stage checkpoint
+#   aod_state_get_budget_summary            — Budget summary: total|usable|threshold|adaptive
+#   aod_state_check_adaptive                — Returns "adaptive" or "normal"
 #
 # Requires: jq (JSON processor)
 # Bash 3.2 compatible (macOS default)
@@ -199,6 +208,56 @@ aod_state_validate() {
         esac
     fi
 
+    # Check governance_cache structure (optional field — backward compatible)
+    local gc_type
+    gc_type=$(echo "$state" | jq -r '.governance_cache | type // "null"')
+    if [[ "$gc_type" != "null" ]]; then
+        if [[ "$gc_type" != "object" ]]; then
+            echo "[aod] VALIDATE: governance_cache must be an object, got: $gc_type" >&2
+            errors=$((errors + 1))
+        else
+            # Validate each artifact entry
+            local artifact
+            for artifact in $(echo "$state" | jq -r '.governance_cache | keys[]' 2>/dev/null); do
+                local art_type
+                art_type=$(echo "$state" | jq -r ".governance_cache.\"$artifact\" | type")
+                if [[ "$art_type" != "object" ]]; then
+                    echo "[aod] VALIDATE: governance_cache.$artifact must be an object, got: $art_type" >&2
+                    errors=$((errors + 1))
+                    continue
+                fi
+                # Validate each reviewer entry
+                local reviewer
+                for reviewer in $(echo "$state" | jq -r ".governance_cache.\"$artifact\" | keys[]" 2>/dev/null); do
+                    local entry
+                    entry=$(echo "$state" | jq ".governance_cache.\"$artifact\".\"$reviewer\"")
+                    # Check required fields: status, date, summary
+                    local rf
+                    for rf in status date summary; do
+                        local rv
+                        rv=$(echo "$entry" | jq -r ".$rf // empty")
+                        if [[ -z "$rv" ]]; then
+                            echo "[aod] VALIDATE: governance_cache.$artifact.$reviewer missing required field: $rf" >&2
+                            errors=$((errors + 1))
+                        fi
+                    done
+                    # Check status enum
+                    local gc_status
+                    gc_status=$(echo "$entry" | jq -r '.status // empty')
+                    if [[ -n "$gc_status" ]]; then
+                        case "$gc_status" in
+                            APPROVED|APPROVED_WITH_CONCERNS|CHANGES_REQUESTED|BLOCKED|BLOCKED_OVERRIDDEN) ;;
+                            *)
+                                echo "[aod] VALIDATE: governance_cache.$artifact.$reviewer has invalid status: $gc_status" >&2
+                                errors=$((errors + 1))
+                                ;;
+                        esac
+                    fi
+                done
+            done
+        fi
+    fi
+
     # Check stages map exists
     local stages_type
     stages_type=$(echo "$state" | jq -r '.stages | type // empty')
@@ -331,4 +390,262 @@ aod_state_append() {
     state=$(echo "$state" | jq --argjson obj "$json_obj" "$field += [\$obj]")
 
     aod_state_write "$state"
+}
+
+# ============================================================================
+# Compound Helpers (Feature 030: Context Efficiency)
+# ============================================================================
+
+# Extract multiple fields in a single disk read, return pipe-delimited values
+# Args: $1..$N = jq field expressions (e.g., ".current_stage" ".current_substage")
+# Output: pipe-delimited values (e.g., "build|null|in_progress")
+# Null/missing fields return literal "null"
+aod_state_get_multi() {
+    aod_state_check_jq || return 1
+    local state
+    state=$(aod_state_read) || return 1
+
+    # Build compound jq filter: [.field1, .field2, ...] | map(. // "null" | tostring) | join("|")
+    local fields=""
+    local sep=""
+    for f in "$@"; do
+        fields="${fields}${sep}${f}"
+        sep=", "
+    done
+
+    echo "$state" | jq -r "[${fields}] | map(. // \"null\" | tostring) | join(\"|\")"
+}
+
+# Core Loop context: stage + substage + stage status in one read
+# Output: "plan|spec|in_progress" or "build|null|completed"
+# Null-guarded: if current_stage is null, stage_status returns "pending"
+aod_state_get_loop_context() {
+    aod_state_check_jq || return 1
+    local state
+    state=$(aod_state_read) || return 1
+
+    echo "$state" | jq -r '[
+        (.current_stage // "null"),
+        (.current_substage // "null"),
+        (if .current_stage then (.stages[.current_stage].status // "pending") else "pending" end)
+    ] | join("|")'
+}
+
+# Read cached governance verdict for artifact+reviewer
+# Args: $1 = artifact key (e.g., "spec"), $2 = reviewer role (e.g., "pm")
+# Output: "APPROVED|2026-02-11T14:30:00Z|PM approved" or "null" if not cached
+aod_state_get_governance_cache() {
+    aod_state_check_jq || return 1
+    local artifact="$1"
+    local reviewer="$2"
+    local state
+    state=$(aod_state_read) || return 1
+
+    echo "$state" | jq -r --arg art "$artifact" --arg rev "$reviewer" \
+        'if .governance_cache[$art][$rev] then
+            [.governance_cache[$art][$rev].status,
+             .governance_cache[$art][$rev].date,
+             .governance_cache[$art][$rev].summary] | join("|")
+         else "null" end'
+}
+
+# Cache a governance verdict in state file
+# Args: $1 = artifact key (e.g., "spec", "plan", "tasks", "prd")
+#        $2 = reviewer role (e.g., "pm", "architect", "techlead")
+#        $3 = status (e.g., "APPROVED", "CHANGES_REQUESTED", "BLOCKED")
+#        $4 = summary text
+aod_state_cache_governance() {
+    aod_state_check_jq || return 1
+    local artifact="$1"
+    local reviewer="$2"
+    local status="$3"
+    local summary="$4"
+    local now
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    local state
+    state=$(aod_state_read) || return 1
+
+    # Ensure governance_cache structure exists, then set the entry
+    state=$(echo "$state" | jq \
+        --arg art "$artifact" \
+        --arg rev "$reviewer" \
+        --arg st "$status" \
+        --arg dt "$now" \
+        --arg sm "$summary" \
+        '.governance_cache //= {} |
+         .governance_cache[$art] //= {} |
+         .governance_cache[$art][$rev] = {status: $st, date: $dt, summary: $sm}')
+
+    aod_state_write "$state"
+}
+
+# Clear governance cache for an artifact (invalidation on stage re-invocation)
+# Args: $1 = artifact key (e.g., "spec", "plan", "tasks")
+aod_state_clear_governance_cache() {
+    aod_state_check_jq || return 1
+    local artifact="$1"
+
+    local state
+    state=$(aod_state_read) || return 1
+
+    # Remove the artifact's cache entry if it exists
+    state=$(echo "$state" | jq --arg art "$artifact" \
+        'if .governance_cache and .governance_cache[$art] then del(.governance_cache[$art]) else . end')
+
+    aod_state_write "$state"
+}
+
+# ============================================================================
+# Token Budget Functions (Feature 032: Real-time Token Budget Tracking)
+# ============================================================================
+
+# Estimate token count from text content
+# Uses heuristic: (character_count * 3) / 8 = chars/4 * 1.5x safety multiplier
+# Accepts text via positional arg ($1) or stdin (for large content, ARG_MAX safe)
+# Output: integer token estimate to stdout
+aod_state_estimate_tokens() {
+    local text=""
+    if [[ $# -gt 0 ]]; then
+        text="$1"
+    else
+        text=$(cat)
+    fi
+
+    local char_count
+    char_count=$(printf '%s' "$text" | wc -c | tr -d ' ')
+
+    # Integer arithmetic: (chars * 3) / 8 = chars/4 with 1.5x safety multiplier
+    local tokens
+    tokens=$(( (char_count * 3) / 8 ))
+    # Minimum 1 token for non-empty input
+    if [[ "$char_count" -gt 0 ]] && [[ "$tokens" -eq 0 ]]; then
+        tokens=1
+    fi
+
+    echo "$tokens"
+}
+
+# Update token budget at a stage checkpoint
+# Args: $1 = stage name, $2 = checkpoint type (pre|post), $3 = token count
+# Atomically updates estimated_total and stage_estimates.{stage}.{checkpoint}
+aod_state_update_budget() {
+    aod_state_check_jq || return 1
+
+    local stage="$1"
+    local checkpoint="$2"
+    local tokens="$3"
+
+    local state
+    state=$(aod_state_read) || return 1
+
+    # Check if token_budget exists; skip gracefully if absent (backward compat)
+    local has_budget
+    has_budget=$(echo "$state" | jq -r 'if .token_budget then "yes" else "no" end')
+    if [[ "$has_budget" != "yes" ]]; then
+        return 0
+    fi
+
+    state=$(echo "$state" | jq \
+        --arg stg "$stage" \
+        --arg cp "$checkpoint" \
+        --argjson tok "$tokens" \
+        '.token_budget.estimated_total = (.token_budget.estimated_total + $tok) |
+         .token_budget.stage_estimates[$stg][$cp] = $tok |
+         .token_budget.last_checkpoint = (now | todate)')
+
+    aod_state_write "$state"
+}
+
+# Get budget summary in single disk read (compound helper)
+# Output: pipe-delimited "estimated_total|usable_budget|threshold_percent|adaptive_mode"
+# Returns "0|120000|80|false" defaults if token_budget is absent
+aod_state_get_budget_summary() {
+    aod_state_check_jq || return 1
+    local state
+    state=$(aod_state_read) || return 1
+
+    echo "$state" | jq -r '
+        if .token_budget then
+            [(.token_budget.estimated_total // 0),
+             (.token_budget.usable_budget // 120000),
+             (.token_budget.threshold_percent // 80),
+             (.token_budget.adaptive_mode // false)] | map(tostring) | join("|")
+        else
+            "0|120000|80|false"
+        end'
+}
+
+# Check if adaptive mode should be active
+# Compares estimated_total against usable_budget * threshold_percent / 100
+# Output: "adaptive" or "normal" to stdout
+aod_state_check_adaptive() {
+    aod_state_check_jq || return 1
+    local state
+    state=$(aod_state_read) || return 1
+
+    echo "$state" | jq -r '
+        if .token_budget then
+            ((.token_budget.usable_budget // 120000) * (.token_budget.threshold_percent // 80) / 100) as $threshold |
+            if (.token_budget.estimated_total // 0) >= $threshold then "adaptive"
+            else "normal"
+            end
+        else
+            "normal"
+        end'
+}
+
+# Get cross-session trend summary in single disk read (compound helper)
+# Analyzes prior_sessions array to compute per-stage averages, predictions, and confidence
+# Per-stage averages use (pre+post) for total stage cost, counting only sessions where post > 0
+# Output: pipe-delimited "session_count|avg_total|discover_avg|define_avg|plan_avg|build_avg|deliver_avg|predicted_remaining|confidence"
+# Returns "0|0|0|0|0|0|0|unknown|none" if prior_sessions is empty or token_budget absent
+# Feature 034: Cross-Session Budget History
+aod_state_get_trend_summary() {
+    aod_state_check_jq || return 1
+    local state
+    state=$(aod_state_read) || return 1
+
+    echo "$state" | jq -r '
+        if .token_budget and .token_budget.prior_sessions and (.token_budget.prior_sessions | length) > 0 then
+            .token_budget.prior_sessions as $sessions |
+            ($sessions | length) as $count |
+
+            # Compute average estimated_total across all prior sessions
+            ([$sessions[].estimated_total] | add / $count | floor) as $avg_total |
+
+            # Per-stage average using (pre+post) for sessions where post > 0
+            (["discover", "define", "plan", "build", "deliver"] | map(. as $stage |
+                [$sessions[] | .stage_estimates[$stage] |
+                    select(.post > 0) | (.pre + .post)] |
+                if length > 0 then (add / length | floor) else 0 end
+            )) as $stage_avgs |
+
+            # Determine confidence from session count
+            (if $count >= 3 then "high"
+             elif $count == 2 then "medium"
+             else "low" end) as $confidence |
+
+            # Compute predicted_remaining: sum remaining stage averages / avg_total
+            # Remaining stages = stages not yet completed in current session (post == 0 in current estimates)
+            (.token_budget.stage_estimates as $current |
+                ["discover", "define", "plan", "build", "deliver"] | to_entries |
+                map(select(.value as $stage | $current[$stage].post == 0) | .key) |
+                map($stage_avgs[.]) | add // 0
+            ) as $remaining_cost |
+
+            (if $avg_total > 0 then
+                (($remaining_cost / $avg_total) | ceil | if . < 1 then 1 elif . > 3 then 4 else . end)
+             else 0 end) as $pred_raw |
+
+            (if $remaining_cost == 0 then "0"
+             elif $avg_total == 0 then "unknown"
+             elif $pred_raw > 3 then "3+"
+             else ($pred_raw | tostring) end) as $predicted |
+
+            [$count, $avg_total, $stage_avgs[0], $stage_avgs[1], $stage_avgs[2], $stage_avgs[3], $stage_avgs[4], $predicted, $confidence] |
+            map(tostring) | join("|")
+        else
+            "0|0|0|0|0|0|0|unknown|none"
+        end'
 }
