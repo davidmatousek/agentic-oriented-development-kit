@@ -34,6 +34,10 @@
 
 set -euo pipefail
 
+# Source performance registry for calibrated defaults (non-fatal)
+# shellcheck source=performance-registry.sh
+source "$(dirname "${BASH_SOURCE[0]}")/performance-registry.sh" 2>/dev/null || true
+
 # State file paths
 AOD_STATE_FILE=".aod/run-state.json"
 AOD_STATE_TMP=".aod/run-state.json.tmp"
@@ -559,34 +563,52 @@ aod_state_update_budget() {
 
 # Get budget summary in single disk read (compound helper)
 # Output: pipe-delimited "estimated_total|usable_budget|threshold_percent|adaptive_mode"
-# Returns "0|120000|80|false" defaults if token_budget is absent
+# Returns "0|{calibrated_usable}|80|false" defaults if token_budget is absent
+# Uses performance registry for calibrated usable_budget fallback
 aod_state_get_budget_summary() {
     aod_state_check_jq || return 1
     local state
     state=$(aod_state_read) || return 1
 
-    echo "$state" | jq -r '
+    # Get calibrated usable_budget from registry (fallback to 120000)
+    local calibrated_usable
+    if command -v aod_registry_get_default >/dev/null 2>&1; then
+        calibrated_usable=$(aod_registry_get_default "usable_budget" 2>/dev/null) || calibrated_usable=120000
+    else
+        calibrated_usable=120000
+    fi
+
+    echo "$state" | jq -r --argjson cal_usable "$calibrated_usable" '
         if .token_budget then
             [(.token_budget.estimated_total // 0),
-             (.token_budget.usable_budget // 120000),
+             (.token_budget.usable_budget // $cal_usable),
              (.token_budget.threshold_percent // 80),
              (.token_budget.adaptive_mode // false)] | map(tostring) | join("|")
         else
-            "0|120000|80|false"
+            "0|\($cal_usable)|80|false"
         end'
 }
 
 # Check if adaptive mode should be active
 # Compares estimated_total against usable_budget * threshold_percent / 100
 # Output: "adaptive" or "normal" to stdout
+# Uses performance registry for calibrated usable_budget fallback
 aod_state_check_adaptive() {
     aod_state_check_jq || return 1
     local state
     state=$(aod_state_read) || return 1
 
-    echo "$state" | jq -r '
+    # Get calibrated usable_budget from registry (fallback to 120000)
+    local calibrated_usable
+    if command -v aod_registry_get_default >/dev/null 2>&1; then
+        calibrated_usable=$(aod_registry_get_default "usable_budget" 2>/dev/null) || calibrated_usable=120000
+    else
+        calibrated_usable=120000
+    fi
+
+    echo "$state" | jq -r --argjson cal_usable "$calibrated_usable" '
         if .token_budget then
-            ((.token_budget.usable_budget // 120000) * (.token_budget.threshold_percent // 80) / 100) as $threshold |
+            ((.token_budget.usable_budget // $cal_usable) * (.token_budget.threshold_percent // 80) / 100) as $threshold |
             if (.token_budget.estimated_total // 0) >= $threshold then "adaptive"
             else "normal"
             end

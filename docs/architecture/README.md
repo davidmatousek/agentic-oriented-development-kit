@@ -30,6 +30,7 @@ Significant technical decisions with context and trade-offs
 - `ADR-001-atomic-state-persistence.md` - Write-then-rename for orchestrator state (Feature 022)
 - `ADR-002-prompt-segmentation.md` - On-demand reference file loading for context efficiency (Feature 030)
 - `ADR-003-heuristic-token-estimation.md` - Character-based token estimation with safety multiplier for budget tracking (Feature 032)
+- `ADR-004-performance-registry.md` - File-based performance registry for self-calibrating budget defaults (Feature 042)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

@@ -104,7 +104,8 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 **Key scripts**:
 | Script | Purpose | Added |
 |--------|---------|-------|
-| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads, governance caching, and token budget tracking | Feature 022, extended Feature 030, 032 |
+| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads, governance caching, and token budget tracking | Feature 022, extended Feature 030, 032, 038 |
+| `.aod/scripts/bash/performance-registry.sh` | Performance registry operations for self-calibrating budget defaults (`.aod/memory/performance-registry.json`); 5 functions: exists, read, get_default, append_feature, recalculate | Feature 042 |
 | `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions | Pre-022 |
 | `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues | Pre-022 |
 
@@ -140,10 +141,22 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 - Atomicity: Write-then-rename pattern (`write to .tmp`, then `mv`) for crash safety
 - Schema version: `1.0`
 - Governance cache: Verdicts stored in `governance_cache` object to eliminate redundant artifact reads (Feature 030)
-- Token budget: Heuristic token consumption tracking in `token_budget` object with adaptive context loading at configurable threshold (Feature 032)
+- Token budget: Heuristic token consumption tracking in `token_budget` object with adaptive context loading at configurable threshold (Feature 032); standalone skills write pre/post estimates with orchestrator-awareness guard (Feature 038)
 - Compound helpers: `aod_state_get_multi`, `aod_state_get_loop_context`, `aod_state_get_governance_cache`, `aod_state_get_budget_summary`, `aod_state_check_adaptive` for incremental reads (Feature 030, 032)
 - See ADR-001 for the design decision behind atomic state management
 - See ADR-003 for the design decision behind heuristic token estimation
+
+### Performance Registry
+
+**Registry file**: `.aod/memory/performance-registry.json`
+- Format: JSON (managed via `jq`)
+- Schema version: `1.0`
+- Purpose: Self-calibrating budget defaults by closing feedback loop between budget tracking and estimation
+- FIFO rotation: Maximum 5 features stored; oldest rotated out when new features added
+- Calibrated defaults: `usable_budget`, `safety_multiplier`, `per_stage_estimates` computed from historical actuals
+- Integration: Consumed by `run-state.sh` for calibrated initial values; populated by `/aod.deliver` on feature completion
+- Non-fatal: All operations fall back to hardcoded defaults on any failure (missing jq, corrupted file, etc.)
+- See ADR-004 for the design decision behind the performance registry
 
 ---
 

@@ -52,6 +52,10 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Governance Result Caching](#pattern-governance-result-caching)
 - [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview)
 
+### Command Patterns (AOD Kit)
+- [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard)
+- [Non-Fatal Budget Wrapper](#pattern-non-fatal-budget-wrapper)
+
 ---
 
 ## Documented Patterns
@@ -429,6 +433,113 @@ Mutations explicitly suppressed during dry-run:
 
 #### Related Patterns
 - [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- dry-run inherits the same `gh` fallback behavior during detection
+
+---
+
+### Pattern: Orchestrator-Awareness Guard
+
+**Added**: Feature 038 (Universal Session Budget Tracking)
+
+#### Problem
+Standalone lifecycle commands (`/aod.define`, `/aod.spec`, etc.) need to track their own session budget by writing pre/post estimates to `.aod/run-state.json`. However, the orchestrator (`/aod.run`) already manages budget tracking when it invokes these same commands as sub-stages. If a standalone command writes budget entries while an active orchestrator is managing the state file, the two writers conflict -- double-counting token estimates and potentially corrupting orchestrator loop context.
+
+#### Solution
+Before performing any budget writes, each standalone command checks whether an active orchestrator owns the state file. The detection uses an implicit heuristic: read the `updated_at` timestamp and current stage status from the state file; if any stage is `in_progress` AND `updated_at` is within 5 minutes of the current time, an orchestrator is presumed active. In that case, the command skips all budget tracking and defers to the orchestrator.
+
+This avoids introducing new flags or environment variables. The 5-minute window is chosen because orchestrator loop iterations typically complete within seconds; a stale `updated_at` beyond 5 minutes indicates an abandoned or crashed orchestration rather than an active one.
+
+The key rules:
+1. **Check state existence**: If no state file exists, create one (standalone initialization)
+2. **Check orchestrator recency**: Read `updated_at` and stage status; skip if active
+3. **Validate feature ID**: Compare branch-derived feature ID against state's `feature_id`; prompt user on mismatch
+4. **Proceed or skip**: Write budget estimates only in standalone mode
+
+#### Example
+```
+# From .claude/commands/aod.define.md (Step 0b)
+
+1. Check state file:
+   bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_exists && echo "exists" || echo "none"'
+   - "none" -> create state (step 3)
+   - "exists" -> check orchestrator (step 2)
+
+2. Detect active orchestrator:
+   aod_state_get_loop_context  -> "plan|spec|in_progress"
+   aod_state_get ".updated_at" -> "2026-02-12T10:05:00Z"
+   - If stage is in_progress AND updated_at < 5 min ago -> SKIP budget tracking
+   - Otherwise -> standalone mode, continue
+
+3. Create state file (standalone only):
+   aod_state_init "{feature_id}" "{feature_name}" "Entity 1"
+
+4. Write pre-estimate:
+   aod_state_update_budget "{stage}" "pre" "5000"
+```
+
+#### When to Use
+- Commands that can run both standalone and as sub-stages of an orchestrator
+- Any writer that shares a state file with a long-running coordinator process
+- Scenarios where an implicit ownership heuristic (recency) is sufficient
+
+#### When NOT to Use
+- Commands that are always standalone (no orchestrator coordination)
+- When explicit ownership (lock files, PID checks) is required for correctness
+- High-frequency concurrent writers where a 5-minute heuristic is too coarse
+
+#### Related Patterns
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- budget fields follow the same backward-compatible schema extension
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- budget operations degrade gracefully (non-fatal) similar to CLI fallbacks
+- [Compound State Helpers](#pattern-compound-state-helpers) -- `aod_state_get_loop_context` used for orchestrator detection
+
+---
+
+### Pattern: Non-Fatal Budget Wrapper
+
+**Added**: Feature 038 (Universal Session Budget Tracking)
+
+#### Problem
+Budget tracking is a secondary concern -- it must never block the primary skill execution. However, the budget initialization sequence involves multiple steps (state existence check, orchestrator detection, feature ID validation, state creation, budget write) that can each fail for various reasons (missing `jq`, corrupted state file, permission errors). Wrapping every individual call in error handling is verbose and error-prone.
+
+#### Solution
+Encapsulate the entire budget initialization sequence (pre-estimate) and the completion sequence (post-estimate + utilization display) in clearly demarcated "Non-Fatal" blocks. Every shell command within these blocks uses `|| true` or equivalent error suppression. The block boundary is documented in the command file with an explicit contract: "If any step fails, log the error and continue -- budget tracking is non-fatal."
+
+The completion block follows the same pattern: write post-estimate, read budget summary, calculate utilization percentage, and append to output. If any step fails, the budget line is simply omitted from the completion message.
+
+#### Example
+```
+# Pre-execution block (from command files, Step 0b/1b)
+## Budget Tracking (Non-Fatal)
+1. Check state file ...
+2. Detect active orchestrator ...
+3. Create state file ...
+4. Write pre-estimate: aod_state_update_budget "define" "pre" "5000"
+If any step fails, log the error and continue to Step 1.
+
+# Post-execution block (from command files, completion section)
+### Budget Tracking (Non-Fatal)
+1. Write post-estimate:
+   bash -c '... && aod_state_update_budget "define" "post" "5000" || true'
+2. Read summary:
+   bash -c '... && aod_state_get_budget_summary || echo "0|0|0|false"'
+3. Calculate utilization = (estimated_total * 100) / usable_budget
+4. If estimated_total > 0, append: (~N% budget used)
+5. If any step fails, omit the budget line.
+```
+
+#### When to Use
+- Secondary telemetry or observability features that must not impact primary functionality
+- Operations where partial success is acceptable (some budget data is better than none)
+- Features added to existing stable commands where failure isolation is critical
+
+#### When NOT to Use
+- Core functionality where failures must be surfaced and handled
+- Operations where partial state is worse than no state (use transactions instead)
+- When error details are needed for debugging (non-fatal suppresses error context)
+
+#### Related Patterns
+- [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard) -- the non-fatal wrapper contains the orchestrator guard as one of its steps
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- both patterns prioritize continued operation over error reporting
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- budget read/write functions already handle missing fields gracefully
 
 ---
 

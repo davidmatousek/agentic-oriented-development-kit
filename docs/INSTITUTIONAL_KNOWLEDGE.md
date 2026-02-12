@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 14 / 20 (KB System Upgrade triggers at 20)
+**Entry Count**: 18 / 20 (KB System Upgrade triggers at 20)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -621,6 +621,126 @@ Applied to all 7 commands: `aod.define`, `aod.spec`, `aod.project-plan`, `aod.ta
 - New ideas spawned: 2 (#35 visual budget dashboard, #36 auto-pause at predicted limits)
 
 **Tags**: #retrospective #trend-analysis #session-prediction #orchestrator #cross-session
+
+---
+
+### Entry 15: Budget Tracker Underestimates Actual Context by ~2.5x
+
+**Date**: 2026-02-12
+**Category**: Root Cause Analysis
+**Severity**: High
+**Feature**: 032/034/038 (Token Budget Tracking lineage)
+
+**Problem**: The budget tracker estimated ~72K tokens (60% of 120K usable budget) at the point of pausing, but `/context` showed actual consumption was ~181K tokens (90% of 200K window). The tracker underestimated by approximately 2.5x.
+
+**Root Cause Analysis (5 Whys)**:
+1. Why was the estimate so far off? → The tracker only measures content explicitly loaded by skill instructions, not total conversation context.
+2. Why doesn't it measure total context? → Claude Code does not expose a runtime token consumption API — all estimation is heuristic (ADR-003).
+3. Why is heuristic estimation insufficient? → It misses system overhead (~28K: system prompt, tool definitions, MCP, memory files, skill descriptions) and conversation history growth (~155K of accumulated messages).
+4. Why does conversation history grow so much? → Every tool call and response accumulates in the message history. A session with ~50+ tool calls generates substantial history that the tracker never sees.
+5. Why wasn't the `usable_budget` calibrated for this? → The 120K assumption (60% of 200K) was set conservatively but didn't account for message accumulation being the dominant consumer, not skill content loading.
+
+**Key Data Points**:
+- System overhead (invisible to tracker): ~28K tokens (system prompt 4.3K, tools 15.4K, MCP 562, agents 586, memory 4.7K, skills 2K)
+- Message history: ~155K tokens (77% of total)
+- Budget tracker estimate: 72K | Actual: 181K | Ratio: 2.5x underestimate
+- `usable_budget: 120K` vs real available: ~172K (200K - 28K overhead)
+
+**Solution**: The pause recommendation at 60% estimated was correct in practice — it triggered at ~90% actual. However, the displayed percentage is misleading to users. Recommended calibration for future features:
+1. Reduce `usable_budget` from 120K to 60K to account for message accumulation
+2. OR increase `safety_multiplier` from 1.5x to 3x
+3. OR track tool call count as a proxy for conversation growth (~3K tokens per tool roundtrip average)
+4. Display should convey directional signal, not false precision (e.g., "budget: moderate" vs exact "~60%")
+
+**Why This Matters**: Feature 038 extends budget tracking to standalone skills. If the tracker shows "~15% used" after a standalone `/aod.spec` run but actual consumption is ~40%, users will make poor session planning decisions. The tracking infrastructure works but needs recalibration to be useful as a planning tool.
+
+**Tags**: #rca #budget-tracking #token-estimation #context-window #calibration #orchestrator
+
+---
+
+### Entry 16: Universal Budget Tracking Pattern for Standalone Skills
+
+**Date**: 2026-02-12
+**Category**: Architecture Pattern
+**Severity**: Medium
+**Feature**: 038 (Universal Session Budget Tracking)
+
+**Problem**: Token budget tracking only worked when skills ran inside the `/aod.run` orchestrator. Standalone skill invocations (e.g., `/aod.spec` run directly) produced no budget data, giving developers no visibility into context window consumption.
+
+**Solution**: Implemented a uniform "budget initialization guard" pattern across all 7 AOD lifecycle command files (`/aod.discover`, `/aod.define`, `/aod.spec`, `/aod.project-plan`, `/aod.tasks`, `/aod.build`, `/aod.deliver`). The pattern consists of two blocks:
+
+1. **Entry Guard (Step 1b)** — inserted after prerequisite validation:
+   - Check state file existence (`aod_state_exists`)
+   - Detect active orchestrator via `updated_at` recency (5-minute threshold)
+   - If orchestrator active → skip budget writes (prevents double-counting)
+   - If standalone → validate feature ID match, create state if needed, write pre-estimate
+
+2. **Exit Display (Report section)** — appended to completion output:
+   - Write post-estimate
+   - Read budget summary
+   - Display `(~N% budget used)` if data exists
+
+**Key Design Decisions**:
+- **Implicit orchestrator detection**: Uses `updated_at` recency instead of an explicit flag. Avoids stuck-flag problems if the orchestrator crashes — stale timestamps gracefully degrade to standalone mode.
+- **Non-fatal error wrapping**: All budget operations use `|| true` or `|| echo "fallback"` so budget failures never block skill execution.
+- **`usable_budget: 60000`** for standalone state creation (calibrated per Entry 15 — tracker underestimates by ~2.5x).
+- **Additive accumulation**: Plan substages (`/aod.spec`, `/aod.project-plan`, `/aod.tasks`) all write to `stage_estimates.plan`. The `aod_state_update_budget` function is additive, so values accumulate correctly.
+
+**Implementation Pattern** (reference: `specs/038-universal-session-budget-tracking/budget-guard-pattern.md`):
+- 7 files modified with identical ~30-line instruction blocks each
+- No new shell functions needed — existing `run-state.sh` API sufficient
+- Stage mapping: discover, define, plan (x3), build, deliver
+
+**Why This Matters**: Establishes budget visibility across all development workflows, not just orchestrated ones. Developers running individual skills now see cumulative context consumption, enabling better session planning. The pattern is designed for safe extensibility — new skills can be instrumented by copying the same guard blocks.
+
+**Tags**: #architecture #pattern #budget-tracking #token-estimation #context-window #orchestrator
+
+---
+
+### Entry 17: Uniform Instruction Patterns Scale Across Command Files
+
+## [Architecture] - Defining a pattern once and applying identically prevents drift
+
+**Date**: 2026-02-12
+**Context**: Feature 038 required adding identical budget tracking instrumentation to 7 separate AOD command files.
+
+**Problem**: When the same behavior needs to be added to multiple command files (markdown instruction files, not code), there's a risk of inconsistency — each file gets slightly different instructions, leading to subtle behavioral drift across commands.
+
+**Solution**: Define the pattern once in a reference document (`specs/038-*/budget-guard-pattern.md`) with exact instruction blocks, then copy them identically into each command file. The "pattern" is a ~30-line markdown instruction block, not a shared function — it's duplicated intentionally because each command file must be self-contained (commands don't import shared partials).
+
+**Key Insight**: For instruction-based systems (like Claude command files), duplication is preferable to abstraction. Each command file must work independently without referencing shared includes. The trade-off is maintenance cost (7 files to update) vs. reliability (each file is self-contained and won't break if shared infrastructure changes).
+
+**Metrics**: 7 files instrumented, 0 behavioral inconsistencies during validation, pattern applied in 2 parallel waves.
+
+**Why This Matters**: Establishes a reusable methodology for instrumenting command files at scale. Future cross-cutting concerns (logging, metrics, governance checks) can follow the same "define once, apply identically" pattern.
+
+**Tags**: #architecture #pattern #methodology #command-files #scaling
+
+---
+
+### Entry 18: Non-Fatal Budget Tracking Pattern for Self-Calibrating Systems
+
+## [Architecture] - Error-swallowing guards ensure optional features never block critical workflows
+
+**Date**: 2026-02-12
+**Context**: Feature 042 implemented a performance registry that provides calibrated budget defaults. The registry is valuable but not essential — skills must work even if the registry is missing, corrupted, or jq is unavailable.
+
+**Problem**: When adding optional observability/calibration features to existing workflows, there's a risk that failures in the optional code could block the primary workflow. A corrupted JSON file or missing dependency shouldn't prevent `/aod.deliver` from closing a feature.
+
+**Solution**: Wrap all optional operations in non-fatal guards:
+1. Every registry function returns a fallback value on failure (never throws)
+2. All bash calls use `|| true` or `|| echo "fallback"` patterns
+3. State file operations check existence before read/write
+4. Missing registry gracefully falls back to hardcoded defaults
+5. Document clearly in ADRs which operations are "non-fatal"
+
+**Key Insight**: For self-calibrating systems, the calibration data improves accuracy but is never required. Design the system so day-1 behavior (no data) is identical to pre-feature behavior, and calibration progressively improves over time without ever becoming a dependency.
+
+**Metrics**: 5 registry functions, 3 fallback scenarios validated (file missing, JSON corrupted, jq unavailable), 0 blocking failures possible.
+
+**Why This Matters**: Establishes a pattern for adding observability and calibration to critical workflows without introducing new failure modes. Future self-improving features can follow the same "enhance but never block" principle.
+
+**Tags**: #architecture #pattern #resilience #self-calibrating #non-fatal
 
 ---
 

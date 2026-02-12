@@ -21,7 +21,18 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
    - `github_issue`: null initially (assigned by Discover stage)
    - `idea`: The full idea text as provided by the user
 
-4. **Create initial state JSON**: Build the state object following Entity 1 schema:
+4. **Read calibrated defaults from registry**: Query the performance registry for calibrated budget values. Use Bash to run:
+   ```
+   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default usable_budget'
+   ```
+   Store the result as `{calibrated_usable_budget}` (falls back to 120000 if registry unavailable).
+
+   ```
+   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default safety_multiplier'
+   ```
+   Store the result as `{calibrated_safety_multiplier}` (falls back to 1.5 if registry unavailable).
+
+5. **Create initial state JSON**: Build the state object following Entity 1 schema:
 
 ```json
 {
@@ -47,8 +58,8 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
   },
   "token_budget": {
     "window_total": 200000,
-    "usable_budget": 120000,
-    "safety_multiplier": 1.5,
+    "usable_budget": {calibrated_usable_budget},
+    "safety_multiplier": {calibrated_safety_multiplier},
     "estimated_total": 0,
     "stage_estimates": {
       "discover": { "pre": 0, "post": 0 },
@@ -67,9 +78,9 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
 }
 ```
 
-5. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''` (using the constructed JSON).
+6. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''` (using the constructed JSON).
 
-6. **Display initial status**:
+7. **Display initial status**:
 ```
 AOD ORCHESTRATOR — New Lifecycle
 ================================
@@ -81,7 +92,7 @@ Stage Map:
   [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver
 ```
 
-7. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the Discover stage.
+8. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the Discover stage.
 
 ## Issue Entry
 
@@ -133,7 +144,18 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
    - `github_issue`: The issue number
    - `idea`: The issue title
 
-9. **Create initial state JSON**: Build the state object following Entity 1 schema, with completed stages pre-filled:
+9. **Read calibrated defaults from registry**: Query the performance registry for calibrated budget values. Use Bash to run:
+   ```
+   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default usable_budget'
+   ```
+   Store the result as `{calibrated_usable_budget}` (falls back to 120000 if registry unavailable).
+
+   ```
+   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default safety_multiplier'
+   ```
+   Store the result as `{calibrated_safety_multiplier}` (falls back to 1.5 if registry unavailable).
+
+10. **Create initial state JSON**: Build the state object following Entity 1 schema, with completed stages pre-filled:
 
 ```json
 {
@@ -159,8 +181,8 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
   },
   "token_budget": {
     "window_total": 200000,
-    "usable_budget": 120000,
-    "safety_multiplier": 1.5,
+    "usable_budget": {calibrated_usable_budget},
+    "safety_multiplier": {calibrated_safety_multiplier},
     "estimated_total": 0,
     "stage_estimates": {
       "discover": { "pre": 0, "post": 0 },
@@ -183,13 +205,13 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
 
    For the Plan stage when it's marked completed: also mark all 3 substages (`spec`, `project_plan`, `tasks`) as `completed` with their discovered artifacts.
 
-10. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''`
+11. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''`
 
-11. **Ensure correct branch**: Check current git branch. If not on the expected feature branch, switch to it:
+12. **Ensure correct branch**: Check current git branch. If not on the expected feature branch, switch to it:
     - If branch exists: `git checkout {branch}`
     - If branch does not exist: `git checkout -b {branch}`
 
-12. **Display initial status**:
+13. **Display initial status**:
 ```
 AOD ORCHESTRATOR — Resume from Issue #{NNN}
 =============================================
@@ -206,7 +228,7 @@ Stage Map:
   {markers per stage}
 ```
 
-13. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the starting stage.
+14. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the starting stage.
 
 ## Artifact Discovery
 

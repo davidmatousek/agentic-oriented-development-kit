@@ -84,8 +84,12 @@ This is the central orchestration logic. It runs after any entry handler has est
 3. **Determine next stage**: Use the `current_stage` and `stage_status` from step 1. If status is `"completed"`, advance to the next stage in sequence: `discover` → `define` → `plan` → `build` → `deliver`
 4. **Handle Plan substages**: If `current_stage` is `plan`, use the `substage` from step 1 and cycle through `spec` → `project_plan` → `tasks`. Only advance past Plan when all 3 substages complete.
 5. **Write pre-stage checkpoint with budget estimation**: Update state with `current_stage` status = `"in_progress"` and current timestamp. Write atomically via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'<json>'"'"''`. Then estimate the token cost of content about to be loaded for this stage and update the budget:
-   - **Estimation target**: Estimate the known reference files that will be loaded for the upcoming stage. Use the reference file classification table from the plan (governance.md ~4,754 tokens, entry-modes.md ~7,409 tokens, dry-run.md ~4,279 tokens, error-recovery.md ~1,601 tokens). For the stage skill itself, use the average of prior completed stages' post-estimates if available, or default to 5,000 tokens for the first stage.
-   - **Update budget**: Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_update_budget "{stage}" "pre" "{estimate}"'` where `{estimate}` is the calculated token count.
+   - **Estimation target**: Estimate the known reference files that will be loaded for the upcoming stage. Use the reference file classification table from the plan (governance.md ~4,754 tokens, entry-modes.md ~7,409 tokens, dry-run.md ~4,279 tokens, error-recovery.md ~1,601 tokens). For the stage skill itself, read the calibrated estimate from the performance registry:
+     ```
+     STAGE_EST=$(bash -c 'source .aod/scripts/bash/performance-registry.sh 2>/dev/null && aod_registry_get_default per_stage_estimates.{stage} || echo 5000')
+     ```
+     Where `{stage}` is the upcoming stage name (discover, define, plan, build, deliver). If the registry is unavailable or returns empty, use the fallback value of 5,000 tokens.
+   - **Update budget**: Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_update_budget "{stage}" "pre" "{estimate}"'` where `{estimate}` is the calculated token count (reference files + calibrated stage estimate).
 6. **Display stage map**: Show current progress (see [Stage Map Display](#stage-map-display))
 7. **Display transition message**: Show formatted header for the stage about to execute (see [Transition Messages](#transition-messages))
 8. **Invoke stage skill**: Use the Skill tool to invoke the appropriate stage skill (see [Stage Skill Mapping](#stage-skill-mapping)). Pass required context (idea text, issue number, artifact paths from prior stages).
@@ -101,10 +105,11 @@ This is the central orchestration logic. It runs after any entry handler has est
 12. **Resume recommendation check**: After the post-stage checkpoint, before advancing to the next stage, evaluate whether the remaining budget is sufficient for the next stage:
     - **Read budget**: Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_budget_summary'` and parse `estimated_total|usable_budget|threshold_percent|adaptive_mode`.
     - **Calculate remaining**: `remaining = usable_budget - estimated_total`.
-    - **Estimate next stage cost** (enhanced by Feature 034): Use a 3-tier fallback chain:
-      1. **Historical per-stage average** (preferred): Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_trend_summary'` and parse the next stage's historical average from the pipe-delimited output (fields: `session_count|avg_total|discover_avg|define_avg|plan_avg|build_avg|deliver_avg|predicted_remaining|confidence`). If that stage's average > 0, use it as the estimate.
-      2. **Current-session average** (fallback): Read the full state via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_read'` and extract `token_budget.stage_estimates`. Calculate the average of completed stages' `post` values (non-zero entries only).
-      3. **Default**: If neither source has data (first stage of first session), use 15,000 tokens.
+    - **Estimate next stage cost** (enhanced by Features 034 + 042): Use a 4-tier fallback chain:
+      1. **Performance registry** (preferred): Call `bash -c 'source .aod/scripts/bash/performance-registry.sh 2>/dev/null && aod_registry_get_default per_stage_estimates.{next_stage} || echo ""'`. If the result is non-empty and > 0, use it as the estimate.
+      2. **Historical per-stage average**: Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_trend_summary'` and parse the next stage's historical average from the pipe-delimited output (fields: `session_count|avg_total|discover_avg|define_avg|plan_avg|build_avg|deliver_avg|predicted_remaining|confidence`). If that stage's average > 0, use it as the estimate.
+      3. **Current-session average** (fallback): Read the full state via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_read'` and extract `token_budget.stage_estimates`. Calculate the average of completed stages' `post` values (non-zero entries only).
+      4. **Default**: If no source has data (first stage of first session), use 15,000 tokens.
     - **Apply 2-rejection escalation**: If the same governance gate has been rejected 2+ times (check `gate_rejections` array), reduce the effective *resume recommendation* threshold by 10 percentage points (e.g., from 80% to 70%). This lowers the trigger point specifically for the resume recommendation, not for adaptive mode activation.
     - **Compare**: If `remaining < next_stage_estimate`, display the resume recommendation:
       ```
