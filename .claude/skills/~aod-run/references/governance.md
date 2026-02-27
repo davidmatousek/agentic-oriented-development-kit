@@ -1,4 +1,4 @@
-# Governance Gate Reference (v030)
+# Governance Gate Reference (v047)
 <!-- Loaded via Read tool — do not inline into core SKILL.md -->
 
 This reference contains the complete governance flow for the AOD lifecycle orchestrator: gate detection, tier rules, rejection handling, retry tracking, circuit breaker, and blocked handling. Loading this single file provides everything needed for any governance path.
@@ -21,11 +21,41 @@ After each stage skill returns, detect the governance gate result by reading the
    | Build | (no single artifact — Build approval via Architect checkpoints within `aod.build`) | None (checkpoints handled internally) |
    | Deliver | (no artifact — Deliver approval via DoD validation within `aod.deliver`) | None (DoD handled internally) |
 
-2. **Read the artifact file** using the Read tool. Extract the YAML frontmatter between `---` delimiters.
+2. **Check governance verdict cache BEFORE reading artifact** (FR-009 through FR-012):
 
-3. **Parse sign-off statuses**: For each required sign-off field, extract the `status` value from the `triad:` block.
+   Before reading the artifact file, check if a cached verdict exists for each required reviewer:
 
-4. **Evaluate gate result**:
+   a. **For each required reviewer**, call the cache retrieval function:
+      ```bash
+      bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_governance_cache "{artifact_key}" "{reviewer}"'
+      ```
+      Where `{artifact_key}` is one of: `prd`, `spec`, `plan`, `tasks` (derived from artifact path).
+      Where `{reviewer}` is one of: `pm`, `architect`, `techlead`.
+
+   b. **Parse cache result**: The function returns `"status|timestamp|summary"` or `"null"` if not cached.
+      - If result is `"null"`: Cache miss — proceed to step 3 (read artifact frontmatter)
+      - If result contains a value: Cache hit — proceed to cache validation (step 2c)
+
+   c. **Validate cache freshness via mtime check** (cache invalidation):
+      Get the artifact file's modification timestamp:
+      ```bash
+      # macOS:
+      stat -f %m "{artifact_path}"
+      # Linux:
+      stat -c %Y "{artifact_path}"
+      ```
+      Compare artifact mtime (Unix epoch) against cache timestamp (ISO 8601 → epoch conversion):
+      - If artifact mtime > cache timestamp: Cache is stale — invalidate by proceeding to step 3
+      - If artifact mtime ≤ cache timestamp: Cache is valid — use cached verdict (skip to step 4)
+
+   d. **Use cached verdict**: If cache is valid, extract status from cached result (first pipe-delimited field).
+      This avoids reading the full artifact frontmatter, saving 4-7K tokens per check.
+
+3. **Read the artifact file** (only if cache miss or stale cache) using the Read tool. Extract the YAML frontmatter between `---` delimiters.
+
+4. **Parse sign-off statuses**: For each required sign-off field, extract the `status` value from the `triad:` block.
+
+5. **Evaluate gate result**:
 
    - **All required sign-offs are APPROVED or APPROVED_WITH_CONCERNS**: Gate PASSED
    - **Any sign-off is BLOCKED_OVERRIDDEN**: Gate PASSED (override was user-authorized)
@@ -33,18 +63,35 @@ After each stage skill returns, detect the governance gate result by reading the
    - **Any sign-off is BLOCKED**: Gate BLOCKED — record which reviewer blocked and their notes
    - **Sign-off field is null or missing**: Stage skill did not complete governance — treat as still in progress
 
-5. **Record governance result in state**: Update the stage's `governance` object with each reviewer's status and date. Add entries to `gate_rejections` array if rejected. **Additionally, cache each reviewer's verdict** via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_cache_governance "{artifact}" "{reviewer}" "{status}" "{summary}"'` for each reviewer that completed their review. This enables subsequent governance checks to use the cache instead of re-reading artifact frontmatter.
+6. **Record governance result and cache verdicts** (FR-009, FR-010):
+
+   a. Update the stage's `governance` object with each reviewer's status and date.
+
+   b. Add entries to `gate_rejections` array if rejected.
+
+   c. **Cache each reviewer's verdict** for subsequent gate checks within the same stage:
+      For each reviewer that completed their review (status is not null), call:
+      ```bash
+      bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_cache_governance "{artifact_key}" "{reviewer}" "{status}" "{summary}"'
+      ```
+      Where:
+      - `{artifact_key}`: `prd`, `spec`, `plan`, or `tasks` (matches step 2a)
+      - `{reviewer}`: `pm`, `architect`, or `techlead`
+      - `{status}`: The sign-off status (APPROVED, CHANGES_REQUESTED, BLOCKED, etc.)
+      - `{summary}`: Brief summary of reviewer notes (truncate to 100 chars if needed)
+
+      **Example** (after reading spec.md frontmatter with PM approval):
+      ```bash
+      bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_cache_governance "spec" "pm" "APPROVED" "Spec meets all requirements"'
+      ```
+
+   This enables subsequent governance checks (e.g., when Plan stage verifies spec approval) to use the cache instead of re-reading artifact frontmatter, saving 4-7K tokens per check.
 
 **Recognized approval statuses**: `APPROVED`, `APPROVED_WITH_CONCERNS`, `BLOCKED_OVERRIDDEN`
 **Recognized rejection statuses**: `CHANGES_REQUESTED`
 **Recognized blocker statuses**: `BLOCKED`
 
 **Re-grounding**: After reading governance results (which may contain variable-length reviewer feedback), re-read this file (`references/governance.md`) before continuing the loop to prevent template drift (per KB Entry 9).
-
-**Adaptive mode governance output handling**: When adaptive mode is active (check via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_check_adaptive'` returns `"adaptive"`), governance review output should be processed as follows:
-- **Always retain in full**: The governance verdict (APPROVED, CHANGES_REQUESTED, BLOCKED), all action items, and required changes. These are critical for correctness and must never be summarized.
-- **Summarize**: Supplementary commentary, background rationale, and general observations that do not contain specific action items. Condense to 2-3 sentences maximum.
-- **Purpose**: Reduces context consumption from governance reviews during budget-constrained sessions while preserving all information needed to act on the review.
 
 ## Governance Tier
 

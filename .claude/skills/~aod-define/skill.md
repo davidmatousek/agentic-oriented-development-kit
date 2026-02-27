@@ -604,7 +604,6 @@ Before starting, collect:
    - What's the urgency/priority?
 
 3. **Technical Context**:
-   - Read `.aod/memory/constitution.md` for constraints
    - **Read `docs/architecture/README.md` for current architecture state** (what exists vs what's needed)
    - **Read `docs/architecture/04_deployment_environments/production.md` and `staging.md`** (verify infrastructure status)
    - **Read `docs/product/STATUS.md` for feature completion status** (identify recently completed features)
@@ -689,6 +688,15 @@ Use this checklist:
 ```
 
 ### Step 4: Get Feedback
+
+**Governance Context Loading (Lazy Load)**:
+
+Before invoking Triad review, load governance rules just-in-time:
+
+1. **Validate file existence**: Check that `.aod/memory/constitution.md` exists
+   - If missing, fail immediately with error: "Governance file not found: .aod/memory/constitution.md - cannot proceed with Triad review"
+2. **Load governance rules**: Read `.aod/memory/constitution.md` for constraints and principles
+3. **Proceed with review**: Only after governance context is loaded
 
 **Review Process**:
 1. **Self-review**: Walk through PRD as if you're seeing it fresh

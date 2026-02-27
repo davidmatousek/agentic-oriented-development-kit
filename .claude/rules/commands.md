@@ -40,6 +40,21 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 - When you need documented governance trail
 - Clarifying requirements or verifying consistency at any phase
 
+### Stack Pack Commands
+
+```bash
+/aod.stack use <pack>        # Activate a stack pack (copies rules, generates persona loader, persists state)
+/aod.stack remove            # Deactivate the active pack (removes rules, deletes state)
+/aod.stack list              # List available packs with active indicator
+/aod.stack scaffold          # Scaffold project from active pack's template files
+```
+
+**When to Use**:
+- Setting up a new project with a specific technology stack
+- Switching between technology stacks during development
+- Scaffolding the canonical project structure after activation
+- Checking which packs are available and which is active
+
 ### Maintenance Commands
 
 ```bash

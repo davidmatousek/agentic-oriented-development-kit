@@ -76,6 +76,13 @@ API_URL=http://localhost:{{BACKEND_PORT}}
 FRONTEND_URL=http://localhost:{{FRONTEND_PORT}}
 ```
 
+**Optional Variables**:
+```
+AOD_LOG_FILE=.aod/logs/aod.log
+```
+
+The `AOD_LOG_FILE` variable controls where the logging utility writes its output. If not specified, it defaults to `.aod/logs/aod.log`. You can override this to write logs to a different location.
+
 ---
 
 ## Common Commands

@@ -69,6 +69,20 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# Check stack packs
+if [[ -d "stacks" ]]; then
+  PACK_COUNT=$(ls -d stacks/*/STACK.md 2>/dev/null | wc -l | tr -d ' ')
+  echo -e "${GREEN}✓ Stack packs: $PACK_COUNT available${NC}"
+  if [[ -f ".aod/stack-active.json" ]]; then
+    ACTIVE_PACK=$(grep -o '"pack_name": *"[^"]*"' .aod/stack-active.json 2>/dev/null | cut -d'"' -f4)
+    echo -e "${GREEN}  Active pack: $ACTIVE_PACK${NC}"
+  else
+    echo -e "${YELLOW}  No pack active (use /aod.stack use <pack> to activate)${NC}"
+  fi
+else
+  echo -e "${YELLOW}⚠ Stack packs directory: NOT FOUND (optional)${NC}"
+fi
+
 echo ""
 if [[ $ERRORS -eq 0 ]]; then
   echo -e "${GREEN}🎉 All checks passed! Ready to build.${NC}"

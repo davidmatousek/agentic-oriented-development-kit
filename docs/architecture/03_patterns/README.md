@@ -45,16 +45,19 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Function Library Sourcing](#pattern-function-library-sourcing)
 - [Graceful CLI Degradation](#pattern-graceful-cli-degradation)
 - [Additive Optional State Fields](#pattern-additive-optional-state-fields)
+- [Append-Only Logging with Graceful Failure](#pattern-append-only-logging)
+- [Circuit-Breaker Churn Detection](#pattern-circuit-breaker-churn-detection)
 
 ### Skill Patterns (AOD Kit)
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation)
 - [Compound State Helpers](#pattern-compound-state-helpers)
 - [Governance Result Caching](#pattern-governance-result-caching)
 - [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview)
+- [Dual-Surface Injection](#pattern-dual-surface-injection)
 
 ### Command Patterns (AOD Kit)
 - [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard)
-- [Non-Fatal Budget Wrapper](#pattern-non-fatal-budget-wrapper)
+- [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper)
 
 ---
 
@@ -167,11 +170,10 @@ bash .aod/scripts/bash/backlog-regenerate.sh 2>/dev/null || true
 
 ### Pattern: Additive Optional State Fields
 
-**Added**: Feature 032 (Real-time Token Budget Tracking)
-**ADR**: [ADR-003](../02_ADRs/ADR-003-heuristic-token-estimation.md)
+**Added**: Feature 030 (Context Efficiency of /aod.run)
 
 #### Problem
-New features need to extend the orchestrator state file (`run-state.json`) with additional data objects (e.g., `governance_cache` in Feature 030, `token_budget` in Feature 032). However, existing state files created by earlier features do not contain these new fields. Requiring a schema migration or version bump would break backward compatibility and force users to recreate state files.
+New features need to extend the orchestrator state file (`run-state.json`) with additional data objects (e.g., `governance_cache` in Feature 030). However, existing state files created by earlier features do not contain these new fields. Requiring a schema migration or version bump would break backward compatibility and force users to recreate state files.
 
 #### Solution
 Every function that reads a new state field checks whether that field exists before accessing it. If the field is absent, the function returns a safe default value and exits cleanly (return 0). Functions that write to a new field first check for the parent object's existence and skip the write if it is absent. This makes the new state object purely opt-in: it is created only when a new orchestration is initialized with the feature enabled.
@@ -184,36 +186,33 @@ The key rules:
 
 #### Example
 ```bash
-# From .aod/scripts/bash/run-state.sh (Feature 032)
+# From .aod/scripts/bash/run-state.sh
 
-aod_state_update_budget() {
-    # ... (args: stage, checkpoint, tokens)
+aod_state_update_optional_field() {
+    # ... (args: field_name, value)
     local state
     state=$(aod_state_read) || return 1
 
-    # Check if token_budget exists; skip gracefully if absent (backward compat)
-    local has_budget
-    has_budget=$(echo "$state" | jq -r 'if .token_budget then "yes" else "no" end')
-    if [[ "$has_budget" != "yes" ]]; then
-        return 0  # Pre-032 state file — no budget tracking, no error
+    # Check if the optional field exists; skip gracefully if absent (backward compat)
+    local has_field
+    has_field=$(echo "$state" | jq -r "if .$field_name then \"yes\" else \"no\" end")
+    if [[ "$has_field" != "yes" ]]; then
+        return 0  # Pre-feature state file — no field present, no error
     fi
 
     # Proceed with update only if the field exists
-    state=$(echo "$state" | jq --argjson tok "$tokens" \
-        '.token_budget.estimated_total = (.token_budget.estimated_total + $tok)')
+    state=$(echo "$state" | jq --arg val "$value" \
+        ".$field_name = \$val")
     aod_state_write "$state"
 }
 
-aod_state_get_budget_summary() {
-    # Returns defaults when token_budget is absent
+aod_state_get_governance_cache() {
+    # Returns defaults when governance_cache is absent
     echo "$state" | jq -r '
-        if .token_budget then
-            [(.token_budget.estimated_total // 0),
-             (.token_budget.usable_budget // 120000),
-             (.token_budget.threshold_percent // 80),
-             (.token_budget.adaptive_mode // false)] | map(tostring) | join("|")
+        if .governance_cache then
+            .governance_cache
         else
-            "0|120000|80|false"
+            null
         end'
 }
 ```
@@ -231,7 +230,7 @@ aod_state_get_budget_summary() {
 
 #### Related Patterns
 - [Atomic File Write](#pattern-atomic-file-write) -- all state writes (including optional field updates) use write-then-rename
-- [Compound State Helpers](#pattern-compound-state-helpers) -- budget summary helpers follow the same pipe-delimited extraction approach
+- [Compound State Helpers](#pattern-compound-state-helpers) -- state summary helpers follow the same pipe-delimited extraction approach
 - [Governance Result Caching](#pattern-governance-result-caching) -- `governance_cache` was the first use of this pattern (Feature 030)
 
 ---
@@ -438,13 +437,13 @@ Mutations explicitly suppressed during dry-run:
 
 ### Pattern: Orchestrator-Awareness Guard
 
-**Added**: Feature 038 (Universal Session Budget Tracking)
+**Added**: Feature 038 (Universal Session State Tracking)
 
 #### Problem
-Standalone lifecycle commands (`/aod.define`, `/aod.spec`, etc.) need to track their own session budget by writing pre/post estimates to `.aod/run-state.json`. However, the orchestrator (`/aod.run`) already manages budget tracking when it invokes these same commands as sub-stages. If a standalone command writes budget entries while an active orchestrator is managing the state file, the two writers conflict -- double-counting token estimates and potentially corrupting orchestrator loop context.
+Standalone lifecycle commands (`/aod.define`, `/aod.spec`, etc.) need to write state to `.aod/run-state.json`. However, the orchestrator (`/aod.run`) already manages state when it invokes these same commands as sub-stages. If a standalone command writes state entries while an active orchestrator is managing the state file, the two writers conflict -- potentially corrupting orchestrator loop context.
 
 #### Solution
-Before performing any budget writes, each standalone command checks whether an active orchestrator owns the state file. The detection uses an implicit heuristic: read the `updated_at` timestamp and current stage status from the state file; if any stage is `in_progress` AND `updated_at` is within 5 minutes of the current time, an orchestrator is presumed active. In that case, the command skips all budget tracking and defers to the orchestrator.
+Before performing any state writes, each standalone command checks whether an active orchestrator owns the state file. The detection uses an implicit heuristic: read the `updated_at` timestamp and current stage status from the state file; if any stage is `in_progress` AND `updated_at` is within 5 minutes of the current time, an orchestrator is presumed active. In that case, the command skips state writes and defers to the orchestrator.
 
 This avoids introducing new flags or environment variables. The 5-minute window is chosen because orchestrator loop iterations typically complete within seconds; a stale `updated_at` beyond 5 minutes indicates an abandoned or crashed orchestration rather than an active one.
 
@@ -452,11 +451,11 @@ The key rules:
 1. **Check state existence**: If no state file exists, create one (standalone initialization)
 2. **Check orchestrator recency**: Read `updated_at` and stage status; skip if active
 3. **Validate feature ID**: Compare branch-derived feature ID against state's `feature_id`; prompt user on mismatch
-4. **Proceed or skip**: Write budget estimates only in standalone mode
+4. **Proceed or skip**: Write state only in standalone mode
 
 #### Example
 ```
-# From .claude/commands/aod.define.md (Step 0b)
+# From .claude/commands/aod.define.md
 
 1. Check state file:
    bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_exists && echo "exists" || echo "none"'
@@ -466,14 +465,11 @@ The key rules:
 2. Detect active orchestrator:
    aod_state_get_loop_context  -> "plan|spec|in_progress"
    aod_state_get ".updated_at" -> "2026-02-12T10:05:00Z"
-   - If stage is in_progress AND updated_at < 5 min ago -> SKIP budget tracking
+   - If stage is in_progress AND updated_at < 5 min ago -> SKIP state writes
    - Otherwise -> standalone mode, continue
 
 3. Create state file (standalone only):
    aod_state_init "{feature_id}" "{feature_name}" "Entity 1"
-
-4. Write pre-estimate:
-   aod_state_update_budget "{stage}" "pre" "5000"
 ```
 
 #### When to Use
@@ -487,48 +483,45 @@ The key rules:
 - High-frequency concurrent writers where a 5-minute heuristic is too coarse
 
 #### Related Patterns
-- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- budget fields follow the same backward-compatible schema extension
-- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- budget operations degrade gracefully (non-fatal) similar to CLI fallbacks
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- state fields follow the same backward-compatible schema extension
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- state operations degrade gracefully (non-fatal) similar to CLI fallbacks
 - [Compound State Helpers](#pattern-compound-state-helpers) -- `aod_state_get_loop_context` used for orchestrator detection
 
 ---
 
-### Pattern: Non-Fatal Budget Wrapper
+### Pattern: Non-Fatal Observability Wrapper
 
-**Added**: Feature 038 (Universal Session Budget Tracking)
+**Added**: Feature 038 (Universal Session State Tracking)
 
 #### Problem
-Budget tracking is a secondary concern -- it must never block the primary skill execution. However, the budget initialization sequence involves multiple steps (state existence check, orchestrator detection, feature ID validation, state creation, budget write) that can each fail for various reasons (missing `jq`, corrupted state file, permission errors). Wrapping every individual call in error handling is verbose and error-prone.
+Observability and state tracking are secondary concerns -- they must never block the primary skill execution. However, initialization sequences involve multiple steps (state existence check, orchestrator detection, feature ID validation, state creation) that can each fail for various reasons (missing `jq`, corrupted state file, permission errors). Wrapping every individual call in error handling is verbose and error-prone.
 
 #### Solution
-Encapsulate the entire budget initialization sequence (pre-estimate) and the completion sequence (post-estimate + utilization display) in clearly demarcated "Non-Fatal" blocks. Every shell command within these blocks uses `|| true` or equivalent error suppression. The block boundary is documented in the command file with an explicit contract: "If any step fails, log the error and continue -- budget tracking is non-fatal."
+Encapsulate the entire observability initialization and completion sequences in clearly demarcated "Non-Fatal" blocks. Every shell command within these blocks uses `|| true` or equivalent error suppression. The block boundary is documented in the command file with an explicit contract: "If any step fails, log the error and continue -- observability is non-fatal."
 
-The completion block follows the same pattern: write post-estimate, read budget summary, calculate utilization percentage, and append to output. If any step fails, the budget line is simply omitted from the completion message.
+The completion block follows the same pattern: write state, read summary, and append to output. If any step fails, the observability line is simply omitted from the completion message.
 
 #### Example
 ```
-# Pre-execution block (from command files, Step 0b/1b)
-## Budget Tracking (Non-Fatal)
+# Pre-execution block (from command files)
+## State Tracking (Non-Fatal)
 1. Check state file ...
 2. Detect active orchestrator ...
 3. Create state file ...
-4. Write pre-estimate: aod_state_update_budget "define" "pre" "5000"
 If any step fails, log the error and continue to Step 1.
 
 # Post-execution block (from command files, completion section)
-### Budget Tracking (Non-Fatal)
-1. Write post-estimate:
-   bash -c '... && aod_state_update_budget "define" "post" "5000" || true'
+### State Tracking (Non-Fatal)
+1. Write state update:
+   bash -c '... || true'
 2. Read summary:
-   bash -c '... && aod_state_get_budget_summary || echo "0|0|0|false"'
-3. Calculate utilization = (estimated_total * 100) / usable_budget
-4. If estimated_total > 0, append: (~N% budget used)
-5. If any step fails, omit the budget line.
+   bash -c '... || echo "fallback"'
+3. If any step fails, omit the observability line.
 ```
 
 #### When to Use
 - Secondary telemetry or observability features that must not impact primary functionality
-- Operations where partial success is acceptable (some budget data is better than none)
+- Operations where partial success is acceptable (some observability data is better than none)
 - Features added to existing stable commands where failure isolation is critical
 
 #### When NOT to Use
@@ -539,7 +532,224 @@ If any step fails, log the error and continue to Step 1.
 #### Related Patterns
 - [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard) -- the non-fatal wrapper contains the orchestrator guard as one of its steps
 - [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- both patterns prioritize continued operation over error reporting
-- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- budget read/write functions already handle missing fields gracefully
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- state read/write functions already handle missing fields gracefully
+
+---
+
+### Pattern: Append-Only Logging with Graceful Failure
+
+**Added**: Feature 049 (Simple Logging Utility)
+
+#### Problem
+Scripts need to record timestamped execution events for debugging and auditing, but logging must not interfere with the primary operation if file writes fail (permission denied, disk full, etc.). Additionally, log configuration must be flexible (custom path via environment variable) without requiring code changes.
+
+#### Solution
+Implement a logging function that:
+1. **Appends to a file** (not atomic, acceptable for logs) using `>>` operator
+2. **Prepends ISO 8601 UTC timestamps** for temporal sorting and cross-system consistency
+3. **Auto-creates directories** before first write (implicit initialization)
+4. **Fails gracefully**: captures write errors, emits a warning to stderr, and returns non-zero exit code without exiting the calling script
+5. **Accepts configuration** via environment variable (`AOD_LOG_FILE`) with a sensible default
+
+#### Example
+```bash
+# From .aod/scripts/bash/logging.sh (Feature 049)
+
+# Default log file path (can be overridden via environment variable)
+AOD_LOG_FILE="${AOD_LOG_FILE:-.aod/logs/aod.log}"
+
+# Log a timestamped message to the log file
+# Usage: aod_log "message"
+# Returns: 0 on success, 1 on failure
+aod_log() {
+    local message="$1"
+    local timestamp
+
+    # Generate ISO 8601 UTC timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$AOD_LOG_FILE")" 2>/dev/null || {
+        echo "[aod] Warning: Cannot create log directory" >&2
+        return 1
+    }
+
+    # Append formatted log entry to file
+    echo "$timestamp $message" >> "$AOD_LOG_FILE" 2>/dev/null || {
+        echo "[aod] Warning: Cannot write to log file" >&2
+        return 1
+    }
+
+    return 0
+}
+```
+
+**Usage in other scripts**:
+```bash
+# Source the logging utility
+source .aod/scripts/bash/logging.sh
+
+# Log a message (will use default path .aod/logs/aod.log)
+aod_log "Stage started"
+
+# Log with custom path (set environment variable)
+AOD_LOG_FILE=/tmp/custom.log aod_log "Custom path message"
+
+# Caller continues even if logging fails
+aod_log "This might fail" || echo "Warning: logging failed"
+```
+
+**Log format**:
+```
+2026-02-13T10:30:00Z Stage started
+2026-02-13T10:30:01Z Discover stage complete
+2026-02-13T10:30:15Z Define stage started
+```
+
+#### When to Use
+- Any script that needs diagnostic output for later review without blocking execution
+- Lifecycle commands where logging is secondary to primary functionality
+- Situations where log files may be on read-only or space-constrained filesystems
+- Multi-step processes where you want to track progress independent of return codes
+
+#### When NOT to Use
+- Critical alerts that must be delivered (use stderr/exit for critical errors)
+- High-frequency logging where append overhead matters (logs only at stage boundaries, not per-call)
+- Systems requiring guaranteed atomic writes or concurrent write safety (append mode is best-effort only)
+- Requirements for structured logging (JSON, tags, log levels) -- this is plain-text only
+
+#### Implementation Guarantees
+- **No hard failure**: Write errors emit a stderr warning but never crash the caller
+- **Cross-platform**: Works on macOS and Linux with standard shell utilities (`date`, `mkdir`, `echo`)
+- **Portable configuration**: Environment variable override allows scripts to be used unchanged in different contexts
+- **Self-healing**: Auto-creates parent directories before first write, no manual initialization needed
+
+#### Related Patterns
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- logging gracefully degrades similar to optional CLI tools
+- [Function Library Sourcing](#pattern-function-library-sourcing) -- logging.sh is a function library meant to be sourced by other scripts
+
+---
+
+### Pattern: Circuit-Breaker Churn Detection
+
+**Added**: Feature 054 (Parallel Execution Hardening)
+**ADR**: [ADR-006](../02_ADRs/ADR-006-non-fatal-observability-operations.md)
+
+#### Problem
+When an operation fails repeatedly with the same error, the orchestrator may enter a "churn loop" -- retrying the same failing operation until context is exhausted. Observed: 17+ minutes of retries before hard failure, wasting substantial tokens and user time.
+
+#### Solution
+Implement a circuit-breaker pattern that tracks consecutive failures by error signature. After 3 identical failures, the circuit-breaker "opens" and triggers a diagnostic pause with a message to the user. The circuit-breaker resets when:
+- An operation succeeds (proves the issue is resolved)
+- The error signature changes (indicates a different problem)
+- A new session starts (fresh context, worth retrying)
+
+#### Example
+
+The governance circuit breaker in `governance.md` tracks consecutive `gate_rejections`. When 3 identical failures occur, it escalates to the user rather than retrying.
+
+```json
+{
+  "gate_rejections": [
+    { "stage": "plan", "substage": "spec", "reviewer": "product-manager", "attempt": 1 },
+    { "stage": "plan", "substage": "spec", "reviewer": "product-manager", "attempt": 2 },
+    { "stage": "plan", "substage": "spec", "reviewer": "product-manager", "attempt": 3 }
+  ]
+}
+```
+
+When 3 rejections accumulate for the same gate, the circuit breaker fires and escalates to the user.
+
+#### When to Use
+- Operations that can fail repeatedly with the same root cause
+- Long-running orchestrations where churn wastes significant resources
+- Any retry logic where detecting futile retries provides value
+
+#### When NOT to Use
+- Operations expected to fail before succeeding (e.g., polling for async completion)
+- When different failures are related (consider aggregating to a single signature)
+- Single-shot operations without retry logic
+
+#### Error Signature Design
+
+The error signature is `operation_name:error_type` (e.g., `governance_review:timeout`). Choosing the right granularity is important:
+
+- **Too specific**: Every failure looks different, circuit-breaker never triggers
+- **Too general**: Unrelated failures accumulate, false positives occur
+
+Good signatures group failures by root cause, not surface symptoms.
+
+#### Related Patterns
+- [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper) -- circuit-breaker functions are non-fatal
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- circuit-breaker degrades to "closed" on read errors
+
+---
+
+### Pattern: Dual-Surface Injection
+
+**Added**: Feature 058 (Stack Packs)
+**ADR**: [ADR-007](../02_ADRs/ADR-007-stack-pack-dual-surface-injection.md)
+
+#### Problem
+Stack packs need to inject technology-specific context into AI agents at two distinct points with different loading semantics: (1) broad coding rules that all agents should follow, auto-loaded via `.claude/rules/` discovery at session start; and (2) role-specific persona supplements that only specialized/hybrid agents should load, on-demand during task execution. A single injection surface would either over-load all agents with role-specific details (wasting context tokens) or under-serve specialized agents with only generic rules.
+
+#### Solution
+Inject pack content through two independent surfaces with different loading triggers:
+
+**Surface 1 -- Rules injection** (auto-loaded, all agents): On activation, copy `.md` files from `stacks/{pack}/rules/` to `.claude/rules/stack/` and generate a `persona-loader.md` directive. These files are discovered by Claude Code's standard rules loading mechanism and apply to every agent in the session.
+
+**Surface 2 -- Persona injection** (on-demand, specialized/hybrid agents only): During `/aod.build`, the build command reads `.aod/stack-active.json` to determine the active pack, then augments dispatched agent prompts with instructions to read `stacks/{pack}/agents/{agent-name}.md`. Core agents (product-manager, architect, team-lead, orchestrator, web-researcher) are never augmented.
+
+Files are **copied** (not symlinked) from pack source to the rules directory for cross-platform safety and source immutability. Activation state is tracked in `.aod/stack-active.json` (JSON, consistent with `run-state.json` pattern).
+
+#### Example
+```
+# Activation flow (/aod.stack use nextjs-supabase)
+
+# Surface 1: Copy rules to auto-discovery location
+stacks/nextjs-supabase/rules/conventions.md  -->  .claude/rules/stack/conventions.md
+stacks/nextjs-supabase/rules/security.md     -->  .claude/rules/stack/security.md
+(generated)                                  -->  .claude/rules/stack/persona-loader.md
+
+# Surface 2: State file enables build-time persona injection
+.aod/stack-active.json = {"pack": "nextjs-supabase", "activated_at": "2026-02-27T14:30:00Z", "version": "1.0"}
+
+# During /aod.build, when dispatching frontend-developer:
+#   1. Read .aod/stack-active.json -> pack = "nextjs-supabase"
+#   2. Agent is "specialized" tier -> inject persona read instruction
+#   3. Agent reads stacks/nextjs-supabase/agents/frontend-developer.md
+#   4. Agent applies stack-specific conventions from supplement
+
+# During /aod.build, when dispatching product-manager:
+#   1. Agent is "core" tier -> no persona injection
+#   2. Rules from .claude/rules/stack/ still apply (auto-loaded)
+```
+
+```
+# Deactivation flow (/aod.stack remove)
+rm .claude/rules/stack/conventions.md
+rm .claude/rules/stack/security.md
+rm .claude/rules/stack/persona-loader.md
+rm .aod/stack-active.json
+# Pack source files in stacks/ are untouched
+# Previously scaffolded project files are untouched
+```
+
+#### When to Use
+- Injecting context into agents at multiple points with different loading semantics (auto-loaded vs. on-demand)
+- When different agent roles need different subsets of injected content
+- Plugin/pack systems where activation must be reversible without side effects on source files
+- Context-budget-constrained environments where selective loading is necessary
+
+#### When NOT to Use
+- Single-surface injection is sufficient (all agents need the same content)
+- Content is small enough that loading everything everywhere fits within context budget
+- When symlinks are acceptable (single-platform, no immutability requirement)
+
+#### Related Patterns
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- persona supplements use the same principle of loading content only when needed
+- [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- `stack-active.json` follows the same JSON state pattern, and the system gracefully handles its absence
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- inconsistent state detection in `/aod.stack` commands follows the same degrade-gracefully philosophy
 
 ---
 

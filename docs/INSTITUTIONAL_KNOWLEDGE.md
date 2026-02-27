@@ -569,144 +569,22 @@ Applied to all 7 commands: `aod.define`, `aod.spec`, `aod.project-plan`, `aod.ta
 **Metrics**:
 - Estimated: 2-3 sessions | Actual: 3 sessions (1 day)
 - Tasks: 47/47 | Waves: 3/3 | Phases: 8/8
-- New ideas spawned: 1 (#32 real-time token budget tracking)
+- New ideas spawned: 1 (#32, later superseded by Feature 056)
 
 **Tags**: #retrospective #context-efficiency #prompt-segmentation #orchestrator #performance
 
 ---
 
-### Entry 13: Feature 032 — Real-time Token Budget Tracking Retrospective
-
-**Date**: 2026-02-11
-**Category**: Retrospective
-**Severity**: Medium
-**Feature**: 032 (Real-time Token Budget Tracking)
-
-**Summary**: Added heuristic token consumption estimation to the `/aod.run` orchestrator. Extends `run-state.sh` with 4 budget functions, enhances the stage map with utilization percentages, introduces adaptive context loading when budget exceeds 80% threshold, and adds proactive resume recommendations when remaining budget is insufficient for the next stage. All changes are additive — pre-032 state files continue to work without error.
-
-**Key Lesson**: Budget tracking for LLM orchestrators is inherently heuristic since actual token counts are not exposed. The critical design choice was overestimating via a 1.5x safety multiplier — triggering adaptive mode early is far better than triggering it late. The 6-layer backward compatibility approach (every function checks for `token_budget` existence) ensures zero regression risk for existing state files.
-
-**Pattern**: Additive optional state fields with graceful degradation. Every new function that reads `token_budget` has a default fallback (returns safe defaults if absent). This pattern enables incremental feature adoption without schema version bumps or migration scripts.
-
-**Surprise**: The adaptive context loading and resume recommendation could be consolidated cleanly into the existing Core Loop structure. Adding a new step 12 (resume recommendation) between post-stage checkpoint and GitHub label update was architecturally clean — no existing step numbering was fragile because all cross-references are by description, not step number.
-
-**Metrics**:
-- Estimated: 2-3 sessions | Actual: 2 sessions
-- Tasks: 26/26 | Waves: 3/3 | Phases: 6/6
-- Files modified: 3 (run-state.sh, SKILL.md, entry-modes.md) + 1 (governance.md)
-
-**Tags**: #retrospective #token-budget #adaptive-loading #orchestrator #heuristic-estimation
-
----
-
-### Entry 14: Feature 034 — Cross-Session Budget History Retrospective
-
-**Date**: 2026-02-11
-**Category**: Retrospective
-**Severity**: Medium
-**Feature**: 034 (Cross-Session Budget History)
-
-**Summary**: Added trend analysis and session predictions to the `/aod.run` orchestrator by mining the `prior_sessions` array introduced in Feature 032. A single compound `aod_state_get_trend_summary` jq function computes per-stage averages, predicted sessions remaining, and confidence levels. The Stage Map Display and Resume Entry now show trend lines with historical context. Core Loop step 12 (resume recommendation) now uses a 3-tier fallback chain: historical per-stage average → current-session average → 15,000 default.
-
-**Key Lesson**: Lightweight features that modify only markdown skill files and shell scripts can still hit session limits when the orchestrator itself consumes significant context during the build stage. The irony: a feature designed to predict session splits itself needed a session split. This validates the feature's value proposition — without trend data, users have no visibility into when splits will occur.
-
-**Pattern**: Compound jq state helpers with pipe-delimited output. The `aod_state_get_trend_summary` function returns 9 fields in a single call, avoiding multiple round-trips. This pattern (established by `aod_state_get_budget_summary` in Feature 032) is efficient for skill files that need to parse multiple values from state.
-
-**Surprise**: The build stage hit context limits despite being a lightweight 3-file feature. The orchestrator's own context (SKILL.md, governance.md, entry-modes.md reference files) consumes substantial budget, making even small features span 2 sessions.
-
-**Metrics**:
-- Estimated: 1 session | Actual: 2 sessions
-- Tasks: 15/15 | Waves: 4/4 | Phases: 6/6
-- Files modified: 3 (run-state.sh, SKILL.md, entry-modes.md) + 2 (INDEX.md, spec.md)
-- New ideas spawned: 2 (#35 visual budget dashboard, #36 auto-pause at predicted limits)
-
-**Tags**: #retrospective #trend-analysis #session-prediction #orchestrator #cross-session
-
----
-
-### Entry 15: Budget Tracker Underestimates Actual Context by ~2.5x
-
-**Date**: 2026-02-12
-**Category**: Root Cause Analysis
-**Severity**: High
-**Feature**: 032/034/038 (Token Budget Tracking lineage)
-
-**Problem**: The budget tracker estimated ~72K tokens (60% of 120K usable budget) at the point of pausing, but `/context` showed actual consumption was ~181K tokens (90% of 200K window). The tracker underestimated by approximately 2.5x.
-
-**Root Cause Analysis (5 Whys)**:
-1. Why was the estimate so far off? → The tracker only measures content explicitly loaded by skill instructions, not total conversation context.
-2. Why doesn't it measure total context? → Claude Code does not expose a runtime token consumption API — all estimation is heuristic (ADR-003).
-3. Why is heuristic estimation insufficient? → It misses system overhead (~28K: system prompt, tool definitions, MCP, memory files, skill descriptions) and conversation history growth (~155K of accumulated messages).
-4. Why does conversation history grow so much? → Every tool call and response accumulates in the message history. A session with ~50+ tool calls generates substantial history that the tracker never sees.
-5. Why wasn't the `usable_budget` calibrated for this? → The 120K assumption (60% of 200K) was set conservatively but didn't account for message accumulation being the dominant consumer, not skill content loading.
-
-**Key Data Points**:
-- System overhead (invisible to tracker): ~28K tokens (system prompt 4.3K, tools 15.4K, MCP 562, agents 586, memory 4.7K, skills 2K)
-- Message history: ~155K tokens (77% of total)
-- Budget tracker estimate: 72K | Actual: 181K | Ratio: 2.5x underestimate
-- `usable_budget: 120K` vs real available: ~172K (200K - 28K overhead)
-
-**Solution**: The pause recommendation at 60% estimated was correct in practice — it triggered at ~90% actual. However, the displayed percentage is misleading to users. Recommended calibration for future features:
-1. Reduce `usable_budget` from 120K to 60K to account for message accumulation
-2. OR increase `safety_multiplier` from 1.5x to 3x
-3. OR track tool call count as a proxy for conversation growth (~3K tokens per tool roundtrip average)
-4. Display should convey directional signal, not false precision (e.g., "budget: moderate" vs exact "~60%")
-
-**Why This Matters**: Feature 038 extends budget tracking to standalone skills. If the tracker shows "~15% used" after a standalone `/aod.spec` run but actual consumption is ~40%, users will make poor session planning decisions. The tracking infrastructure works but needs recalibration to be useful as a planning tool.
-
-**Tags**: #rca #budget-tracking #token-estimation #context-window #calibration #orchestrator
-
----
-
-### Entry 16: Universal Budget Tracking Pattern for Standalone Skills
-
-**Date**: 2026-02-12
-**Category**: Architecture Pattern
-**Severity**: Medium
-**Feature**: 038 (Universal Session Budget Tracking)
-
-**Problem**: Token budget tracking only worked when skills ran inside the `/aod.run` orchestrator. Standalone skill invocations (e.g., `/aod.spec` run directly) produced no budget data, giving developers no visibility into context window consumption.
-
-**Solution**: Implemented a uniform "budget initialization guard" pattern across all 7 AOD lifecycle command files (`/aod.discover`, `/aod.define`, `/aod.spec`, `/aod.project-plan`, `/aod.tasks`, `/aod.build`, `/aod.deliver`). The pattern consists of two blocks:
-
-1. **Entry Guard (Step 1b)** — inserted after prerequisite validation:
-   - Check state file existence (`aod_state_exists`)
-   - Detect active orchestrator via `updated_at` recency (5-minute threshold)
-   - If orchestrator active → skip budget writes (prevents double-counting)
-   - If standalone → validate feature ID match, create state if needed, write pre-estimate
-
-2. **Exit Display (Report section)** — appended to completion output:
-   - Write post-estimate
-   - Read budget summary
-   - Display `(~N% budget used)` if data exists
-
-**Key Design Decisions**:
-- **Implicit orchestrator detection**: Uses `updated_at` recency instead of an explicit flag. Avoids stuck-flag problems if the orchestrator crashes — stale timestamps gracefully degrade to standalone mode.
-- **Non-fatal error wrapping**: All budget operations use `|| true` or `|| echo "fallback"` so budget failures never block skill execution.
-- **`usable_budget: 60000`** for standalone state creation (calibrated per Entry 15 — tracker underestimates by ~2.5x).
-- **Additive accumulation**: Plan substages (`/aod.spec`, `/aod.project-plan`, `/aod.tasks`) all write to `stage_estimates.plan`. The `aod_state_update_budget` function is additive, so values accumulate correctly.
-
-**Implementation Pattern** (reference: `specs/038-universal-session-budget-tracking/budget-guard-pattern.md`):
-- 7 files modified with identical ~30-line instruction blocks each
-- No new shell functions needed — existing `run-state.sh` API sufficient
-- Stage mapping: discover, define, plan (x3), build, deliver
-
-**Why This Matters**: Establishes budget visibility across all development workflows, not just orchestrated ones. Developers running individual skills now see cumulative context consumption, enabling better session planning. The pattern is designed for safe extensibility — new skills can be instrumented by copying the same guard blocks.
-
-**Tags**: #architecture #pattern #budget-tracking #token-estimation #context-window #orchestrator
-
----
-
-### Entry 17: Uniform Instruction Patterns Scale Across Command Files
+### Entry 13: Uniform Instruction Patterns Scale Across Command Files
 
 ## [Architecture] - Defining a pattern once and applying identically prevents drift
 
 **Date**: 2026-02-12
-**Context**: Feature 038 required adding identical budget tracking instrumentation to 7 separate AOD command files.
+**Context**: Feature 038 required adding identical instrumentation to 7 separate AOD command files.
 
-**Problem**: When the same behavior needs to be added to multiple command files (markdown instruction files, not code), there's a risk of inconsistency — each file gets slightly different instructions, leading to subtle behavioral drift across commands.
+**Problem**: When the same behavior needs to be added to multiple command files (markdown instruction files, not code), there's a risk of inconsistency -- each file gets slightly different instructions, leading to subtle behavioral drift across commands.
 
-**Solution**: Define the pattern once in a reference document (`specs/038-*/budget-guard-pattern.md`) with exact instruction blocks, then copy them identically into each command file. The "pattern" is a ~30-line markdown instruction block, not a shared function — it's duplicated intentionally because each command file must be self-contained (commands don't import shared partials).
+**Solution**: Define the pattern once in a reference document with exact instruction blocks, then copy them identically into each command file. The "pattern" is a ~30-line markdown instruction block, not a shared function -- it's duplicated intentionally because each command file must be self-contained (commands don't import shared partials).
 
 **Key Insight**: For instruction-based systems (like Claude command files), duplication is preferable to abstraction. Each command file must work independently without referencing shared includes. The trade-off is maintenance cost (7 files to update) vs. reliability (each file is self-contained and won't break if shared infrastructure changes).
 
@@ -718,29 +596,173 @@ Applied to all 7 commands: `aod.define`, `aod.spec`, `aod.project-plan`, `aod.ta
 
 ---
 
-### Entry 18: Non-Fatal Budget Tracking Pattern for Self-Calibrating Systems
+### Entry 14: Non-Fatal Observability Pattern for Optional Enhancements
 
 ## [Architecture] - Error-swallowing guards ensure optional features never block critical workflows
 
 **Date**: 2026-02-12
-**Context**: Feature 042 implemented a performance registry that provides calibrated budget defaults. The registry is valuable but not essential — skills must work even if the registry is missing, corrupted, or jq is unavailable.
+**Context**: When adding optional observability or enhancement features to existing workflows, failures in the optional code must never block the primary workflow. A corrupted JSON file or missing dependency should not prevent `/aod.deliver` from closing a feature.
 
-**Problem**: When adding optional observability/calibration features to existing workflows, there's a risk that failures in the optional code could block the primary workflow. A corrupted JSON file or missing dependency shouldn't prevent `/aod.deliver` from closing a feature.
+**Problem**: When adding optional observability or calibration features to existing workflows, there's a risk that failures in the optional code could block the primary workflow. A corrupted JSON file or missing dependency shouldn't prevent core operations from completing.
 
 **Solution**: Wrap all optional operations in non-fatal guards:
-1. Every registry function returns a fallback value on failure (never throws)
+1. Every optional function returns a fallback value on failure (never throws)
 2. All bash calls use `|| true` or `|| echo "fallback"` patterns
 3. State file operations check existence before read/write
-4. Missing registry gracefully falls back to hardcoded defaults
+4. Missing data gracefully falls back to hardcoded defaults
 5. Document clearly in ADRs which operations are "non-fatal"
 
-**Key Insight**: For self-calibrating systems, the calibration data improves accuracy but is never required. Design the system so day-1 behavior (no data) is identical to pre-feature behavior, and calibration progressively improves over time without ever becoming a dependency.
+**Key Insight**: For systems with optional enhancements, the enhancement data improves accuracy but is never required. Design the system so day-1 behavior (no data) is identical to pre-feature behavior, and enhancements progressively improve over time without ever becoming a dependency.
 
-**Metrics**: 5 registry functions, 3 fallback scenarios validated (file missing, JSON corrupted, jq unavailable), 0 blocking failures possible.
+**Metrics**: Multiple fallback scenarios validated (file missing, JSON corrupted, jq unavailable), 0 blocking failures possible.
 
-**Why This Matters**: Establishes a pattern for adding observability and calibration to critical workflows without introducing new failure modes. Future self-improving features can follow the same "enhance but never block" principle.
+**Why This Matters**: Establishes a pattern for adding observability and optional enhancements to critical workflows without introducing new failure modes. Future self-improving features can follow the same "enhance but never block" principle.
 
-**Tags**: #architecture #pattern #resilience #self-calibrating #non-fatal
+**Tags**: #architecture #pattern #resilience #non-fatal #observability
+
+---
+
+### Entry 15: Feature 047 — Context Optimization for Single-Session Lifecycle
+
+## [Architecture] - Four Optimizations Enable Single-Session Define+Plan Completion
+
+**Date**: 2026-02-13
+**Context**: Feature 047 optimized the `/aod.define` and `/aod.plan` stages to reduce context consumption by 40% and 25% respectively, enabling single-session lifecycle completion for typical features.
+
+**Problem**:
+The Define and Plan stages consumed too much context window, causing governance gate interruptions. Combined with system overhead, conversation history growth, and governance context loading, users frequently experienced mid-lifecycle session breaks even for lightweight features. This violated the PRD priority stack (Quality > Few Pauses > Speed).
+
+**Solution**:
+Implemented four context efficiency optimizations:
+
+1. **Lazy Governance Loading** — Load governance rules at the gate checkpoint, not at skill start. Defers ~4K tokens of governance.md until actually needed.
+
+2. **Serialized Triad Reviews** — Execute PM -> Architect -> Team-Lead reviews sequentially instead of in parallel. Reduces concurrent context from ~18K (3 reviewers loaded simultaneously) to ~6K (one reviewer at a time). Trade-off: +15-20 seconds per review cycle.
+
+3. **Governance Verdict Caching** — Cache reviewer verdicts with mtime-based invalidation via `aod_state_cache_governance()`. Skip re-loading governance context when cached verdict is still valid. Saves ~4K tokens on repeated checks.
+
+4. **Substage Context Unloading** — Use boundary markers (`--- CONTEXT BOUNDARY ---`) to signal context unloading opportunities between substages. Enables future Claude Code versions to reclaim context at well-defined points.
+
+**Trade-offs**:
+
+| Trade-off | Impact | Acceptability |
+|-----------|--------|---------------|
+| Wall-clock increase | +15-20s per review cycle | Acceptable (PRD: Few Pauses > Speed) |
+| SKILL.md complexity | +50 lines for boundary markers | Manageable |
+| governance.md complexity | +20 lines for lazy loading instructions | Manageable |
+
+**Why This Matters**:
+- **Single-session viability**: Define+Plan stages now have reduced context footprint for typical features
+- **Validates optimization trade-offs**: Sequential reviews trade speed for context efficiency -- the right trade for single-session priorities
+- **Establishes patterns**: Lazy loading, verdict caching, and boundary markers are reusable across other skills with governance gates
+
+**Metrics**:
+- Define stage: 40% context reduction
+- Plan stage: 25% context reduction
+- Note: Targets pending post-delivery validation
+
+**Pattern**: **Context Optimization for Governance-Heavy Skills**. When a skill has multiple governance gates that load substantial context (reviewer agents, rule files, checklist templates), apply: (1) lazy loading at gate not at start, (2) sequential execution of concurrent checks, (3) verdict caching with invalidation, (4) boundary markers for unloading. Accept wall-clock trade-offs when context efficiency is the priority.
+
+**Key Insight**: The serialization trade-off (ADR-005) demonstrates that "faster" is not always "better" in context-constrained environments. The 15-20 second delay per review cycle is invisible to users who would otherwise hit a full session break. Optimize for the constraint that matters most.
+
+**Tags**: #architecture #context-optimization #governance #single-session #trade-offs #feature-047
+
+### Related Files:
+- `.claude/skills/~aod-run/SKILL.md` — Serialized review loop, boundary markers
+- `.claude/rules/governance.md` — Lazy loading instructions
+- `.aod/scripts/bash/run-state.sh` — `aod_state_cache_governance()` function
+- `docs/architecture/02_ADRs/ADR-005-serialization-trade-off.md` — Sequential review decision
+- `specs/047-optimize-define-plan-stages/` — Full spec, plan, tasks
+
+---
+
+### Entry 16: Feature 049 — Simple MVP Wins
+
+## [Process] - Starting with minimal viable functionality enables faster delivery
+
+**Date**: 2026-02-13
+**Context**: Feature 049 implemented a simple logging utility for AOD orchestration scripts.
+
+**Problem**: Teams often over-engineer initial implementations, adding features "just in case" that delay delivery and complicate testing.
+
+**Solution**: Follow the MVP-first approach demonstrated in Feature 049:
+
+1. **Define core value proposition first** — US-001 (timestamped logging) is the entire MVP
+2. **Prioritize user stories by value, not complexity** — P1 delivers value, P2/P3 extend it
+3. **Make each story independently testable** — Each can be validated in isolation
+4. **Accept graceful degradation over completeness** — US-004's error handling is P3, not P1
+
+**Example from Feature 049**:
+- MVP scope: 7 tasks (T001-T007) — basic logging to default path
+- Full scope: 24 tasks — adds configuration, integration, error handling
+- MVP delivered core value; extensions were incremental improvements
+
+**Why This Matters**: Feature 049 was "simpler than expected" precisely because the scope was ruthlessly minimized. Each user story added value without requiring prior stories to be complete. This made the feature easier to test, faster to deliver, and simpler to maintain.
+
+**Tags**: #process #mvp #scope-management #feature-049 #best-practice
+
+### Related Files:
+- `specs/049-simple-logging-utility/spec.md` — User stories with priority rationale
+- `specs/049-simple-logging-utility/tasks.md` — MVP vs full scope delineation
+- `.aod/scripts/bash/logging.sh` — 41-line implementation
+
+### Entry 17: Feature 056 — Remove Broken Features Early
+
+## [Process] - Non-functional code accumulates faster than you'd expect; remove it at the first sign of breakage
+
+**Date**: 2026-02-26
+**Context**: Feature 056 removed the budget tracking and token logging system (~880+ lines across shell scripts, command files, orchestrator, docs, and ADRs) that had been non-functional for multiple releases.
+
+**Problem**: The budget tracking system relied on heuristic token estimation that was never accurate enough to make blocking decisions. Despite being wrapped in non-fatal `|| true` guards, the dead code created maintenance burden, confused new adopters inspecting the codebase, and undermined trust in the toolkit's quality. By the time removal was prioritized, the budget code had spread across 15+ files with interleaved logic in the orchestrator Core Loop.
+
+**Solution**: Structured leaf-first removal in 8 phases:
+1. Delete pure leaf nodes first (performance registry — zero non-budget consumers)
+2. Remove functions from shared files (budget functions in run-state.sh)
+3. Clean callers (command files, orchestrator)
+4. Update documentation (ADRs, KB entries, patterns catalog)
+5. Sweep for stragglers with comprehensive term list
+
+**Key Insight**: The hardest part was confidence in completeness — knowing you got it all. The comprehensive FR-017 sweep term list (28 budget-specific terms) was essential for final verification. Without an explicit "done" checklist, residual references would have slipped through.
+
+**Why This Matters**: Every release that ships with known-broken code makes the next removal harder. The non-fatal wrapper pattern (`|| true`) that prevented runtime failures also masked the growing scope of dead code. Remove broken features at the first sign of breakage, before they spread.
+
+**Tags**: #process #technical-debt #code-removal #feature-056 #retrospective
+
+### Related Files:
+- `specs/056-budget-tracking-removal/spec.md` — 5 user stories, 17 functional requirements
+- `specs/056-budget-tracking-removal/tasks.md` — 45 tasks across 8 phases
+- `docs/product/02_PRD/056-budget-tracking-removal-2026-02-26.md` — PRD
+
+---
+
+### Entry 18: Feature 058 — Checkpoint Validation Catches Issues Early
+
+## [Process] - Multi-phase features benefit from structured checkpoint reviews at phase boundaries
+
+**Date**: 2026-02-27
+**Context**: Feature 058 (Stack Packs) implemented 38 tasks across 8 phases, shipping a stack pack system with convention contracts, persona supplements, scaffold templates, and lifecycle management.
+
+**Problem**: Large features with many parallel content files (8 persona supplements, 2 rule files, 12 scaffold templates, 2 STACK.md files) risk accumulating subtle issues — missing files, wrong paths, inconsistent references — that compound if not caught early.
+
+**Solution**: Structured checkpoint validation at 3 phase boundaries (P0: Waves 1-2, P1: Waves 3-5, P2: Wave 6) with dedicated Architect, Code Review, and Security review gates. The code review at P2 surfaced 5 warnings:
+1. Missing `globals.css` in scaffold (build-breaking import)
+2. Wrong filename casing (`with-auth.ts` → `withAuth.ts`)
+3. Missing `lib/services/` in STACK.md File Structure
+4. Missing `rules/.gitkeep` in swiftui-cloudkit pack
+5. Missing `next.config.ts` in STACK.md File Structure
+
+All 5 were fixed before merge. Without the checkpoint, these would have shipped as bugs.
+
+**Key Insight**: The cost of a checkpoint review (~5 min) is negligible compared to debugging downstream failures. Content-heavy features especially benefit because each file is correct in isolation but may be inconsistent with its siblings.
+
+**Why This Matters**: Phase-boundary validation transforms "review everything at the end" into "catch issues as they emerge." This is especially valuable for features with high parallelism where independent streams may drift.
+
+**Tags**: #process #quality #code-review #checkpoint #feature-058 #retrospective
+
+### Related Files:
+- `specs/058-prd-058-stack/spec.md` — 5 user stories, 15 functional requirements
+- `specs/058-prd-058-stack/tasks.md` — 38 tasks across 8 phases
+- `docs/product/02_PRD/058-stack-packs-2026-02-27.md` — PRD
 
 ---
 

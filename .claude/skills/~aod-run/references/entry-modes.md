@@ -21,18 +21,7 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
    - `github_issue`: null initially (assigned by Discover stage)
    - `idea`: The full idea text as provided by the user
 
-4. **Read calibrated defaults from registry**: Query the performance registry for calibrated budget values. Use Bash to run:
-   ```
-   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default usable_budget'
-   ```
-   Store the result as `{calibrated_usable_budget}` (falls back to 120000 if registry unavailable).
-
-   ```
-   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default safety_multiplier'
-   ```
-   Store the result as `{calibrated_safety_multiplier}` (falls back to 1.5 if registry unavailable).
-
-5. **Create initial state JSON**: Build the state object following Entity 1 schema:
+4. **Create initial state JSON**: Build the state object following Entity 1 schema:
 
 ```json
 {
@@ -56,31 +45,14 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
     "build": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null },
     "deliver": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null }
   },
-  "token_budget": {
-    "window_total": 200000,
-    "usable_budget": {calibrated_usable_budget},
-    "safety_multiplier": {calibrated_safety_multiplier},
-    "estimated_total": 0,
-    "stage_estimates": {
-      "discover": { "pre": 0, "post": 0 },
-      "define": { "pre": 0, "post": 0 },
-      "plan": { "pre": 0, "post": 0 },
-      "build": { "pre": 0, "post": 0 },
-      "deliver": { "pre": 0, "post": 0 }
-    },
-    "threshold_percent": 80,
-    "adaptive_mode": false,
-    "last_checkpoint": null,
-    "prior_sessions": []
-  },
   "error_log": [],
   "gate_rejections": []
 }
 ```
 
-6. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''` (using the constructed JSON).
+5. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''` (using the constructed JSON).
 
-7. **Display initial status**:
+6. **Display initial status**:
 ```
 AOD ORCHESTRATOR — New Lifecycle
 ================================
@@ -92,7 +64,7 @@ Stage Map:
   [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver
 ```
 
-8. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the Discover stage.
+7. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the Discover stage.
 
 ## Issue Entry
 
@@ -114,24 +86,30 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
    - If `gh` is unavailable or fails: fall back to [GitHub Graceful Degradation](#github-graceful-degradation)
 
 4. **Extract stage label**: Search the labels array for a label matching `stage:*`:
-   - `stage:discover` → current stage is `discover`
+   - `stage:discover` → current stage is `define` (see note below)
    - `stage:define` → current stage is `define`
    - `stage:plan` → current stage is `plan`
    - `stage:build` → current stage is `build`
    - `stage:deliver` → current stage is `deliver`
    - `stage:done` → lifecycle already complete (display summary and exit)
-   - No `stage:*` label found → default to `discover` (assume fresh issue)
+   - No `stage:*` label found → default to `define` (see note below)
+
+   **IMPORTANT**: When entering via Issue Entry (`/aod.run #NNN`), the Discover stage is **always complete by definition**. The output of Discover IS the GitHub Issue itself. If the issue exists, discover already happened. Therefore:
+   - The minimum starting stage for Issue Entry is `define`
+   - `stage:discover` label on an existing issue means "discover just completed" → start from `define`
+   - No label on an existing issue → assume discover completed → start from `define`
 
 5. **Infer completed stages**: Based on the detected stage label, mark all prior stages as `completed`:
 
    | Detected Label | Completed Stages | Starting Stage |
    |---------------|-----------------|----------------|
-   | `stage:discover` | (none) | discover |
+   | `stage:discover` | discover | define |
    | `stage:define` | discover | define |
    | `stage:plan` | discover, define | plan |
    | `stage:build` | discover, define, plan | build |
    | `stage:deliver` | discover, define, plan, build | deliver |
    | `stage:done` | all | (lifecycle complete) |
+   | (no label) | discover | define |
 
 6. **Discover existing artifacts**: Scan disk for artifacts from completed stages (see [Artifact Discovery](#artifact-discovery)).
 
@@ -144,18 +122,7 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
    - `github_issue`: The issue number
    - `idea`: The issue title
 
-9. **Read calibrated defaults from registry**: Query the performance registry for calibrated budget values. Use Bash to run:
-   ```
-   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default usable_budget'
-   ```
-   Store the result as `{calibrated_usable_budget}` (falls back to 120000 if registry unavailable).
-
-   ```
-   bash -c 'source .aod/scripts/bash/performance-registry.sh && aod_registry_get_default safety_multiplier'
-   ```
-   Store the result as `{calibrated_safety_multiplier}` (falls back to 1.5 if registry unavailable).
-
-10. **Create initial state JSON**: Build the state object following Entity 1 schema, with completed stages pre-filled:
+9. **Create initial state JSON**: Build the state object following Entity 1 schema, with completed stages pre-filled:
 
 ```json
 {
@@ -179,23 +146,6 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
     "build": { "status": "pending", ... },
     "deliver": { "status": "pending", ... }
   },
-  "token_budget": {
-    "window_total": 200000,
-    "usable_budget": {calibrated_usable_budget},
-    "safety_multiplier": {calibrated_safety_multiplier},
-    "estimated_total": 0,
-    "stage_estimates": {
-      "discover": { "pre": 0, "post": 0 },
-      "define": { "pre": 0, "post": 0 },
-      "plan": { "pre": 0, "post": 0 },
-      "build": { "pre": 0, "post": 0 },
-      "deliver": { "pre": 0, "post": 0 }
-    },
-    "threshold_percent": 80,
-    "adaptive_mode": false,
-    "last_checkpoint": null,
-    "prior_sessions": []
-  },
   "error_log": [],
   "gate_rejections": []
 }
@@ -205,13 +155,13 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
 
    For the Plan stage when it's marked completed: also mark all 3 substages (`spec`, `project_plan`, `tasks`) as `completed` with their discovered artifacts.
 
-11. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''`
+10. **Write state to disk**: Use Bash to create the state file via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_create '"'"'{json}'"'"''`
 
-12. **Ensure correct branch**: Check current git branch. If not on the expected feature branch, switch to it:
+11. **Ensure correct branch**: Check current git branch. If not on the expected feature branch, switch to it:
     - If branch exists: `git checkout {branch}`
     - If branch does not exist: `git checkout -b {branch}`
 
-13. **Display initial status**:
+12. **Display initial status**:
 ```
 AOD ORCHESTRATOR — Resume from Issue #{NNN}
 =============================================
@@ -228,7 +178,7 @@ Stage Map:
   {markers per stage}
 ```
 
-14. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the starting stage.
+13. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the starting stage.
 
 ## Artifact Discovery
 
@@ -306,7 +256,7 @@ When the `gh` CLI is unavailable or fails, the orchestrator falls back to artifa
    - plan.md found → infer `plan` (project_plan substage complete, check for tasks)
    - spec.md found → infer `plan` (spec substage complete, check for plan)
    - PRD found → infer `plan` (Define complete, start at Plan:spec)
-   - No artifacts → infer `discover` (start from beginning)
+   - No artifacts → infer `define` (issue exists = discover complete, start from Define)
 6. Ask user to confirm the inferred stage: "Based on artifacts found, the current stage appears to be {stage}. Is this correct?"
    - Options: "Yes, continue from {stage}", "No, let me specify"
    - If user specifies: accept their input as the starting stage
@@ -353,31 +303,6 @@ When mode is `resume`, the orchestrator reads the persisted state file from disk
    bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_set ".session_count" "{new_session_count}"'
    ```
 
-4a. **Reset token budget for new session**: If the state file contains a `token_budget` field, archive the current session's estimates and reset for the new session. Use Bash to run:
-   ```
-   bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_read' | jq '
-     if .token_budget then
-       .token_budget.prior_sessions = ([{
-         "session": (.session_count - 1),
-         "estimated_total": .token_budget.estimated_total,
-         "stage_estimates": .token_budget.stage_estimates,
-         "archived_at": (now | todate)
-       }] + (.token_budget.prior_sessions // []))[:3] |
-       .token_budget.estimated_total = 0 |
-       .token_budget.adaptive_mode = false |
-       .token_budget.last_checkpoint = null |
-       .token_budget.stage_estimates = {
-         "discover": {"pre": 0, "post": 0},
-         "define": {"pre": 0, "post": 0},
-         "plan": {"pre": 0, "post": 0},
-         "build": {"pre": 0, "post": 0},
-         "deliver": {"pre": 0, "post": 0}
-       }
-     else . end'
-   ```
-   Write the resulting JSON back via `aod_state_write`. This archives the previous session's budget (keeping only the last 3 entries in `prior_sessions`) and resets `estimated_total` to 0 since prior session context is no longer in the window.
-   If `token_budget` is absent from state (pre-032 state file), skip this step gracefully.
-
 5. **Validate schema version**: Check that `version` is `"1.0"`. If not recognized, warn but attempt to continue (forward-compatible).
 
 6. **Check lifecycle-already-complete**: Check if all 5 stages show `status: "completed"` (see `references/error-recovery.md` for Lifecycle Already Complete Detection). If complete, display summary and STOP — do NOT proceed to the Core Loop or restart any stages.
@@ -402,8 +327,6 @@ When mode is `resume`, the orchestrator reads the persisted state file from disk
 
 12. **Display resume status**:
 
-Read trend summary: Call `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_trend_summary'`. Parse the pipe-delimited result to extract `session_count`, `avg_total`, per-stage averages, `predicted_remaining`, and `confidence`.
-
 ```
 AOD ORCHESTRATOR — Resuming
 ============================
@@ -419,16 +342,7 @@ Pending Stages: {list of pending stage names}
 
 Stage Map:
   {markers per stage}
-  {trend line if session_count > 0, per Stage Map Display step 7}
 ```
-
-If `session_count > 0`, also display a trend context block:
-```
-Prior Session History ({session_count} sessions):
-  Avg per session: {avg_total/1000}K tokens
-  Predicted remaining: ~{predicted_remaining} sessions ({confidence} confidence)
-```
-If `session_count == 0`, omit the trend context block entirely.
 
 13. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop). The current stage from the state file determines where execution resumes. If a stage is `in_progress`, re-execute it from its beginning (idempotent restart). If a stage is `completed`, advance to the next pending stage.
 
@@ -648,7 +562,7 @@ When `--status` is invoked with an issue number but no state file exists, infer 
    - plan.md found → infer `plan` (project_plan substage)
    - spec.md found → infer `plan` (spec substage)
    - PRD found → infer `plan` (Define complete)
-   - No artifacts → infer `discover`
+   - No artifacts → infer `define` (issue exists = discover complete)
 
 5. **Display inferred status**:
 

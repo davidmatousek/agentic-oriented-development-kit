@@ -31,7 +31,11 @@ Single-command lifecycle orchestrator. Accepts 4 input modes and 1 combinable fl
 
 **Skill Reference**: `.claude/skills/~aod-run/SKILL.md` — full orchestration logic.
 
-## Step 0: Parse Dry-Run Flag
+## Step 0: Parse Flags
+
+Parse optional flags from `$ARGUMENTS`. Flags must appear at the start of arguments.
+
+**Step 0a: Parse --dry-run**
 
 Check if `$ARGUMENTS` starts with `--dry-run`:
 
@@ -39,7 +43,6 @@ Check if `$ARGUMENTS` starts with `--dry-run`:
    - Set `dry_run = true`
    - Strip `--dry-run` from the beginning of `$ARGUMENTS` (trim leading whitespace from remainder)
    - Continue to Step 1 with the remaining arguments
-   - **Note**: The `--dry-run` flag must appear at the start of arguments (e.g., `/aod.run --dry-run #22`, not `/aod.run #22 --dry-run`)
 
 2. If `$ARGUMENTS` does NOT start with `--dry-run`:
    - Set `dry_run = false`
@@ -79,6 +82,9 @@ Read the (possibly stripped) arguments and determine the entry mode:
    Lifecycle stages: Discover → Define → Plan (spec → plan → tasks) → Build → Deliver
    Governance gates pause at each stage boundary for Triad sign-offs.
    State is persisted to .aod/run-state.json for session resilience.
+
+   Flags:
+     --dry-run         Read-only preview mode, no modifications
    ```
 
 ## Step 2: Invoke Orchestrator Skill
@@ -129,3 +135,4 @@ The `~aod-run` skill will take over from here.
 3. Combinable with idea, issue, or resume modes (flag must appear first)
 4. Exits immediately after preview display
 5. If combined with `--status`: the `--dry-run` flag is ignored (status is already read-only)
+

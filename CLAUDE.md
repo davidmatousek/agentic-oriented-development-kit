@@ -22,6 +22,7 @@ agentic-oriented-development-kit/
 ├── .aod/              → spec.md, plan.md, tasks.md (source of truth)
 ├── docs/              → Product, architecture, devops docs
 ├── scripts/           → init.sh, check.sh
+├── stacks/            → Stack packs (conventions, personas, scaffolds)
 └── CLAUDE.md          → AI agent context
 ```
 
@@ -48,6 +49,7 @@ agentic-oriented-development-kit/
 - `/aod.checklist` — Generate quality checklist
 - `/aod.constitution` — Manage governance principles
 - `/aod.deliver` — Close completed feature
+- `/aod.stack` — Manage stack packs (activate, remove, list, scaffold)
 
 ## SDLC Triad Governance
 | Role | Defines | Authority |

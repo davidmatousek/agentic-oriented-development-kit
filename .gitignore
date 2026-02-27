@@ -115,6 +115,11 @@ prisma/dev.db*
 .aod/run-state.json
 .aod/run-state.json.tmp
 .aod/run-state.json.corrupt.*
+# Log files (keep logs local, not in version control)
+.aod/logs/
+# Stack Packs runtime state (per-developer, not versioned)
+.claude/rules/stack/
+.aod/stack-active.json
 
 # ============================================================================
 # Product-led specific

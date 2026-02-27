@@ -1,14 +1,14 @@
 # Claude Agent Infrastructure
 
-This directory contains the complete agent orchestration infrastructure for Agentic Oriented Development Kit, including 13 specialized agents, 10 automation skills, and 10 slash commands for streamlined feature development.
+This directory contains the complete agent orchestration infrastructure for Agentic Oriented Development Kit, including 13 specialized agents, 13 automation skills, and 14 slash commands for streamlined feature development.
 
 ## Overview
 
 The infrastructure is organized into three main components:
 
 1. **Agents** (`agents/`) - 13 specialized AI agents for different development roles
-2. **Skills** (`skills/`) - 9 reusable automation capabilities
-3. **Commands** (`commands/`) - 10 slash commands for workflow automation
+2. **Skills** (`skills/`) - 13 reusable automation capabilities
+3. **Commands** (`commands/`) - 14 slash commands for workflow automation
 
 ---
 
@@ -92,6 +92,12 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 | **code-execution-helper** | Execute code for quota checks, API validation | Pre-flight quota checks, resource validation |
 | **git-workflow-helper** | Git workflow automation (commits, PRs, branches) | Creating commits, managing branches, PR creation |
 
+### Stack Management Skills
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **aod-stack** | Manage stack packs (activate, remove, list, scaffold) | Setting up stack-specific conventions, scaffolding projects |
+
 ### Thinking & Analysis Skills
 
 | Skill | Purpose | When to Use |
@@ -116,6 +122,15 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 | `/aod.tasks` | Create tasks.md with triple sign-off | 3-way (PM, Architect, Tech-Lead) |
 | `/aod.build` | Execute with architect checkpoints | Architect checkpoints at milestones |
 | `/aod.deliver {NNN}` | Close feature with parallel doc updates | Automatic documentation |
+
+### Stack Pack Commands
+
+| Command | Purpose | Governance |
+|---------|---------|-----------|
+| `/aod.stack use <pack>` | Activate a stack pack | N/A |
+| `/aod.stack remove` | Deactivate the active pack | N/A |
+| `/aod.stack list` | List available packs | N/A |
+| `/aod.stack scaffold` | Scaffold project from active pack | N/A |
 
 ### Utility Commands
 
@@ -246,7 +261,7 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 │   ├── ux-ui-designer.md
 │   └── security-analyst.md
 │
-├── skills/           → 12 automation capabilities
+├── skills/           → 13 automation capabilities
 │   ├── ~aod-define/
 │   ├── ~aod-discover/
 │   ├── ~aod-score/
@@ -254,6 +269,7 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 │   ├── ~aod-project-plan/
 │   ├── ~aod-spec/
 │   ├── aod-lens/
+│   ├── aod-stack/
 │   ├── kb-create/
 │   ├── kb-query/
 │   ├── root-cause-analyzer/

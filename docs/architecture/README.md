@@ -29,8 +29,8 @@ Significant technical decisions with context and trade-offs
 - `ADR-000-template.md` - ADR template and example
 - `ADR-001-atomic-state-persistence.md` - Write-then-rename for orchestrator state (Feature 022)
 - `ADR-002-prompt-segmentation.md` - On-demand reference file loading for context efficiency (Feature 030)
-- `ADR-003-heuristic-token-estimation.md` - Character-based token estimation with safety multiplier for budget tracking (Feature 032)
-- `ADR-004-performance-registry.md` - File-based performance registry for self-calibrating budget defaults (Feature 042)
+- `ADR-005-serialization-trade-off.md` - Serialization trade-off for parallel Triad reviews (Feature 047)
+- `ADR-006-non-fatal-observability-operations.md` - Non-fatal error handling for observability and circuit-breaker functions (Feature 054)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

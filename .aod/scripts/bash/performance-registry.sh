@@ -251,11 +251,14 @@ aod_registry_recalculate() {
     local now
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     registry=$(echo "$registry" | jq --arg ts "$now" '
+        # Capture root object for use inside map()
+        . as $root |
+
         # Per-stage estimates: average of (pre + post) across all features where post > 0
         .calibrated_defaults.per_stage_estimates = (
             ["discover", "define", "plan", "build", "deliver"] |
             map(. as $stage |
-                [.features[] | .stage_actuals[$stage] | select(.post > 0) | (.pre + .post)] as $values |
+                [$root.features[] | .stage_actuals[$stage] | select(.post > 0) | (.pre + .post)] as $values |
                 if ($values | length) > 0 then
                     ($values | add / length | floor)
                 else 5000 end
@@ -264,7 +267,7 @@ aod_registry_recalculate() {
 
         # Usable budget: average total_estimated_tokens, capped at 100000
         .calibrated_defaults.usable_budget = (
-            ([.features[].total_estimated_tokens] | add / length | floor) as $avg_total |
+            ([$root.features[].total_estimated_tokens] | add / length | floor) as $avg_total |
             if $avg_total > 100000 then 100000
             elif $avg_total < 30000 then 30000
             else $avg_total end
