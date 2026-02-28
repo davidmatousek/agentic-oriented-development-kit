@@ -117,6 +117,8 @@ Install the scaffolded project's dependencies:
 npm install
 ```
 
+> **Note:** If `npm` is not found, you may need to install Node.js (`brew install node` on macOS) or ensure your shell PATH includes it (e.g., `export PATH="/opt/homebrew/bin:$PATH"` for Homebrew).
+
 Then review the seeded product vision that `make init` generated from your project description:
 
 ```bash
@@ -263,6 +265,7 @@ Open a **second Claude Code session** in the same project (with the pack re-acti
 | `make init` fails | Ensure Node.js and Git are installed (`node -v`, `git --version`) |
 | `/aod.stack use` says pack not found | Verify `stacks/nextjs-supabase/STACK.md` exists |
 | Scaffold conflicts with existing files | Choose overwrite/skip per-file when prompted |
+| `.env.example` overwrite prompt during scaffold | The base template ships a generic `.env.example`. The scaffold may detect this conflict — choose **Overwrite** to get the stack-specific environment variables |
 | Governance sign-off loops | Address reviewer feedback, re-submit until APPROVED |
 | `gh repo create` fails | Ensure `gh auth login` completed successfully |
 
