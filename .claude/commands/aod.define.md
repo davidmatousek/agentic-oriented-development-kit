@@ -47,7 +47,40 @@ Q3: What are the 2-3 core features?
    - Solution overview (Q2)
    - Core capabilities table (Q3)
 
-**If vision docs exist**: Skip to Step 1
+**If vision docs exist BUT contain `[To be refined]` markers** (seeded by `make init`):
+1. Display the current seeded vision (mission statement from init)
+2. Run **Vision Refinement Workshop** — use AskUserQuestion for each:
+
+```
+🎯 Vision Refinement Workshop (5 questions)
+
+Your mission is currently: "{current mission statement}"
+
+Q1: What change do you want to create in the world?
+(Refine or expand your mission — 1-2 sentences)
+→ Replaces Mission Statement
+
+Q2: Where will {project_name} be in 3-5 years?
+(Your aspirational future state)
+→ Replaces Vision Statement
+
+Q3: Who is the primary user and what problem do they face?
+(e.g., "CTOs who need to assess AI security posture")
+→ Replaces Target Users
+
+Q4: What makes this different from alternatives?
+(Your unique value — why you, why now?)
+→ Replaces Core Value Proposition
+
+Q5: How will you measure success? (1-2 key metrics)
+(e.g., "Monthly active users", "Conversion rate")
+→ Replaces Success Metrics
+```
+
+3. Write refined answers back to `product-vision.md`, replacing all `[To be refined during /aod.define]` markers
+4. Proceed to Step 1
+
+**If vision docs exist and NO `[To be refined]` markers**: Skip to Step 1
 
 ## Step 1: Validate Topic
 

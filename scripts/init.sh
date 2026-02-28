@@ -84,6 +84,7 @@ TECH_STACK_VECTOR=${TECH_STACK_VECTOR:-"Not yet defined"}
 TECH_STACK_AUTH=${TECH_STACK_AUTH:-"Not yet defined"}
 CLOUD_PROVIDER=${CLOUD_PROVIDER:-"Not yet defined"}
 RATIFICATION_DATE=$(date +%Y-%m-%d)
+CURRENT_DATE=$(date +%Y-%m-%d)
 
 # Confirmation
 echo ""
@@ -131,6 +132,7 @@ replace_in_files() {
         -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
         -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
         -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
+        -e "s/{{CURRENT_DATE}}/$CURRENT_DATE/g" \
         -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
         {} +
   else
@@ -150,6 +152,7 @@ replace_in_files() {
         -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
         -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
         -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
+        -e "s/{{CURRENT_DATE}}/$CURRENT_DATE/g" \
         -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
         {} +
   fi
@@ -158,6 +161,29 @@ replace_in_files() {
 replace_in_files
 
 echo -e "${GREEN}✓ Template variables replaced${NC}"
+
+# Generate seeded product vision from user inputs
+VISION_FILE="docs/product/01_Product_Vision/product-vision.md"
+echo -e "${YELLOW}🔄 Seeding product vision...${NC}"
+cat > "$VISION_FILE" << EOF
+# Product Vision — $PROJECT_NAME
+
+## Mission Statement
+$PROJECT_DESCRIPTION
+
+## Vision Statement
+[To be refined during /aod.define]
+
+## Core Value Proposition
+[To be refined during /aod.define]
+
+## Target Users
+[To be refined during /aod.define]
+
+## Success Metrics
+[To be refined during /aod.define]
+EOF
+echo -e "${GREEN}✓ Product vision seeded (refine with /aod.define)${NC}"
 
 # Clean up instructional text from constitution (contains literal {{ examples)
 CONSTITUTION=".aod/memory/constitution.md"
@@ -187,8 +213,9 @@ echo "     /aod.stack list                    → See available packs"
 echo "     /aod.stack use nextjs-supabase     → Activate conventions"
 echo "     /aod.stack scaffold                → Scaffold project files"
 echo ""
-echo "  2. Review your product vision:"
-echo "     docs/product/01_Product_Vision/README.md"
+echo "  2. Review your seeded product vision:"
+echo "     docs/product/01_Product_Vision/product-vision.md"
+echo "     (Tip: /aod.define will help you refine it)"
 echo ""
 echo "  3. Create your first PRD:"
 echo "     /aod.define <your-first-feature>"

@@ -117,14 +117,13 @@ Install the scaffolded project's dependencies:
 npm install
 ```
 
-Then review the product vision template that `make init` configured:
+Then review the seeded product vision that `make init` generated from your project description:
 
 ```bash
-# Open in your editor or read in Claude Code
-cat docs/product/01_Product_Vision/README.md
+cat docs/product/01_Product_Vision/product-vision.md
 ```
 
-Confirm it reflects your project's purpose. Update if needed — this is what the PM agent references during governance reviews.
+You should see your project description as the mission statement, with `[To be refined]` markers for the remaining sections. **Don't fill these in manually** — `/aod.define` in the next phase will walk you through a guided Vision Refinement Workshop to populate them.
 
 ---
 
