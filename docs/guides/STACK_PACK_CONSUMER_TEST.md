@@ -19,6 +19,8 @@
 
 ## Phase 1: Clone & Initialize
 
+Navigate to your projects directory (e.g., `~/Projects/` or `~/code/`) — the clone command will create a new subfolder here:
+
 ```bash
 # Clone the public template
 git clone https://github.com/davidmatousek/agentic-oriented-development-kit.git davidmatousek-com
@@ -37,8 +39,9 @@ make init
 | GitHub Org | `davidmatousek` |
 | GitHub Repo | `davidmatousek-com` |
 | AI Agent | `1` (Claude Code) |
-| Tech Stack | `Next.js` |
-| Cloud Provider | `Vercel` |
+| Tech Stack | `1` (Next.js + Supabase) |
+
+> **Note**: Selecting a stack pack auto-fills all technology defaults (database, auth, cloud provider, etc.) from its `defaults.env`. No additional prompts needed. The "Other" path prompts for database and cloud provider only.
 
 ```bash
 # Verify setup
@@ -59,16 +62,7 @@ Confirm that `make init` replaced all template placeholders:
 grep -rn '{{' .aod/memory/constitution.md
 ```
 
-If any `{{PLACEHOLDER}}` variables remain, edit `.aod/memory/constitution.md` manually:
-
-| Variable | Value for this test |
-|----------|---------------------|
-| `{{PROJECT_NAME}}` | `davidmatousek-com` |
-| `{{PROJECT_DESCRIPTION}}` | `Cybersecurity consulting site for davidmatousek.com` |
-| `{{TECH_STACK_DATABASE}}` | `PostgreSQL (Supabase)` |
-| `{{TECH_STACK_VECTOR}}` | `pgvector` |
-| `{{TECH_STACK_AUTH}}` | `Supabase Auth` |
-| `{{RATIFICATION_DATE}}` | Today's date |
+> **Note**: When a stack pack is selected during init, its `defaults.env` automatically fills `{{TECH_STACK_DATABASE}}`, `{{TECH_STACK_VECTOR}}`, `{{TECH_STACK_AUTH}}`, and `{{RATIFICATION_DATE}}`. No manual editing should be required.
 
 ---
 

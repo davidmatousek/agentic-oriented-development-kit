@@ -39,11 +39,51 @@ case $AI_CHOICE in
   *) AI_AGENT="claude" ;;
 esac
 
-read -p "Primary Tech Stack (e.g., Node.js, Python, Go): " TECH_STACK
-TECH_STACK=${TECH_STACK:-"Not yet defined"}
+# Discover available stack packs
+echo ""
+echo "Select Tech Stack:"
+STACK_PACKS=()
+STACK_INDEX=1
+for pack_dir in stacks/*/; do
+  pack_name=$(basename "$pack_dir")
+  # Skip if not a directory or no STACK.md
+  [ -f "$pack_dir/STACK.md" ] || continue
+  # Extract display name from first line (strip leading "# ")
+  display_name=$(head -1 "$pack_dir/STACK.md" | sed 's/^# //')
+  STACK_PACKS+=("$pack_name")
+  echo "  $STACK_INDEX) $display_name ($pack_name)"
+  STACK_INDEX=$((STACK_INDEX + 1))
+done
+echo "  $STACK_INDEX) Other / Not yet defined"
+OTHER_INDEX=$STACK_INDEX
 
-read -p "Cloud Provider (e.g., Vercel, AWS, GCP) [optional]: " CLOUD_PROVIDER
+read -p "Choice [$OTHER_INDEX]: " STACK_CHOICE
+STACK_CHOICE=${STACK_CHOICE:-$OTHER_INDEX}
+
+if [ "$STACK_CHOICE" -ge 1 ] 2>/dev/null && [ "$STACK_CHOICE" -lt "$OTHER_INDEX" ] 2>/dev/null; then
+  SELECTED_PACK="${STACK_PACKS[$((STACK_CHOICE - 1))]}"
+  # Extract display name for TECH_STACK placeholder
+  TECH_STACK=$(head -1 "stacks/$SELECTED_PACK/STACK.md" | sed 's/^# //' | sed 's/ Stack$//')
+  # Load all defaults from pack (database, auth, vector, cloud provider, etc.)
+  if [ -f "stacks/$SELECTED_PACK/defaults.env" ]; then
+    source "stacks/$SELECTED_PACK/defaults.env"
+    echo -e "  ${GREEN}✓ Loaded defaults from $SELECTED_PACK pack${NC}"
+  fi
+else
+  # Custom stack — ask the essentials only
+  read -p "Tech Stack (e.g., Python + FastAPI, Go + Gin): " TECH_STACK
+  TECH_STACK=${TECH_STACK:-"Not yet defined"}
+  read -p "Database (e.g., PostgreSQL, MySQL, SQLite): " TECH_STACK_DATABASE
+  TECH_STACK_DATABASE=${TECH_STACK_DATABASE:-"Not yet defined"}
+  read -p "Cloud Provider (e.g., Vercel, AWS, GCP) [optional]: " CLOUD_PROVIDER
+fi
+
+# Fill any remaining placeholders not set by pack or user
+TECH_STACK_DATABASE=${TECH_STACK_DATABASE:-"Not yet defined"}
+TECH_STACK_VECTOR=${TECH_STACK_VECTOR:-"Not yet defined"}
+TECH_STACK_AUTH=${TECH_STACK_AUTH:-"Not yet defined"}
 CLOUD_PROVIDER=${CLOUD_PROVIDER:-"Not yet defined"}
+RATIFICATION_DATE=$(date +%Y-%m-%d)
 
 # Confirmation
 echo ""
@@ -52,8 +92,16 @@ echo "  Project Name:    $PROJECT_NAME"
 echo "  Description:     $PROJECT_DESCRIPTION"
 echo "  GitHub:          $GITHUB_ORG/$GITHUB_REPO"
 echo "  AI Agent:        $AI_AGENT"
-echo "  Tech Stack:      $TECH_STACK"
-echo "  Cloud Provider:  $CLOUD_PROVIDER"
+if [ -n "$SELECTED_PACK" ]; then
+  echo "  Stack Pack:      $SELECTED_PACK ($TECH_STACK)"
+  echo "  Database:        $TECH_STACK_DATABASE"
+  echo "  Auth:            $TECH_STACK_AUTH"
+  echo "  Cloud Provider:  $CLOUD_PROVIDER"
+else
+  echo "  Tech Stack:      $TECH_STACK"
+  echo "  Database:        $TECH_STACK_DATABASE"
+  echo "  Cloud Provider:  $CLOUD_PROVIDER"
+fi
 echo ""
 read -p "Proceed with initialization? [Y/n]: " CONFIRM
 if [[ $CONFIRM =~ ^[Nn]$ ]]; then
@@ -79,6 +127,10 @@ replace_in_files() {
         -e "s/{{GITHUB_REPO}}/$GITHUB_REPO/g" \
         -e "s/{{AI_AGENT}}/$AI_AGENT/g" \
         -e "s/{{TECH_STACK}}/$TECH_STACK/g" \
+        -e "s/{{TECH_STACK_DATABASE}}/$TECH_STACK_DATABASE/g" \
+        -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
+        -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
+        -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
         -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
         {} +
   else
@@ -94,6 +146,10 @@ replace_in_files() {
         -e "s/{{GITHUB_REPO}}/$GITHUB_REPO/g" \
         -e "s/{{AI_AGENT}}/$AI_AGENT/g" \
         -e "s/{{TECH_STACK}}/$TECH_STACK/g" \
+        -e "s/{{TECH_STACK_DATABASE}}/$TECH_STACK_DATABASE/g" \
+        -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
+        -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
+        -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
         -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
         {} +
   fi
