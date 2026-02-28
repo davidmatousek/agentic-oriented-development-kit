@@ -77,6 +77,6 @@ Security patterns are non-optional defaults — agents MUST apply them without e
 
 ## Dependency Security (OWASP A06: Vulnerable and Outdated Components)
 
-- ALWAYS run `pnpm audit` before merging PRs — zero critical/high vulnerabilities allowed
+- ALWAYS run `npm audit` before merging PRs — zero critical/high vulnerabilities allowed
 - ALWAYS update critical vulnerability patches within 48 hours
 - NEVER add dependencies without reviewing their security posture and maintenance status

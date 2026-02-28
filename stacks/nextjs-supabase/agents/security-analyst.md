@@ -13,7 +13,7 @@ OWASP Top 10 mapped to Next.js + Supabase + Prisma + Vercel:
 - **A03 Injection**: ALWAYS use Prisma parameterized queries; NEVER use `$queryRawUnsafe()` or string-interpolated SQL. ALWAYS validate all inputs with Zod schemas before processing in Server Actions. ALWAYS use Prisma query builder for dynamic filters and sorting. ALWAYS sanitize user-generated HTML with DOMPurify before rendering with `dangerouslySetInnerHTML`.
 - **A04 Insecure Design**: ALWAYS implement rate limiting on signup, signin, password reset, and email verification endpoints. ALWAYS rely on Server Actions' built-in CSRF protection. ALWAYS enforce least privilege in RLS policies (deny by default, allow explicitly). ALWAYS use Zod `.transform()` and `.refine()` for business rule validation.
 - **A05 Security Misconfiguration**: ALWAYS set secure cookie options (`httpOnly`, `secure`, `sameSite: 'lax'`). ALWAYS configure Content Security Policy, X-Frame-Options, and Permissions-Policy headers in `next.config.js`. NEVER expose stack traces or internal error details to clients; return safe error messages only. ALWAYS disable Supabase REST API public access for tables without RLS.
-- **A06 Vulnerable Components**: ALWAYS audit dependencies with `pnpm audit` before merging PRs. ALWAYS pin exact dependency versions in `package.json`. ALWAYS review Supabase client library changelogs for security patches. ALWAYS update critical vulnerabilities within 48 hours.
+- **A06 Vulnerable Components**: ALWAYS audit dependencies with `npm audit` before merging PRs. ALWAYS pin exact dependency versions in `package.json`. ALWAYS review Supabase client library changelogs for security patches. ALWAYS update critical vulnerabilities within 48 hours.
 - **A07 Auth Failures**: ALWAYS use Supabase Auth for session management; NEVER implement custom JWT logic. ALWAYS validate the session on every protected Server Component render and Server Action. ALWAYS implement session timeout and refresh token rotation via Supabase config. ALWAYS use `getUser()` (verifies with Supabase server) instead of `getSession()` (reads local JWT only) for auth checks.
 - **A08 Data Integrity**: ALWAYS validate Server Action inputs with Zod before any database write. ALWAYS use Prisma transactions for multi-step mutations. NEVER trust client-side form data without server-side re-validation.
 - **A09 Logging & Monitoring**: ALWAYS log auth failures, access denials, and RLS policy violations server-side. NEVER log passwords, tokens, PII, or Supabase service role keys. ALWAYS use structured logging with request IDs for traceability.
@@ -39,6 +39,6 @@ OWASP Top 10 mapped to Next.js + Supabase + Prisma + Vercel:
 - All Server Actions MUST follow this order: (1) `withAuth()` (2) Zod validation (3) business logic
 - Rate limiting MUST be configured on: signup, signin, password reset, email verification
 - CSP, X-Frame-Options, and Permissions-Policy headers MUST be configured in `next.config.js`
-- `pnpm audit` MUST pass with zero critical/high vulnerabilities before merge
+- `npm audit` MUST pass with zero critical/high vulnerabilities before merge
 - Every `middleware.ts` change MUST be reviewed for auth bypass regressions
 - Supabase RLS policies MUST be tested with both authenticated and unauthenticated roles

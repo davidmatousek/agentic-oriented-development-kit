@@ -29,7 +29,7 @@ These rules apply to ALL agents when the nextjs-supabase stack pack is active.
 - ALWAYS use `next/image` for images, `next/link` for navigation, `next/font` for fonts
 
 ### Tooling
-- ALWAYS use pnpm as package manager
+- ALWAYS use npm as package manager (pnpm is also supported — delete `package-lock.json` and run `pnpm install` to switch)
 - ALWAYS use Biome for linting and formatting
 - ALWAYS use Vitest for unit/integration tests
 - ALWAYS use Playwright for E2E tests
@@ -56,7 +56,7 @@ These rules apply to ALL agents when the nextjs-supabase stack pack is active.
 - NEVER trust client-side data without server-side re-validation
 
 ### Tooling
-- NEVER use yarn or npm — pnpm only
+- NEVER use yarn — use npm (or pnpm if the project has `pnpm-lock.yaml`)
 - NEVER use ESLint + Prettier — use Biome
 - NEVER use Jest — use Vitest
 - NEVER use the `any` type — use proper TypeScript types or `unknown`

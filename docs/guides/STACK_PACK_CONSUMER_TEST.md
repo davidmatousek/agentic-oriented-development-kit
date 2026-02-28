@@ -12,6 +12,7 @@
 
 - Claude Code installed (`claude` CLI)
 - Node.js and Git installed
+- npm (ships with Node.js)
 - GitHub CLI (`gh`) installed and authenticated
 - A GitHub account with repo creation permissions
 
@@ -68,9 +69,13 @@ grep -rn '{{' .aod/memory/constitution.md
 
 ## Phase 2: Activate Stack Pack
 
+Open Claude Code in your project directory:
+
 ```bash
-# Open Claude Code
+# CLI
 claude
+
+# Or open the project folder in VS Code and use the Claude Code extension
 ```
 
 Run these commands inside Claude Code:
@@ -94,6 +99,7 @@ After activation:
 - [ ] Activation summary shows loaded rules and available persona supplements
 
 After scaffold:
+- [ ] `package.json` exists with Next.js, Supabase, and Prisma dependencies
 - [ ] `app/layout.tsx` and `app/page.tsx` exist
 - [ ] `lib/supabase/client.ts` and `lib/supabase/server.ts` exist
 - [ ] `lib/auth/withAuth.ts` exists
@@ -103,9 +109,15 @@ After scaffold:
 
 ---
 
-## Phase 3: Review Product Vision
+## Phase 3: Install Dependencies & Review Product Vision
 
-Before defining features, review the product vision template that `make init` configured:
+Install the scaffolded project's dependencies:
+
+```bash
+npm install
+```
+
+Then review the product vision template that `make init` configured:
 
 ```bash
 # Open in your editor or read in Claude Code
@@ -161,7 +173,7 @@ After `/aod.build` completes, verify the stack pack conventions were enforced.
 - [ ] Pages use **Server Components** by default (no `"use client"` unless interactive)
 - [ ] File structure follows **STACK.md convention** (`app/`, `components/`, `lib/`)
 - [ ] Styling uses **Tailwind + shadcn/ui** (no CSS modules, no styled-components)
-- [ ] Package manager is **pnpm** (`pnpm-lock.yaml` exists, no `package-lock.json`)
+- [ ] Package manager is **npm** (`package-lock.json` exists)
 - [ ] Formatting uses **Biome** (no `.eslintrc`, no `.prettierrc`)
 
 ### Security Pattern Enforcement (Contact Form)
@@ -175,7 +187,7 @@ After `/aod.build` completes, verify the stack pack conventions were enforced.
 
 - [ ] No Pages Router usage (all routes in `app/`, not `pages/`)
 - [ ] No CSS modules (`.module.css` files)
-- [ ] No `yarn.lock` or `package-lock.json`
+- [ ] No `yarn.lock` or `pnpm-lock.yaml`
 - [ ] No `useEffect` for data fetching
 - [ ] No `any` types in TypeScript
 

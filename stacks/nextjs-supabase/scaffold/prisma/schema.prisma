@@ -1,5 +1,5 @@
 // Prisma schema — single source of truth for database models.
-// Run `pnpm prisma migrate dev` after changes.
+// Run `npx prisma migrate dev` after changes.
 
 generator client {
   provider = "prisma-client-js"

@@ -2,7 +2,7 @@
 
 ## Stack Context
 
-Next.js 15+ App Router with React Server Components and Server Actions, TypeScript strict mode, Prisma ORM (parameterized queries), Supabase Auth and RLS, Tailwind CSS v4, shadcn/ui (Radix-based), Biome (linting + formatting), pnpm, Vitest + React Testing Library, Vercel deployment.
+Next.js 15+ App Router with React Server Components and Server Actions, TypeScript strict mode, Prisma ORM (parameterized queries), Supabase Auth and RLS, Tailwind CSS v4, shadcn/ui (Radix-based), Biome (linting + formatting), npm, Vitest + React Testing Library, Vercel deployment.
 
 ## Conventions
 
@@ -53,4 +53,4 @@ Flag these as findings in every review:
 - Every PR touching environment variables: verify no secrets leak to client bundles
 - File naming compliance: PascalCase components (`UserProfile.tsx`), camelCase utils (`formatDate.ts`), kebab-case routes (`user-settings/`)
 - Biome must pass with zero errors and zero warnings before approval
-- `pnpm audit` must report zero critical or high vulnerabilities before approval
+- `npm audit` must report zero critical or high vulnerabilities before approval

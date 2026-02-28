@@ -165,13 +165,13 @@ tsconfig.json                 # TypeScript strict mode configuration
 - **Functional components exclusively** — NEVER use class components. All components are function declarations or arrow functions.
 - **Server Components by default** — add `'use client'` only when the component needs browser APIs or React hooks.
 - **App Router** with file-based routing (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`).
-- **pnpm** as the package manager. Lock file (`pnpm-lock.yaml`) MUST be committed.
+- **npm** as the default package manager (ships with Node.js, zero-install). Lock file (`package-lock.json`) MUST be committed. pnpm is also supported — delete `package-lock.json` and run `pnpm install` to switch.
 - **Biome** for linting and formatting. Single tool replaces ESLint + Prettier with 10-100x faster performance. Configure Biome's `organizeImports` to enforce import ordering automatically.
 - **Import order** — ALWAYS follow this exact sequence, separated by blank lines: (1) `react` / `react-dom`, (2) `next/*` imports, (3) third-party packages, (4) `@/lib/*` local utilities, (5) `@/components/*` local components, (6) type-only imports (`import type`).
 - **TypeScript strict mode** — `"strict": true` in `tsconfig.json`. ALWAYS define explicit return types for Server Actions and exported functions. ALWAYS use `type` for object shapes, unions, and intersections. ONLY use `interface` when declaration merging is required (e.g., extending third-party types). ALWAYS use string union types (`type Role = 'admin' | 'user'`) instead of `enum`.
-- **Prisma** for all database reads and writes. Generate the client after every schema change (`pnpm prisma generate`).
+- **Prisma** for all database reads and writes. Generate the client after every schema change (`npx prisma generate`).
 - **Tailwind CSS utility classes** directly in JSX. Use the `cn()` helper (from `lib/utils.ts`) for conditional classes.
-- **shadcn/ui** for UI primitives. Install components via CLI (`pnpm dlx shadcn add`), customize in `components/ui/`.
+- **shadcn/ui** for UI primitives. Install components via CLI (`npx shadcn add`), customize in `components/ui/`.
 - **Named exports** for all modules EXCEPT route files (`page.tsx`, `layout.tsx`, `route.ts`) which use default exports per Next.js convention.
 - **Server Actions** (`'use server'`) for all data mutations. Validate inputs with Zod, wrap with `withAuth()`.
 - **Zod schemas** for all validation — shared between client forms and server actions.
@@ -189,7 +189,7 @@ tsconfig.json                 # TypeScript strict mode configuration
 
 - **Pages Router** — all routing through App Router exclusively.
 - **CSS Modules or styled-components** — Tailwind utilities only.
-- **yarn or npm** — pnpm only.
+- **yarn** — use npm (or pnpm if the project has `pnpm-lock.yaml`).
 - **ESLint + Prettier** — Biome only.
 - **Any ORM besides Prisma** — no Drizzle, Knex, or raw SQL.
 - **Inline styles** — use Tailwind classes.
@@ -266,7 +266,7 @@ tsconfig.json                 # TypeScript strict mode configuration
 
 - Deploy to Vercel via Git push to `main`. NEVER deploy from local machine.
 - Configure ALL secrets via Vercel Dashboard environment variables. NEVER hardcode secrets.
-- Run `pnpm prisma migrate deploy` in the Vercel build step for database migrations.
+- Run `npx prisma migrate deploy` in the Vercel build step for database migrations.
 - Enable Vercel Edge Middleware for auth redirects and CSP header injection.
 - Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as Vercel environment variables.
 
@@ -278,8 +278,8 @@ tsconfig.json                 # TypeScript strict mode configuration
 ### Local Development
 
 - Run `supabase start` for local Supabase (auth, storage, database, realtime).
-- Run `pnpm prisma migrate dev` for local schema migrations.
-- Run `pnpm dev` for the Next.js development server with Turbopack.
+- Run `npx prisma migrate dev` for local schema migrations.
+- Run `npm run dev` for the Next.js development server with Turbopack.
 - Copy `.env.local.example` to `.env.local` and populate with local Supabase credentials.
 
 ---

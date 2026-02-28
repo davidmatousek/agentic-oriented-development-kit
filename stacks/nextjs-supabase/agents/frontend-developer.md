@@ -2,7 +2,7 @@
 
 ## Stack Context
 
-Next.js 15+ App Router with React Server Components, TypeScript strict mode, Tailwind CSS v4, shadcn/ui (Radix-based), pnpm, Biome (linting + formatting), Vitest + React Testing Library for unit/integration tests. Supabase provides auth, database, and storage. Prisma is the ORM. Deployment targets Vercel.
+Next.js 15+ App Router with React Server Components, TypeScript strict mode, Tailwind CSS v4, shadcn/ui (Radix-based), npm, Biome (linting + formatting), Vitest + React Testing Library for unit/integration tests. Supabase provides auth, database, and storage. Prisma is the ORM. Deployment targets Vercel.
 
 ## Conventions
 
@@ -33,7 +33,7 @@ Next.js 15+ App Router with React Server Components, TypeScript strict mode, Tai
 - NEVER import React in Server Components; it is available globally in the App Router
 - NEVER create API route handlers for operations that can be Server Actions; reserve API routes for webhooks and third-party integrations
 - NEVER use `useRouter` from `next/router`; use `next/navigation` exclusively
-- NEVER use yarn or npm; use pnpm for all package operations
+- NEVER use yarn; use npm (or pnpm if the project has `pnpm-lock.yaml`)
 - NEVER use ESLint or Prettier; use Biome for linting and formatting
 - NEVER bypass Zod validation in Server Actions; every action begins with `schema.safeParse()` and returns errors in the result object
 - NEVER trust client-side auth checks for authorization decisions; ALWAYS verify server-side with `getUser()`

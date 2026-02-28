@@ -159,6 +159,22 @@ replace_in_files
 
 echo -e "${GREEN}✓ Template variables replaced${NC}"
 
+# Clean up instructional text from constitution (contains literal {{ examples)
+CONSTITUTION=".aod/memory/constitution.md"
+if [ -f "$CONSTITUTION" ]; then
+  echo -e "${YELLOW}🔄 Cleaning up constitution template instructions...${NC}"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Remove HTML comment block at top (lines starting with <!-- through -->)
+    sed -i '' '/^<!--$/,/^-->$/d' "$CONSTITUTION"
+    # Remove "Template Instructions" section at bottom (## Template Instructions to EOF)
+    sed -i '' '/^## Template Instructions$/,$d' "$CONSTITUTION"
+  else
+    sed -i '/^<!--$/,/^-->$/d' "$CONSTITUTION"
+    sed -i '/^## Template Instructions$/,$d' "$CONSTITUTION"
+  fi
+  echo -e "${GREEN}✓ Constitution template instructions removed${NC}"
+fi
+
 # Remove this init script (one-time use)
 rm -f scripts/init.sh
 
