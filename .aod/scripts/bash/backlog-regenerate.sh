@@ -121,6 +121,9 @@ HEADER
 import json, sys
 data = json.load(sys.stdin)
 for issue in data:
+    # Skip closed issues — they should not appear in active stages
+    if issue.get('state', 'OPEN') != 'OPEN':
+        continue
     labels = [l['name'] for l in issue.get('labels', [])]
     if '${label}' in labels:
         # Escape pipe chars in title for markdown table

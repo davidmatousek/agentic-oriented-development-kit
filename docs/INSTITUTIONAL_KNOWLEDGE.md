@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 18 / 20 (KB System Upgrade triggers at 20)
+**Entry Count**: 21 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -763,6 +763,95 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 - `specs/058-prd-058-stack/spec.md` — 5 user stories, 15 functional requirements
 - `specs/058-prd-058-stack/tasks.md` — 38 tasks across 8 phases
 - `docs/product/02_PRD/058-stack-packs-2026-02-27.md` — PRD
+
+---
+
+### Entry 19: Feature 062 — Build Phase Must End With a Commit
+
+## [Process] - Uncommitted implementation is invisible to delivery and creates confusion at closure
+
+**Date**: 2026-03-01
+**Context**: Feature 062 (Auto-Create GitHub Projects Board) completed the full Triad workflow — Define, Spec, Plan, Tasks, Build — with all 13 tasks marked complete. However, the build output was never committed. When `/aod.deliver 062` ran, validation failed because no merge/PR existed despite the work being done.
+
+**Problem**: The build phase produced working code in `scripts/init.sh` (~54 lines) but the session ended without committing. The feature branch pointed to the same commit as main, making it appear that implementation hadn't started. All spec artifacts (`specs/062-prd-062-auto/`) were also uncommitted.
+
+**Solution**: The delivery process had to pause, investigate the state of the feature across branches and working directory, then retroactively commit and merge before closure could proceed. This added an unplanned recovery step.
+
+**Key Insight**: `/aod.build` should always end with at least one commit. Uncommitted work is invisible to git-based validation (branch comparison, PR checks, task verification). A build phase that completes without committing creates a gap between "done" (tasks marked [X]) and "delivered" (code in version control).
+
+**Prevention**: Add a checkpoint at the end of `/aod.build` that verifies uncommitted changes don't exist. If `git status` shows modifications, prompt for a commit before declaring the build phase complete.
+
+**Tags**: #process #git #build #delivery #feature-062 #retrospective
+
+### Related Files:
+- `specs/062-prd-062-auto/tasks.md` — 13 tasks, all complete
+- `scripts/init.sh` — Implementation target (single file)
+- `docs/product/02_PRD/062-auto-create-github-projects-board-2026-02-28.md` — PRD
+
+---
+
+### Entry 20: Board Column Drift — Labels and Board Status Can Diverge
+
+## [RCA] - Bypassing /aod.deliver leaves GitHub Projects board cards in wrong column
+
+**Date**: 2026-03-02
+**Context**: Feature 062 was fully implemented and merged (`3fb72fe`), but Issue #62 still appeared in the Define column on the GitHub Projects board with `stage:define` label. The feature was closed via a manual commit (`6178109 docs: close Feature 062`) instead of through `/aod.deliver`.
+
+**Problem**: The board showed a delivered feature stuck in Define, undermining trust in the lifecycle dashboard. Attempts to fix via `gh issue edit --add-label stage:done` and `gh project item-edit` appeared to succeed (API confirmed Status=Done) but the board UI didn't reflect the change. Only deleting and re-adding the card with the correct status forced the UI to update.
+
+**Root Cause Analysis (5 Whys)**:
+1. Why was #62 in the wrong column? → The board Status field was never updated to Done.
+2. Why wasn't it updated? → The feature was closed manually, not via `/aod.deliver`.
+3. Why didn't manual closure update the board? → `aod_gh_update_stage` is the ONLY function that updates both labels AND board columns in sync. Manual commits bypass it entirely.
+4. Why didn't the "Item closed" workflow catch it? → The workflow was **disabled** on the board — closing an issue had no effect on the board column.
+5. Why was the workflow disabled? → It was never enabled during initial board setup (`aod_gh_setup_board` creates columns but doesn't configure workflows).
+
+**Solution Implemented**:
+1. Deleted stale card and re-added with correct Done status
+2. Fixed issue label from `stage:define` to `stage:done`
+3. Closed the issue properly
+4. **Prevention**: Enable the "Item closed" → Done workflow on the Projects board (must be done via UI: Board → Workflows → "Item closed" → On → Status: Done)
+
+**Why This Matters**: The board is the primary visual dashboard for lifecycle tracking. A single stale card erodes confidence in the entire system. Two layers of protection are needed: (1) always use `/aod.deliver` to close features, and (2) enable the "Item closed" workflow as a safety net for when the process is bypassed.
+
+**Prevention Checklist**:
+- [ ] Enable "Item closed" → Done workflow on GitHub Projects board (UI only — not automatable via API)
+- [ ] Always use `/aod.deliver` to close features — never close manually
+- [ ] If `gh project item-edit` doesn't visually update the board, delete and re-add the card
+- [ ] Consider adding `aod_gh_setup_board` enhancement to auto-document workflow configuration
+
+**Tags**: #rca #github-projects #board #lifecycle #process #feature-062
+
+### Related Files:
+- `.aod/scripts/bash/github-lifecycle.sh` — `aod_gh_update_stage()` (single authority for label+board sync)
+- `.claude/skills/~aod-deliver/SKILL.md` — Proper feature closure flow
+- `scripts/init.sh` — Board setup during init
+
+---
+
+### Entry 21: Feature 065 — AOD System Tends to Over-Engineer Simple Integrations
+
+## [Process] - Wiring a built-in skill into a command is simpler than the AOD process assumed
+
+**Date**: 2026-03-03
+**Feature**: 065 — Add /simplify Command to AOD Process
+**Category**: Process / Agent Behavior
+
+**What Happened**: Feature 065 was conceived as "wire the built-in /simplify skill into /aod.build" — a simple Markdown edit to add a new step to an existing command file. However, the AOD planning system initially oriented toward creating a new wrapper command and building scaffolding around the skill invocation, rather than recognizing that the entire implementation was a ~100-line edit to one Markdown file. User intervention was required to redirect toward the simpler path.
+
+**Lesson**: When integrating a built-in platform capability (like a Claude Code skill) into an existing command, the default AOD instinct is to treat it as a "new command" feature with its own file, entry point, and lifecycle. In reality, wiring a built-in is an **edit** task, not a **create** task. The correct framing is: "What lines do I add to the existing command file?" not "What new file do I create?"
+
+**Signal for Over-Engineering**:
+- AOD starts discussing creating new files when the target is an existing one
+- Planning mentions "new command" for what is really a "new step in an existing command"
+- Task count exceeds ~5 for what should be a simple sequential edit
+
+**Prevention**:
+- Before planning, explicitly ask: "Is this a new file or an edit to an existing file?"
+- If the implementation target is a single existing file, limit task count proportionally (~1 task per logical section)
+- Apply the Golden Mean lens: minimum viable implementation first, complexity only if needed
+
+**Tags**: #process #over-engineering #simplicity #agent-behavior #feature-065
 
 ---
 

@@ -47,6 +47,7 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Additive Optional State Fields](#pattern-additive-optional-state-fields)
 - [Append-Only Logging with Graceful Failure](#pattern-append-only-logging)
 - [Circuit-Breaker Churn Detection](#pattern-circuit-breaker-churn-detection)
+- [Subshell Isolation for Strict Shell Options](#pattern-subshell-isolation-for-strict-shell-options)
 
 ### Skill Patterns (AOD Kit)
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation)
@@ -58,6 +59,7 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 ### Command Patterns (AOD Kit)
 - [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard)
 - [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper)
+- [Built-in Skill Invocation from a Command](#pattern-built-in-skill-invocation-from-a-command)
 
 ---
 
@@ -750,6 +752,115 @@ rm .aod/stack-active.json
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- persona supplements use the same principle of loading content only when needed
 - [Additive Optional State Fields](#pattern-additive-optional-state-fields) -- `stack-active.json` follows the same JSON state pattern, and the system gracefully handles its absence
 - [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- inconsistent state detection in `/aod.stack` commands follows the same degrade-gracefully philosophy
+
+---
+
+### Pattern: Subshell Isolation for Strict Shell Options
+
+**Added**: Feature 062 (Auto-Create GitHub Projects Board During Init)
+
+#### Problem
+Scripts that use `set -e` (errexit) will abort if any command returns a non-zero exit code. When such a script sources a function library and calls a function that may fail (e.g., a network-dependent GitHub API call), the failure propagates through the `source` chain and terminates the parent script -- even when the caller intends to handle the failure gracefully with `|| true`.
+
+The core issue is that `set -e` propagates into sourced files and their function calls. A `source lib.sh && some_function` expression inherits the parent's `set -e` context, so any internal failure within `some_function` causes the parent to exit before the `|| true` guard can execute.
+
+#### Solution
+Wrap the source-and-call sequence in `bash -c '...'`, which spawns a child process with a fresh shell environment. The child process does NOT inherit `set -e` from the parent. The parent captures the child's exit code and output, then handles failure with `|| true` or conditional logic.
+
+This creates a clean boundary: the parent script keeps its strict error handling for its own operations, while the sourced library functions execute without `set -e` interference.
+
+#### Example
+```bash
+# From scripts/init.sh (Feature 062)
+# Parent script has: set -e
+
+# CORRECT: Subshell isolation — set -e does NOT propagate into the child
+board_output=$(bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board' 2>&1) || true
+
+# WRONG: Direct source — set -e propagates, any internal failure kills init.sh
+source .aod/scripts/bash/github-lifecycle.sh
+aod_gh_setup_board || true  # Too late — set -e already killed the script
+
+# WRONG: Subshell syntax — ( ) inherits set -e from parent
+board_output=$(source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board 2>&1) || true
+```
+
+The key distinction is between `bash -c '...'` (new process, clean environment) and `$(...)` or `( )` (subshell that inherits shell options from the parent).
+
+#### When to Use
+- Calling function libraries from scripts that use `set -e`
+- Isolating non-critical operations (board creation, telemetry) from critical init flows
+- Any scenario where a sourced function may fail and the caller must continue
+
+#### When NOT to Use
+- Scripts without `set -e` (no isolation needed, direct source is fine)
+- When you need the sourced functions to share variables with the parent (child process has separate scope)
+- Critical operations where failure SHOULD abort the parent script
+
+#### Related Patterns
+- [Function Library Sourcing](#pattern-function-library-sourcing) -- the standard pattern for calling library functions; subshell isolation is the variant for `set -e` contexts
+- [Graceful CLI Degradation](#pattern-graceful-cli-degradation) -- the outer pattern that skips non-critical operations; subshell isolation is the mechanism that makes graceful degradation safe under `set -e`
+- [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper) -- both patterns ensure secondary operations cannot block primary execution
+
+---
+
+### Pattern: Built-in Skill Invocation from a Command
+
+**Added**: Feature 065 (Add /simplify Command to AOD Process)
+**ADR**: [ADR-008](../02_ADRs/ADR-008-opt-out-flag-for-default-quality-gates.md)
+
+#### Problem
+A command workflow needs to invoke a built-in platform skill (one that is not a custom `.claude/skills/` file, but a first-party capability like `/simplify`) as a named step. Two sub-problems arise:
+
+1. **Discoverability**: The skill is invisible in the command file -- there is no file path to reference, only a slash-command name. Readers of the command file cannot tell what the skill does without knowing the platform.
+2. **Opt-out**: Some execution contexts make the built-in step inappropriate (e.g., methodology-only repos with no source code to simplify, CI runs that must be deterministic). A blanket invocation with no escape hatch forces all users to accept the step.
+
+#### Solution
+Reference the built-in skill by its slash-command name in the command file's step list, with a parenthetical that describes what it does. Gate the step behind an opt-out flag (e.g., `--no-simplify`) that is checked before the step executes. The flag default is **on** (quality gate runs unless explicitly skipped), preserving the quality intent while providing a documented escape hatch.
+
+The opt-out flag must be:
+1. Declared in the command's flag-parsing section near the top of the file
+2. Checked immediately before the step that invokes the skill
+3. Documented in the command reference and in CLAUDE.md
+
+The step text uses the Skill tool (not Bash) to invoke the built-in, since built-ins are agent capabilities, not shell commands.
+
+#### Example
+```markdown
+# In .claude/commands/aod.build.md
+
+## Flags
+- `--no-simplify`: Skip the code simplification step (Step 6)
+
+## Steps
+
+...
+
+### Step 6: Code Simplification (skip if --no-simplify)
+Invoke the /simplify skill to reduce complexity and improve readability of
+any files modified during this build session.
+- If `--no-simplify` flag is present: skip this step entirely, log "Simplification skipped (--no-simplify)"
+- Otherwise: Use the Skill tool to invoke `/simplify` on changed files
+```
+
+```markdown
+# In CLAUDE.md commands section
+/aod.build [--no-simplify]  # Execute with auto architect checkpoints; --no-simplify skips code simplification step
+```
+
+#### When to Use
+- Integrating a platform built-in (e.g., `/simplify`, `/lint`, `/format`) as a named workflow step
+- When the built-in is appropriate by default but not universally (methodology repos, CI-only runs)
+- When you want the quality gate to be explicit in the command file so reviewers understand the workflow
+
+#### When NOT to Use
+- Built-ins that are always appropriate with no valid reason to skip (just invoke unconditionally)
+- Built-ins that are rarely appropriate (make the step opt-in with a `--with-X` flag instead)
+- Custom skills in `.claude/skills/` (use On-Demand Reference File Segmentation pattern instead)
+
+#### Related Patterns
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- applies to custom skill files; this pattern applies to platform built-ins
+- [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview) -- `--dry-run` and `--no-simplify` follow the same flag-gating convention for skipping steps
 
 ---
 

@@ -185,6 +185,36 @@ $PROJECT_DESCRIPTION
 EOF
 echo -e "${GREEN}✓ Product vision seeded (refine with /aod.define)${NC}"
 
+# ── GitHub Projects board setup (non-blocking) ──────────────────────
+BOARD_STATUS="skipped"
+
+if command -v gh >/dev/null 2>&1; then
+  # gh CLI found — single call to check auth + scope
+  auth_output=$(gh auth status 2>&1) || true
+  if echo "$auth_output" | grep -q "Logged in"; then
+    if echo "$auth_output" | grep -q "project"; then
+      # All prereqs met — attempt board creation in isolated subshell
+      board_output=$(bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board' 2>&1) || true
+      if [ -f ".aod/memory/github-project.json" ]; then
+        # Cache file exists — board was created or already existed
+        if echo "$board_output" | grep -q "Reusing"; then
+          BOARD_STATUS="already_exists"
+        else
+          BOARD_STATUS="created"
+        fi
+      else
+        BOARD_STATUS="error"
+      fi
+    else
+      BOARD_STATUS="skipped_no_scope"
+    fi
+  else
+    BOARD_STATUS="skipped_no_gh"
+  fi
+else
+  BOARD_STATUS="skipped_no_gh"
+fi
+
 # Clean up instructional text from constitution (contains literal {{ examples)
 CONSTITUTION=".aod/memory/constitution.md"
 if [ -f "$CONSTITUTION" ]; then
@@ -206,6 +236,30 @@ rm -f scripts/init.sh
 
 echo ""
 echo -e "${GREEN}🎉 Project initialized successfully!${NC}"
+echo ""
+# Board status
+case "$BOARD_STATUS" in
+  created)
+    echo -e "  ${GREEN}✓${NC} GitHub Projects board: Created (AOD Backlog)"
+    ;;
+  already_exists)
+    echo -e "  ${GREEN}✓${NC} GitHub Projects board: Already configured"
+    ;;
+  skipped_no_gh)
+    echo -e "  ${YELLOW}⚠${NC} GitHub Projects board: Skipped (gh CLI not found)"
+    echo "    → Install gh: https://cli.github.com"
+    echo "    → Then run: bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board'"
+    ;;
+  skipped_no_scope)
+    echo -e "  ${YELLOW}⚠${NC} GitHub Projects board: Skipped (missing 'project' OAuth scope)"
+    echo "    → Run: gh auth refresh -s project"
+    echo "    → Then run: bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board'"
+    ;;
+  error)
+    echo -e "  ${YELLOW}⚠${NC} GitHub Projects board: Failed (see above for details)"
+    echo "    → Run manually: bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board'"
+    ;;
+esac
 echo ""
 echo -e "${BLUE}📝 Next steps:${NC}"
 echo "  1. Activate a stack pack (optional):"

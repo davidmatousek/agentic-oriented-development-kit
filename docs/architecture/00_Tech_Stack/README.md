@@ -114,9 +114,9 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 | Tool | Required By | Purpose | Install |
 |------|-------------|---------|---------|
 | `jq` | `run-state.sh` | JSON parsing and atomic state manipulation | `brew install jq` (macOS) / `apt-get install jq` (Linux) |
-| `gh` | `github-lifecycle.sh`, `run-state.sh` (optional) | GitHub Issue/label management | `brew install gh` / `gh auth login` |
+| `gh` | `github-lifecycle.sh`, `run-state.sh` (optional), `scripts/init.sh` (optional) | GitHub Issue/label management, Projects board creation during init | `brew install gh` / `gh auth login` |
 
-**Note**: `gh` degrades gracefully -- the orchestrator falls back to artifact-only detection when `gh` is unavailable or unauthenticated.
+**Note**: `gh` degrades gracefully -- the orchestrator falls back to artifact-only detection when `gh` is unavailable or unauthenticated. Similarly, `scripts/init.sh` skips GitHub Projects board creation when `gh` is missing, unauthenticated, or lacks the `project` OAuth scope, reporting status in the init summary with remediation guidance.
 
 ### Stack Packs System
 

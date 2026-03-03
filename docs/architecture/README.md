@@ -31,6 +31,7 @@ Significant technical decisions with context and trade-offs
 - `ADR-002-prompt-segmentation.md` - On-demand reference file loading for context efficiency (Feature 030)
 - `ADR-005-serialization-trade-off.md` - Serialization trade-off for parallel Triad reviews (Feature 047)
 - `ADR-006-non-fatal-observability-operations.md` - Non-fatal error handling for observability and circuit-breaker functions (Feature 054)
+- `ADR-008-opt-out-flag-for-default-quality-gates.md` - Opt-out flag (`--no-simplify`) for default-on quality gate steps in commands (Feature 065)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

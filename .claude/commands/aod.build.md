@@ -10,11 +10,26 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0: Parse Arguments
+
+Parse optional flags from `$ARGUMENTS`. Flags can appear anywhere in the arguments string.
+
+**Step 0a: Parse --no-simplify**
+
+1. If `$ARGUMENTS` contains `--no-simplify`:
+   - Set `skip_simplify = true`
+   - Strip `--no-simplify` from `$ARGUMENTS` (trim extra whitespace)
+   - Continue to Step 1 with remaining arguments
+
+2. If `$ARGUMENTS` does NOT contain `--no-simplify`:
+   - Set `skip_simplify = false`
+   - Continue to Step 1 with `$ARGUMENTS` unchanged
+
 ## Overview
 
 Executes feature implementation with Architect checkpoint reviews at priority boundaries.
 
-**Flow**: Validate tasks --> Check checklists --> Load context --> Setup project --> Execute waves with parallel agents --> Checkpoint reviews --> Final validation
+**Flow**: Validate tasks --> Check checklists --> Load context --> Setup project --> Execute waves with parallel agents --> Checkpoint reviews --> Final validation --> Code simplification --> Report completion
 
 **Key Feature**: Architect reviews at P0->P1->P2 boundaries for governed quality gates.
 
@@ -192,7 +207,112 @@ After all waves complete:
 
 6. Parse all STATUS results
 
-## Step 6: Report Completion
+## Step 6: Code Simplification (Last Wave Only)
+
+This step runs ONLY after Step 5 (Final Validation) completes. It reviews all code changed on the feature branch for reuse, quality, and efficiency opportunities.
+
+### 6a: Check Skip Conditions
+
+1. If `skip_simplify` is true (from Step 0):
+   - Record: simplify_status = "Skipped (--no-simplify)"
+   - Proceed to Step 7
+
+2. Detect changed code files:
+   - Run: `git diff --name-only main...HEAD`
+   - **If this command fails** (e.g., main branch not available, detached HEAD):
+     Use AskUserQuestion: "Changed file detection failed: {error_message}"
+     Options: (A) Retry, (B) Skip and complete build, (C) Abort
+     If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 7
+   - Filter to code extensions: `.py`, `.js`, `.ts`, `.jsx`, `.tsx`, `.sh`, `.go`, `.rs`, `.java`, `.rb`, `.swift`, `.kt`
+   - Exclude patterns: `*.lock`, `*.min.js`, `*.min.css`, `*.map`, `*.generated.*`, `vendor/`, `dist/`, `build/`, `node_modules/`, `.aod/`, `docs/`
+   - Store result as `changed_files` list and `file_count`
+
+3. If `file_count` is 0:
+   - Record: simplify_status = "Skipped (no code files changed)"
+   - Proceed to Step 7
+
+4. If `file_count` > 50:
+   - Use AskUserQuestion: "Large diff ({file_count} code files). Simplify may take several minutes. Continue or skip?"
+   - Options: (A) Continue with simplify, (B) Skip simplify
+   - If user selects Skip: Record simplify_status = "Skipped (user skipped large diff)" and proceed to Step 7
+
+5. Display: "Reviewing {file_count} changed code files for simplification opportunities..."
+
+### 6b: Invoke /simplify
+
+1. Record pre-invocation file states: `git diff --name-only` (to detect which files simplify actually modifies)
+
+2. Invoke the `/simplify` skill via the Skill tool:
+   ```
+   Skill tool: skill="simplify"
+   ```
+   Provide the changed file list as context for the review.
+
+3. **Error handling**: If the skill invocation fails (timeout, unavailable, or any error):
+   - Use AskUserQuestion: "Code simplification encountered an error: {error_message}"
+   - Options:
+     (A) Retry — re-invoke the skill
+     (B) Skip and complete build — proceed to Step 7
+     (C) Abort — halt build execution
+   - If Retry: Go back to step 6b.2
+   - If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 7
+   - If Abort: Stop execution entirely
+
+### 6c: Evaluate Results
+
+1. Detect which files were modified by simplify:
+   - Run: `git diff --name-only`
+   - Compare against pre-invocation state from 6b.1
+   - Store `modified_files` list and `modified_count`
+
+2. If `modified_count` is 0:
+   - Record: simplify_status = "Passed — no issues found ({file_count} files reviewed)"
+   - Proceed to Step 7
+
+3. Get diff statistics: `git diff --stat` on the modified files
+   - Extract insertions, deletions counts
+
+4. Present summary to user via AskUserQuestion:
+   ```
+   Code Simplification Review:
+     Files reviewed: {file_count}
+     Files modified: {modified_count}
+     Changes: +{insertions} -{deletions} lines
+
+     {one-line summary per modified file from simplify output}
+
+   Options:
+     (A) Accept all changes — commit as refactor({NNN}): simplify
+     (B) Reject all changes — revert modified files and continue
+     (C) Skip — discard changes and proceed
+   ```
+
+5. Based on user response:
+
+   **Accept**:
+   - Stage modified files: `git add {modified_files}`
+   - Create commit:
+     ```
+     refactor({NNN}): simplify code per /simplify review
+
+     Files simplified: {modified_count}
+     Changes: +{insertions} -{deletions}
+
+     Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+     ```
+   - Record: simplify_status = "Fixed ({modified_count} files, {insertions}+/{deletions}-)"
+   - Record: simplify_commit = commit hash
+
+   **Reject**:
+   - Revert ONLY the modified files: `git checkout -- {file1} {file2} ...`
+     (targeted revert, NOT `git checkout -- .`)
+   - Record: simplify_status = "Changes rejected by user ({modified_count} issues found, 0 fixed)"
+
+   **Skip**:
+   - Revert modified files: `git checkout -- {file1} {file2} ...`
+   - Record: simplify_status = "Skipped by user after review"
+
+## Step 7: Report Completion
 
 **Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute checkpoint/review commentary into the template structure.
 
@@ -213,6 +333,10 @@ Final Validation:
 - Architect: {status}
 - Code Review: {status}
 - Security: {status}
+
+Code Simplification:
+- /simplify: {simplify_status}
+- Commit: {simplify_commit}        ← omit line if no commit was created
 
 {If all APPROVED: "READY FOR DEPLOYMENT"}
 {If BLOCKED: "Issues require resolution"}
@@ -236,6 +360,9 @@ Next: /aod.deliver FEATURE: {feature_number} - {feature_name}
 - [ ] Blocking checkpoint issues resolved before proceeding
 - [ ] Final validation completed (Architect + Code + Security)
 - [ ] All tasks marked [X] in tasks.md
+- [ ] Code Simplification step executed or explicitly skipped with reason
+- [ ] Simplify changes reviewed by user before commit (if applicable)
+- [ ] Simplify status recorded in completion report
 - [ ] Implementation summary displayed
 
 Note: This command requires a complete task breakdown in tasks.md with Triad sign-offs. If tasks are incomplete or missing, run `/aod.tasks` first to generate the task list with governance approval.

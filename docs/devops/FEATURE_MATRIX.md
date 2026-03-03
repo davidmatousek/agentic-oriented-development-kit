@@ -13,6 +13,7 @@ This document details which Triad features are available based on Claude Code ve
 | Task Dependencies | ❌ | ✅ | Automatic blocking |
 | Memory Leak Fixes | ❌ | ✅ | Stable long workflows |
 | Graceful Degradation | ✅ | ✅ | Clear user messaging |
+| `/aod.build` Simplify Step | ✅ | ✅ | Step 6 in build; skip with `--no-simplify` (Feature 065, 2026-03-03) |
 
 ---
 
