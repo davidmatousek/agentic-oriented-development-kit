@@ -18,6 +18,24 @@
 - **jq**: JSON processor, required by `.aod/scripts/bash/run-state.sh` for the Full Lifecycle Orchestrator (`brew install jq` on macOS, `apt-get install jq` on Linux)
 - **GitHub CLI (`gh`)**: Used by `make init` to auto-create a GitHub Projects board for backlog tracking. Requires the `project` OAuth scope (`gh auth refresh -s project`). If not installed or not authenticated, init continues without creating the board. Install via `brew install gh` on macOS or see [cli.github.com](https://cli.github.com)
 
+### make init Personalization
+
+`make init` personalizes the following template files by replacing `{{PROJECT_NAME}}` and other template variables with your project values at setup time:
+
+- `CLAUDE.md`
+- `README.md`
+- `.claude/README.md`
+- `.claude/agents/_README.md`
+- `.claude/rules/commands.md`
+- `.claude/rules/context-loading.md`
+- `.claude/rules/deployment.md`
+- `.claude/rules/git-workflow.md`
+- `.claude/rules/governance.md`
+- `.claude/rules/scope.md`
+- `docs/product/02_PRD/INDEX.md`
+
+No manual edits to these files are needed before running `make init`. After initialization, these files will contain your project name and description in place of template placeholders.
+
 ---
 
 ## Quick Start

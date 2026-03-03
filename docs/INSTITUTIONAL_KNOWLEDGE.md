@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 21 / 20 (KB System Upgrade triggers at 20 — schedule review)
+**Entry Count**: 22 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -852,6 +852,35 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 - Apply the Golden Mean lens: minimum viable implementation first, complexity only if needed
 
 **Tags**: #process #over-engineering #simplicity #agent-behavior #feature-065
+
+---
+
+### Entry 22: Feature 061 — Template Scope Analysis Before File Replacement
+
+## [Pattern] - Count hardcoded strings before assuming replacement scope
+
+**Date**: 2026-03-03
+**Feature**: 061 — init.sh Personalize All Template Files
+**Category**: Pattern / Template Management
+
+**What Happened**: Feature 061 aimed to replace "Agentic Oriented Development Kit" references across template files with `{{PROJECT_NAME}}`. During baseline verification (T001), 20+ occurrences were found across 11 files — more than expected. Critically, the `scope.md` file contained `{{PROJECT_DESCRIPTION}}` on line 15 that needed to be preserved as an invariant while still replacing the project name on 4 other lines in the same file. Additionally, `scripts/init.sh` required zero changes — the script was already correct, only its target files were wrong.
+
+**Lesson**: Before a template variable replacement task, run a comprehensive grep sweep to map ALL occurrence locations, variants (space-separated vs hyphenated), and any adjacent invariants that must survive unchanged. The grep baseline is not overhead — it is the primary risk-reduction step. File editing is mechanical once the map is complete.
+
+**Surprise**: `init.sh` needed zero code changes. The script logic was correct; the template files were the problem. This is a reminder that "the script doesn't work" bugs often live in the script's inputs (template files), not the script itself.
+
+**Pattern: Template Invariant Protection**:
+1. Run grep baseline on all candidate files before touching anything
+2. Identify both the replacement target AND any adjacent invariants (other `{{PLACEHOLDER}}` values)
+3. Target replacements by line content, not line number (line numbers drift)
+4. Add explicit verification tasks after each file edit to confirm invariants survived
+
+**Prevention for Future Personalization Features**:
+- Always grep for all placeholder variants (space, hyphen, underscore) before scoping work
+- `scope.md` line 15 `{{PROJECT_DESCRIPTION}}` is now a known invariant — always protect it
+- GitHub URL slugs in README.md are accepted limitations — document, don't attempt to fix
+
+**Tags**: #pattern #templates #personalization #grep-baseline #invariants #feature-061
 
 ---
 

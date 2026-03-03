@@ -1,6 +1,6 @@
 # Claude Agent Infrastructure
 
-This directory contains the complete agent orchestration infrastructure for Agentic Oriented Development Kit, including 13 specialized agents, 13 automation skills, and 14 slash commands for streamlined feature development.
+This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 13 automation skills, and 14 slash commands for streamlined feature development.
 
 ## Overview
 

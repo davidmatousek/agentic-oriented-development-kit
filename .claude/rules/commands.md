@@ -1,11 +1,11 @@
 # Commands
 
-<!-- Rule file for Agentic Oriented Development Kit -->
+<!-- Rule file for {{PROJECT_NAME}} -->
 <!-- This file is referenced from CLAUDE.md using @-syntax -->
 
 ## Overview
 
-Agentic Oriented Development Kit provides the **Triad Commands** with automatic governance, PM/Architect/Team-Lead sign-offs, and full SDLC workflow support.
+{{PROJECT_NAME}} provides the **Triad Commands** with automatic governance, PM/Architect/Team-Lead sign-offs, and full SDLC workflow support.
 
 ---
 

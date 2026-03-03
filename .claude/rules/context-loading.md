@@ -1,6 +1,6 @@
 # Context Loading
 
-<!-- Rule file for Agentic Oriented Development Kit -->
+<!-- Rule file for {{PROJECT_NAME}} -->
 <!-- This file is referenced from CLAUDE.md using @-syntax -->
 
 ## Overview

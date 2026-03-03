@@ -1,4 +1,4 @@
-# CLAUDE.md - Agentic Oriented Development Kit
+# CLAUDE.md - {{PROJECT_NAME}}
 
 <!-- Context Budget: Target <80 lines -->
 
@@ -17,7 +17,7 @@
 
 ## Project Structure
 ```
-agentic-oriented-development-kit/
+{{PROJECT_NAME}}/
 ├── .claude/           → Agents, skills, commands
 ├── .aod/              → spec.md, plan.md, tasks.md (source of truth)
 ├── docs/              → Product, architecture, devops docs

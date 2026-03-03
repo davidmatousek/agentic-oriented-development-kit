@@ -118,6 +118,21 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 
 **Note**: `gh` degrades gracefully -- the orchestrator falls back to artifact-only detection when `gh` is unavailable or unauthenticated. Similarly, `scripts/init.sh` skips GitHub Projects board creation when `gh` is missing, unauthenticated, or lacks the `project` OAuth scope, reporting status in the init summary with remediation guidance.
 
+### Template Variables
+
+`scripts/init.sh` performs `sed` substitution on user-facing template files during `make init`. The following placeholders are replaced at init time:
+
+| Placeholder | Replaced With | Scope |
+|-------------|---------------|-------|
+| `{{PROJECT_NAME}}` | Adopter's project name (entered at `make init` prompt) | 12 template files (Feature 061) |
+| `{{CURRENT_DATE}}` | Current date at init time | Select files |
+
+**`{{PROJECT_NAME}}` is a first-class template variable** (Feature 061). All user-facing template files in `.claude/`, `docs/`, `CLAUDE.md`, and `README.md` use this placeholder rather than hardcoding "Agentic Oriented Development Kit". After `make init`, adopters see their own project name throughout.
+
+When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` wherever the project name should appear and confirm the file is included in the `scripts/init.sh` substitution loop. See [ADR-009](../02_ADRs/ADR-009-template-variable-expansion-scope.md) and the [Template Variable Expansion pattern](../03_patterns/README.md#pattern-template-variable-expansion).
+
+---
+
 ### Stack Packs System
 
 **Directory**: `stacks/` (convention contracts, persona supplements, scaffold templates, rules)

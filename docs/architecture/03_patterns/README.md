@@ -49,6 +49,9 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Circuit-Breaker Churn Detection](#pattern-circuit-breaker-churn-detection)
 - [Subshell Isolation for Strict Shell Options](#pattern-subshell-isolation-for-strict-shell-options)
 
+### Template Patterns (AOD Kit)
+- [Template Variable Expansion](#pattern-template-variable-expansion)
+
 ### Skill Patterns (AOD Kit)
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation)
 - [Compound State Helpers](#pattern-compound-state-helpers)
@@ -861,6 +864,57 @@ any files modified during this build session.
 #### Related Patterns
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- applies to custom skill files; this pattern applies to platform built-ins
 - [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview) -- `--dry-run` and `--no-simplify` follow the same flag-gating convention for skipping steps
+
+---
+
+### Pattern: Template Variable Expansion
+
+**Added**: Feature 061 (init.sh Personalize All Template Files)
+**ADR**: [ADR-009](../02_ADRs/ADR-009-template-variable-expansion-scope.md)
+
+#### Problem
+Template files shipped with the kit contain the kit's own name ("Agentic Oriented Development Kit") as hardcoded text. When an adopter runs `make init`, these files are not personalized, so all user-facing documentation still shows the kit name instead of the adopter's project name. This causes confusion and requires manual find-and-replace by adopters.
+
+#### Solution
+Use the `{{PROJECT_NAME}}` double-brace placeholder wherever the project name should appear in a template file. `scripts/init.sh` already performs a `sed` substitution pass over template files during `make init`, replacing `{{PROJECT_NAME}}` with the adopter's actual project name. No new code or infrastructure is needed -- add the placeholder to the file content and the init script handles the rest.
+
+The convention aligns with other template variables in the kit (`{{CURRENT_DATE}}`, `{{TEMPLATE_VARIABLES}}`, etc.) and is consistent with the pre-existing usage in `.aod/memory/constitution.md`.
+
+#### Files Using This Pattern
+| File | Placeholder Locations |
+|------|-----------------------|
+| `CLAUDE.md` | File header, project structure comment |
+| `README.md` | Title, description, header references |
+| `.claude/README.md` | Title, overview |
+| `.claude/agents/_README.md` | Title, overview |
+| `.claude/rules/commands.md` | Overview line |
+| `.claude/rules/context-loading.md` | Overview line |
+| `.claude/rules/deployment.md` | Overview line |
+| `.claude/rules/git-workflow.md` | Overview line |
+| `.claude/rules/governance.md` | Overview line |
+| `.claude/rules/scope.md` | Title, description lines |
+| `docs/product/02_PRD/INDEX.md` | Header |
+| `.aod/memory/constitution.md` | Pre-existing usage |
+
+#### When to Use
+- Any template file that would display "Agentic Oriented Development Kit" to an adopter after `make init`
+- Headers, titles, and overview lines in files that adopters will read, share, or modify
+- New `.claude/rules/*.md` or `.claude/agents/*.md` files added to the kit
+
+#### When NOT to Use
+- Internal implementation files that adopters never read directly (e.g., shell scripts, JSON state files)
+- Comments in script files where the kit name is intentional (e.g., attribution headers)
+- Files that are NOT processed by `scripts/init.sh` -- check `init.sh` to confirm a file is in scope before adding the placeholder
+
+#### Checklist for New Template Files
+When adding a new user-facing template file to the kit:
+1. Identify every occurrence of "Agentic Oriented Development Kit" or its abbreviation
+2. Replace with `{{PROJECT_NAME}}`
+3. Verify the file is included in the `scripts/init.sh` substitution loop
+4. Test with `make init` on a fresh clone to confirm replacement occurs
+
+#### Related Patterns
+- None -- this is a content convention, not a runtime pattern
 
 ---
 

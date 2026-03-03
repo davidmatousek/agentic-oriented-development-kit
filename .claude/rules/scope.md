@@ -1,17 +1,17 @@
 # Scope
 
-<!-- Rule file for Agentic Oriented Development Kit -->
+<!-- Rule file for {{PROJECT_NAME}} -->
 <!-- This file is referenced from CLAUDE.md using @-syntax -->
 
 ## Overview
 
-This file defines what Agentic Oriented Development Kit is (and isn't) to set clear expectations for template adopters.
+This file defines what {{PROJECT_NAME}} is (and isn't) to set clear expectations for template adopters.
 
 ---
 
 ## What This Is
 
-**Agentic Oriented Development Kit is:**
+**{{PROJECT_NAME}} is:**
 - {{PROJECT_DESCRIPTION}}
 - Agentic-oriented development with clear governance workflows
 - Works with any agent workflow or framework (not Claude Code-specific)
@@ -28,7 +28,7 @@ This file defines what Agentic Oriented Development Kit is (and isn't) to set cl
 
 ## What This Isn't
 
-**Agentic Oriented Development Kit is NOT:**
+**{{PROJECT_NAME}} is NOT:**
 - NOT a quick prototype tool (we follow proper process)
 - NOT limited to a single AI agent (supports multi-agent workflows)
 - NOT skipping governance for speed (governance is built into every command)
