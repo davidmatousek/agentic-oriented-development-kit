@@ -168,6 +168,27 @@ This agent defers to:
 
 ---
 
+## Return Format (STRICT)
+
+When invoked as a **subagent** (via the Agent tool), you MUST:
+
+1. Write your full review to `.claude/results/team-lead.md` (overwrite, do not append)
+2. Return to the caller ONLY the following format:
+
+```
+STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
+ITEMS: [N findings/concerns]
+DETAILS: .claude/results/team-lead.md
+```
+
+Maximum return: 10 lines. Do NOT include review rationale, specific concerns,
+recommendations, code snippets, or file contents in the return.
+
+This restriction applies ONLY when invoked as a subagent. When invoked directly
+by the user, provide full output.
+
+---
+
 ## 8. Success Criteria
 
 ### Task Completion

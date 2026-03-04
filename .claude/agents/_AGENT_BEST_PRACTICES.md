@@ -719,6 +719,38 @@ When handing to [target-agent]:
 - Notify: [communication method]
 ```
 
+### Return Format Pattern
+
+Add this section to agents invoked as subagents (via the Agent tool) to prevent context overflow. Full details are offloaded to a results file; the parent receives only a minimal status summary.
+
+**When to apply**: Governance reviewers, quality checkers, diagnostic agents — any agent whose full output would exhaust the parent's context window.
+
+**Template** — insert before `## 8. Success Criteria`, replace `{agent-name}` with the agent's filename (e.g., `product-manager`):
+
+```markdown
+## Return Format (STRICT)
+
+When invoked as a **subagent** (via the Agent tool), you MUST:
+
+1. Write your full review to `.claude/results/{agent-name}.md` (overwrite, do not append)
+2. Return to the caller ONLY:
+    STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
+    ITEMS: [N findings/concerns]
+    DETAILS: .claude/results/{agent-name}.md
+
+Maximum return: 10 lines. No review rationale, code snippets, or file contents.
+Subagent-only restriction — provide full output when invoked directly by the user.
+```
+
+**Examples by agent type**:
+- **Governance reviewer** (product-manager, architect, team-lead): APPROVED/CHANGES_REQUESTED
+- **Explorer** (debugger, security-analyst): pass/fail + findings count
+- **Tester**: pass/fail + test count
+
+**Custom agent guidance**: See CLAUDE.md "Subagent Return Policy" for project-wide context.
+
+---
+
 ### Error Escalation Pattern
 
 ```markdown
@@ -861,6 +893,10 @@ Key insights from the agent refactoring effort (Feature 003, 2026-01-31):
 - Tech choices: `{{VARIABLE}}`
 - Methodology: Concrete values
 - Agentic Oriented Development Kit: Always concrete
+
+### Return Format Pattern
+
+For agents invoked as subagents: write full output to `.claude/results/{agent-name}.md`, return only STATUS / ITEMS / DETAILS (≤10 lines). See Section 7 Common Patterns → Return Format Pattern for full template.
 
 ---
 

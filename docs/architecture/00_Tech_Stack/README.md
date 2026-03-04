@@ -133,6 +133,21 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 
 ---
 
+### Subagent Results Directory
+
+**Directory**: `.claude/results/` (ephemeral session artifacts, gitignored)
+- Architecture: File-based offloading for minimal subagent returns (Feature 073)
+- Convention: Each subagent writes detailed findings to `.claude/results/{agent-name}.md` before returning
+- Return policy: Subagents return only STATUS + ITEMS count + DETAILS path to the main context (max 10 lines / ~200 tokens)
+- Overwrite semantics: Each invocation overwrites the prior results file for the same agent
+- Initialization: Subagents create the directory if absent (self-healing, no pre-init required)
+- See [ADR-010](../02_ADRs/ADR-010-minimal-return-architecture.md) for the design decision
+- See [Minimal-Return Subagent pattern](../03_patterns/README.md#pattern-minimal-return-subagent) for implementation guidance
+
+**Context budget impact**: A full Triad review cycle (3 reviewers) consumes less than 600 tokens in the main context (down from 1,500-6,000 tokens), enabling 90+ minute sustained orchestration sessions.
+
+---
+
 ### Stack Packs System
 
 **Directory**: `stacks/` (convention contracts, persona supplements, scaffold templates, rules)

@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 23 / 20 (KB System Upgrade triggers at 20 — schedule review)
+**Entry Count**: 24 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -906,6 +906,31 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 **Applicability**: Any future domain stack pack that provides specialized context for Triad reviews (e.g., API design packs informing architect reviews, compliance packs informing security reviews).
 
 **Tags**: #governance #stack-packs #core-agents #supplements #informational-overlay #feature-064
+
+---
+
+### Entry 24: Feature 073 — Subagent Token Budget via Minimal-Return Architecture
+
+## [Agent Architecture] - Governance subagents should write details to disk and return only a brief status summary
+
+**Date**: 2026-03-04
+**Feature**: 073 — Minimal-Return Architecture for Subagent Context Optimization
+**Category**: Agent Architecture / Context Management
+
+**What Happened**: Long-running AOD lifecycle sessions were exhausting the main agent's context window because Triad reviewers (PM, Architect, Team-Lead) returned multi-paragraph, code-heavy responses directly to the main context. Feature 073 established a Minimal-Return Architecture: each subagent writes its complete findings to `.claude/results/{agent-name}.md`, then returns only a brief status line (~15 lines / 200 tokens) to the main agent. Implementation was simpler than expected — adding a "Return Format (STRICT)" section to 5 agent files and one policy section to CLAUDE.md was sufficient.
+
+**Lesson**: The pattern "write to disk, return only a pointer" is the right primitive for any long-running multi-agent workflow. It preserves governance quality (full details are always available) while preventing context exhaustion. The key insight: a subagent's output doesn't need to live in the main context — only its status does.
+
+**Pattern: Minimal-Return Architecture**:
+1. Subagent completes its full analysis/review
+2. Writes complete findings to `.claude/results/{agent-name}.md` (overwrite semantics)
+3. Returns to main agent: Status + item count + file path (max 15 lines)
+4. Main agent reads results file only if escalation is needed
+5. Results directory is gitignored — session-scoped ephemeral artifacts
+
+**Applicability**: Any multi-agent workflow where subagents perform substantial analysis (spec reviews, code reviews, security audits, test runs). Especially valuable for Triad governance gates in `/aod.run` full lifecycle sessions.
+
+**Tags**: #agent-architecture #context-management #subagents #token-budget #minimal-return #feature-073
 
 ---
 

@@ -1,6 +1,6 @@
 # CLAUDE.md - {{PROJECT_NAME}}
 
-<!-- Context Budget: Target <80 lines -->
+<!-- Context Budget: Target <100 lines (justified: 10-line return policy saves 9K-36K tokens/session) -->
 
 ## Core Constraints
 - **Product-Led**: Start with product vision, PRDs, and user stories
@@ -65,6 +65,16 @@
 
 ## Deployment Policy
 All deployments must go through the devops agent. Never deploy without verification.
+
+## Subagent Return Policy
+When invoked as a subagent (via Agent tool), return ONLY:
+1. **Status** (APPROVED / CHANGES_REQUESTED / BLOCKED / pass / fail)
+2. **Item count** (if applicable)
+3. **File path** to `.claude/results/{agent-name}.md` with full details
+- Write detailed findings to results file BEFORE returning
+- Max return: 15 lines / ~200 tokens
+- NEVER return code snippets, file contents, or multi-paragraph explanations
+- Policy applies to subagent→main returns only, not user-facing output
 
 ## Key Principles
 - **Vision First**: `/aod.define` (includes vision) → spec → plan → tasks

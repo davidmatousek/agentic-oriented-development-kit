@@ -185,3 +185,6 @@ _site/
 # Project-specific (customize as needed)
 # ============================================================================
 # Add your project-specific ignores here after template instantiation
+
+# Subagent result artifacts (ephemeral, session-scoped)
+.claude/results/

@@ -58,6 +58,7 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Governance Result Caching](#pattern-governance-result-caching)
 - [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview)
 - [Dual-Surface Injection](#pattern-dual-surface-injection)
+- [Minimal-Return Subagent](#pattern-minimal-return-subagent)
 
 ### Command Patterns (AOD Kit)
 - [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard)
@@ -966,6 +967,112 @@ The rule: AOD commands design the system. Product commands operate the system. N
 #### Related Patterns
 - [Dual-Surface Injection](#pattern-dual-surface-injection) -- mechanism for loading pack conventions into agents
 - [Command-per-Workflow](#pattern-orchestrator-awareness-guard) -- each user workflow maps to one command (documented in `stacks/knowledge-system/STACK.md`)
+
+---
+
+### Pattern: Minimal-Return Subagent
+
+**Added**: Feature 073 (Minimal-Return Architecture for Subagent Context Optimization)
+**ADR**: [ADR-010](../02_ADRs/ADR-010-minimal-return-architecture.md)
+
+#### Problem
+
+Subagents invoked for governance reviews (Triad reviewers, code reviewers) return their complete findings inline to the calling orchestrator. A thorough review runs 500-2,000 tokens per return. A full Triad review cycle (3 reviewers) therefore consumes 1,500-6,000 tokens in the main context before any implementation work can proceed. In long-running orchestrations with 10+ delegations, this overhead exhausts the context window within 30-60 minutes -- well before the Build stage.
+
+The core tension: governance reviews are valuable because they are thorough. Truncating returns would lose the rationale, specific concerns, and recommendations that make reviews actionable. The problem is not what the subagent produces, but where it lives.
+
+#### Solution
+
+Decouple the subagent's work product from its return to the main context using **file-based offloading**:
+
+1. The subagent writes its complete findings to `.claude/results/{agent-name}.md` before returning
+2. The subagent returns only a brief status summary to the main context: STATUS + ITEMS count + DETAILS file path, capped at 10 lines
+3. The main agent reads the results file on-demand when it needs to act on specific findings (e.g., when CHANGES_REQUESTED)
+4. Results files use overwrite semantics -- each invocation replaces the prior file, keeping only the current review
+
+The approach has two enforcement layers:
+- **Project-wide**: A "Subagent Return Policy" section in CLAUDE.md establishes the convention for all agents
+- **Agent-level**: A "Return Format (STRICT)" section in each agent prompt specifies exact format and line limits
+
+The `.claude/results/` directory is gitignored as ephemeral session-scoped artifacts.
+
+#### Example
+
+```markdown
+# In .claude/agents/architect.md
+
+## Return Format (STRICT)
+
+When invoked as a **subagent** (via the Agent tool), you MUST:
+
+1. Write your full review to `.claude/results/architect.md` (overwrite, do not append)
+2. Return to the caller ONLY the following format:
+
+```
+STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
+ITEMS: [N findings/concerns]
+DETAILS: .claude/results/architect.md
+```
+
+Maximum return: 10 lines. Do NOT include review rationale, specific concerns,
+recommendations, code snippets, or file contents in the return.
+
+This restriction applies ONLY when invoked as a subagent. When invoked directly
+by the user, provide full output.
+```
+
+```
+# Results file written by architect: .claude/results/architect.md
+STATUS: CHANGES_REQUESTED
+ITEMS: 3
+
+## Finding 1: Missing rate limiting on public endpoints (BLOCKING)
+[Full rationale, code references, recommendations ...]
+
+## Finding 2: ...
+```
+
+```
+# Return to main orchestrator (from architect subagent) — ~8 lines, ~80 tokens
+STATUS: CHANGES_REQUESTED
+ITEMS: 3
+DETAILS: .claude/results/architect.md
+```
+
+#### When to Use
+
+- Subagents that produce review or audit outputs (Triad reviewers, code reviewers, security analysts)
+- Long-running orchestrations where cumulative subagent return overhead threatens context budget
+- Any agent invoked multiple times per session where return content repeats similar structure
+- Multi-reviewer workflows where the main agent must aggregate results but act on each individually
+
+#### When NOT to Use
+
+- Agents invoked for debugging or diagnostic work where the diagnostic output IS the deliverable (return the content inline)
+- Simple status-check subagents where the return is already minimal (< 5 lines)
+- Agents invoked directly by the user (not as a subagent) -- the return format restriction does not apply
+- Single-shot orchestrations where context budget is not a concern
+
+#### Implementation Notes
+
+- The `{agent-name}.md` filename convention ensures each agent type has a stable, known path (e.g., `product-manager.md`, `architect.md`, `team-lead.md`)
+- If two instances of the same agent type run in parallel, the last write wins (overwrite semantics -- acceptable given sequential Triad reviews)
+- If the results directory does not exist, the subagent creates it before writing (self-healing initialization)
+- Non-compliance degrades gracefully: a verbose return is larger than intended but does not break the workflow
+
+#### Token Savings Reference
+
+| Scenario | Before | After | Reduction |
+|----------|--------|-------|-----------|
+| Single reviewer return | 500-2,000 tokens | ~80 tokens | ~95% |
+| Full Triad cycle (3 reviewers) | 1,500-6,000 tokens | <600 tokens | ~90% |
+| Full `/aod.run` lifecycle (10+ delegations) | Context exhausted ~30-60 min | 90+ min sustained | 2-3x session length |
+
+#### Related Patterns
+
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- same principle of deferring content to disk until needed; applied to skill files rather than subagent returns
+- [Governance Result Caching](#pattern-governance-result-caching) -- complements this pattern by caching governance verdicts; minimal returns reduce what needs to be cached
+- [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper) -- non-compliance in return format degrades gracefully, never blocks governance
 
 ---
 
