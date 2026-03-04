@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 22 / 20 (KB System Upgrade triggers at 20 — schedule review)
+**Entry Count**: 23 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -881,6 +881,31 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 - GitHub URL slugs in README.md are accepted limitations — document, don't attempt to fix
 
 **Tags**: #pattern #templates #personalization #grep-baseline #invariants #feature-061
+
+---
+
+### Entry 23: Feature 064 — Core-Agent Supplement Pattern for Domain Stack Packs
+
+## [Governance] - Stack packs can provide informational overlays for Core agents without modifying governance authority
+
+**Date**: 2026-03-03
+**Feature**: 064 — Knowledge System Stack Pack
+**Category**: Governance / Stack Pack Architecture
+
+**What Happened**: Feature 064 introduced the first domain-specific stack pack (knowledge-system) that needed to provide orchestration-design awareness to Core-tier Triad agents (product-manager, architect, team-lead). The challenge was that Core agents have governance authority (scope, technical decisions, timeline) that must never be overridden by a pack. The solution was the "informational overlay" pattern: supplements that provide domain context (e.g., command inventory validation, content architecture review, PII scanning) while explicitly disclaiming any authority override. This required a new FR-018 to document the pattern in `stacks/README.md` so future pack authors follow the same boundary.
+
+**Lesson**: When a stack pack needs to influence Core-tier agents, use informational overlays with explicit disclaimers rather than behavioral overrides. The supplement's 4-section format (Stack Context, Conventions, Anti-Patterns, Guardrails) naturally enforces this boundary — the Guardrails section explicitly states what the supplement does NOT override.
+
+**Pattern: Core-Agent Supplement Design**:
+1. Supplements are additive context documents, never behavioral overrides
+2. Core agent files in `.claude/agents/` are never modified by packs
+3. Each supplement must include a Guardrails section disclaiming authority override
+4. `stacks/README.md` documents the pattern so all pack authors follow it
+5. The `persona-loader.md` generated during pack activation lists supplements for lazy loading
+
+**Applicability**: Any future domain stack pack that provides specialized context for Triad reviews (e.g., API design packs informing architect reviews, compliance packs informing security reviews).
+
+**Tags**: #governance #stack-packs #core-agents #supplements #informational-overlay #feature-064
 
 ---
 

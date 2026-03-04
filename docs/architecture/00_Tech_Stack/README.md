@@ -147,6 +147,7 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 |------|--------|---------|
 | `stacks/nextjs-supabase/` | Full | Next.js + TypeScript + Supabase + Prisma + Vercel conventions |
 | `stacks/swiftui-cloudkit/` | Skeleton | SwiftUI + CloudKit native iOS conventions |
+| `stacks/knowledge-system/` | Full | Markdown + YAML + Claude Code for knowledge-intensive content systems (Feature 064) |
 
 **Pack anatomy** (each pack directory):
 | Path | Purpose |

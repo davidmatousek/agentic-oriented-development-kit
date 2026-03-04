@@ -64,6 +64,9 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper)
 - [Built-in Skill Invocation from a Command](#pattern-built-in-skill-invocation-from-a-command)
 
+### Stack Pack Architecture Patterns (AOD Kit)
+- [Two-Level Architecture (Build-Time / Run-Time)](#pattern-two-level-architecture)
+
 ---
 
 ## Documented Patterns
@@ -915,6 +918,54 @@ When adding a new user-facing template file to the kit:
 
 #### Related Patterns
 - None -- this is a content convention, not a runtime pattern
+
+---
+
+### Pattern: Two-Level Architecture
+
+**Added**: Feature 064 (Knowledge System Stack Pack)
+
+#### Problem
+Knowledge-intensive domains (resume writing, publishing, education, consulting) need AI-orchestrated workflows to produce quality outputs. A naive approach treats orchestration design and content production as a single activity, leading to non-reusable one-off generation, no quality framework, and re-running the full SDLC for every output.
+
+#### Solution
+Separate the system into two distinct operational levels with different lifecycles:
+
+**Build-time (AOD lifecycle)**: Use `/aod.define` through `/aod.deliver` to design and construct the orchestration itself -- commands, agent personas, content architecture, quality rubric, and context loading configuration. The product of build-time is a working orchestration system.
+
+**Run-time (domain orchestration)**: Use the commands built during build-time (e.g., `/new`, `/draft`, `/review`, `/export`) to produce domain outputs -- tailored resumes, edited chapters, lesson plans, consulting deliverables. The product of run-time is domain content.
+
+The rule: AOD commands design the system. Product commands operate the system. Never use AOD commands as run-time product commands. Never build product commands that duplicate AOD lifecycle functions.
+
+#### Example
+```
+# BUILD-TIME: Constructing the orchestration (AOD lifecycle)
+/aod.define "resume builder"    # Define command inventory, audience, content domains
+/aod.spec                       # Specify commands, agents, content architecture
+/aod.project-plan               # Plan orchestration: command flow, context loading
+/aod.tasks                      # Break down into: command files, agent personas, templates
+/aod.build                      # Author commands, build agents, configure context loading
+/aod.deliver                    # Validate end-to-end orchestration
+
+# RUN-TIME: Operating the built system (product commands)
+/new senior-resume              # Initialize output instance from master content
+/draft --preset formal-exec     # Generate draft using voice + style + context
+/review                         # Evaluate against scoring rubric
+/export pdf                     # Format for delivery
+```
+
+#### When to Use
+- Stack packs targeting content-intensive or knowledge-management domains
+- Any system where the orchestration layer is itself the product (not application code)
+- Domains where quality is measured by rubric scoring rather than test suites
+
+#### When NOT to Use
+- Traditional software stack packs (e.g., nextjs-supabase) where build-time produces application code directly
+- Simple automation scripts with no reusable orchestration layer
+
+#### Related Patterns
+- [Dual-Surface Injection](#pattern-dual-surface-injection) -- mechanism for loading pack conventions into agents
+- [Command-per-Workflow](#pattern-orchestrator-awareness-guard) -- each user workflow maps to one command (documented in `stacks/knowledge-system/STACK.md`)
 
 ---
 

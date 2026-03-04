@@ -184,3 +184,39 @@ When `/aod.stack use {pack}` runs:
 4. During `/aod.build`, the build command reads `stack-active.json` and injects persona supplement read instructions into dispatched agent prompts
 
 Core agent files in `.claude/agents/` are **never modified** by activation. Governance behavior is **identical** with or without an active pack.
+
+## Core-Agent Supplement Pattern
+
+Some domain-specific packs (e.g., `knowledge-system`) provide **informational supplements** for Core-tier agents (product-manager, architect, team-lead). These supplements add domain awareness context that Core agents can reference during reviews — they do NOT modify governance methodology, decision-making authority, or sign-off criteria.
+
+### How It Works
+
+- The pack's `agents/` directory includes supplement files named after Core agents (e.g., `agents/product-manager.md`)
+- Each Core-agent supplement opens with an explicit **informational overlay** disclaimer stating it does not override the agent's core behavior
+- The supplement follows the standard 4-section format (Stack Context, Conventions, Anti-Patterns, Guardrails)
+- The Guardrails section reinforces the agent's existing authority boundaries
+
+### What Core-Agent Supplements Provide
+
+| Agent | Domain Awareness |
+|-------|-----------------|
+| product-manager | Domain-specific product concerns (e.g., command inventory completeness, audience analysis) |
+| architect | Domain-specific architecture concerns (e.g., orchestration patterns, context loading design) |
+| team-lead | Domain-specific scheduling concerns (e.g., content dependency ordering, parallel build opportunities) |
+
+### What Core-Agent Supplements Do NOT Change
+
+- Review methodology or checklists
+- Decision-making authority or scope ownership
+- Sign-off criteria or governance gates
+- Core agent files in `.claude/agents/` (never modified)
+
+### When to Use This Pattern
+
+Use Core-agent supplements when a domain introduces concepts that Core agents would otherwise miss during reviews. For example, a knowledge-system pack adds awareness of orchestration design so the PM can validate command inventory coverage — a concern absent from standard product reviews.
+
+Do NOT use this pattern to:
+- Override how Core agents make decisions
+- Add new sign-off requirements
+- Modify governance workflows
+- Change the Triad authority model
