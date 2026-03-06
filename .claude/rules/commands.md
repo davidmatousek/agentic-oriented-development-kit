@@ -20,7 +20,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 /aod.spec             # Create spec.md with auto PM sign-off
 /aod.project-plan                # Create plan.md with auto PM + Architect sign-off
 /aod.tasks               # Create tasks.md with auto triple sign-off
-/aod.build [--no-simplify]  # Execute with auto architect checkpoints; --no-simplify skips code simplification step
+/aod.build [--no-security] [--no-simplify]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7); flags are independent and may coexist
 /aod.deliver {NNN} # Close feature with parallel doc updates
 ```
 

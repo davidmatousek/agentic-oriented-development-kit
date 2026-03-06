@@ -57,40 +57,6 @@ if [[ "$ISSUE_COUNT" -eq 100 ]]; then
     echo "[aod] Warning: Backlog may be truncated (100 item limit). Consider implementing pagination or archiving old items." >&2
 fi
 
-# Helper: extract a section value from issue body (defensive, T062)
-# Args: $1 = body text, $2 = section header (e.g., "## ICE Score")
-# Returns: first non-empty line after header, or "—" if not found
-extract_section() {
-    local body="$1"
-    local header="$2"
-    local value
-
-    # Find content after the header, take first non-empty line
-    value=$(printf '%s\n' "$body" | sed -n "/^${header}/,/^##/{/^${header}/d;/^##/d;/^$/d;p;}" | head -1 | sed 's/^[[:space:]]*//')
-
-    if [[ -z "$value" ]]; then
-        echo "—"
-    else
-        echo "$value"
-    fi
-}
-
-# Helper: extract field from Metadata section
-# Args: $1 = body text, $2 = field name (e.g., "Source")
-extract_metadata() {
-    local body="$1"
-    local field="$2"
-    local value
-
-    value=$(printf '%s\n' "$body" | grep -o -e "- ${field}: .*" | head -1 | sed "s/- ${field}: //")
-
-    if [[ -z "$value" ]]; then
-        echo "—"
-    else
-        echo "$value"
-    fi
-}
-
 # Generate BACKLOG.md
 generate_backlog() {
     local timestamp
@@ -115,24 +81,58 @@ HEADER
         echo "## ${stage_title}"
         echo ""
 
-        # Filter issues for this stage using label name matching
-        local stage_issues
-        stage_issues=$(echo "$RAW_JSON" | python3 -c "
-import json, sys
+        # Filter issues and extract stage-specific fields in Python
+        # (avoids passing multi-line body through pipe-delimited format)
+        local stage_rows
+        stage_rows=$(echo "$RAW_JSON" | python3 -c "
+import json, sys, re
+
+def extract_section(body, header):
+    \"\"\"Extract first non-empty line after a markdown header.\"\"\"
+    pattern = re.escape(header) + r'\s*\n(.*?)(?=\n##|\Z)'
+    m = re.search(pattern, body, re.DOTALL)
+    if not m:
+        return '—'
+    for line in m.group(1).strip().split('\n'):
+        line = line.strip()
+        if line:
+            return line
+    return '—'
+
+def extract_metadata(body, field):
+    \"\"\"Extract a '- Field: value' line from the body.\"\"\"
+    m = re.search(r'- ' + re.escape(field) + r': (.+)', body)
+    return m.group(1).strip() if m else '—'
+
+stage = '${stage}'
 data = json.load(sys.stdin)
 for issue in data:
-    # Skip closed issues — they should not appear in active stages
     if issue.get('state', 'OPEN') != 'OPEN':
         continue
     labels = [l['name'] for l in issue.get('labels', [])]
-    if '${label}' in labels:
-        # Escape pipe chars in title for markdown table
-        title = issue['title'].replace('|', '\\\\|')
-        body = issue.get('body', '') or ''
-        updated = issue.get('updatedAt', '—')[:10]
-        number = issue['number']
-        print(f'{number}|{title}|{updated}|{body}')
-" 2>/dev/null) || stage_issues=""
+    if '${label}' not in labels:
+        continue
+    title = issue['title'].replace('|', '\\\\|')
+    body = issue.get('body', '') or ''
+    updated = issue.get('updatedAt', '—')[:10]
+    num = issue['number']
+
+    if stage == 'discover':
+        ice = extract_section(body, '## ICE Score')
+        evidence = extract_section(body, '## Evidence')
+        if len(evidence) > 60:
+            evidence = evidence[:57] + '...'
+        print(f'| #{num} | {title} | {ice} | {evidence} | {updated} |')
+    elif stage == 'define':
+        prd = extract_metadata(body, 'PRD')
+        print(f'| #{num} | {title} | {prd} | {updated} |')
+    elif stage == 'plan':
+        print(f'| #{num} | {title} | — | — | — | {updated} |')
+    elif stage == 'build':
+        print(f'| #{num} | {title} | In progress | {updated} |')
+    elif stage == 'deliver':
+        print(f'| #{num} | {title} | {updated} | — | {updated} |')
+" 2>/dev/null) || stage_rows=""
 
         # Stage-specific table headers
         case "$stage" in
@@ -158,38 +158,10 @@ for issue in data:
                 ;;
         esac
 
-        if [[ -z "$stage_issues" ]]; then
+        if [[ -z "$stage_rows" ]]; then
             echo "| — | *No items in this stage* | | |"
         else
-            while IFS='|' read -r num title updated body; do
-                case "$stage" in
-                    discover)
-                        local ice
-                        ice=$(extract_section "$body" "## ICE Score")
-                        local evidence
-                        evidence=$(extract_section "$body" "## Evidence")
-                        # Truncate evidence for table display
-                        if [[ ${#evidence} -gt 60 ]]; then
-                            evidence="${evidence:0:57}..."
-                        fi
-                        echo "| #${num} | ${title} | ${ice} | ${evidence} | ${updated} |"
-                        ;;
-                    define)
-                        local prd
-                        prd=$(extract_metadata "$body" "PRD")
-                        echo "| #${num} | ${title} | ${prd} | ${updated} |"
-                        ;;
-                    plan)
-                        echo "| #${num} | ${title} | — | — | — | ${updated} |"
-                        ;;
-                    build)
-                        echo "| #${num} | ${title} | In progress | ${updated} |"
-                        ;;
-                    deliver)
-                        echo "| #${num} | ${title} | ${updated} | — | ${updated} |"
-                        ;;
-                esac
-            done <<< "$stage_issues"
+            echo "$stage_rows"
         fi
 
         echo ""

@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 24 / 20 (KB System Upgrade triggers at 20 — schedule review)
+**Entry Count**: 26 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -931,6 +931,50 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 **Applicability**: Any multi-agent workflow where subagents perform substantial analysis (spec reviews, code reviews, security audits, test runs). Especially valuable for Triad governance gates in `/aod.run` full lifecycle sessions.
 
 **Tags**: #agent-architecture #context-management #subagents #token-budget #minimal-return #feature-073
+
+---
+
+### Entry 25: Feature 071 — Governed Skill Phase Loop as Reusable Architectural Pattern
+
+## [Agent Architecture] - A multi-phase skill with confirmation gates is a reusable pattern worth naming
+
+**Date**: 2026-03-04
+**Feature**: 071 — One-Shot Bug Fix Command (/aod.bugfix)
+**Category**: Agent Architecture / Skill Design
+
+**What Happened**: Feature 071 implemented `/aod.bugfix` as a 5-phase governed skill (Input → KB Pre-Check → Diagnose → Plan+Gate → Implement → Verify → Document). During closure, the Architect recognized this phase loop structure as a reusable architectural pattern — not just an implementation detail of one skill. The pattern was documented in `docs/architecture/03_patterns/README.md` as "Governed Skill Phase Loop." A key surprise: the SKILL.md grew to 380 lines — far larger than expected for what was scoped as a "single-file feature." The depth came from edge case coverage (paste mode, partial implementation failure, KB unavailability, multi-cause RCA, regression handling).
+
+**Lesson**: When a skill implements a sequential multi-phase workflow with explicit confirmation gates, name it as a pattern early. Future skills can adopt the same structure without reinventing phase ordering, gate placement, or failure modes. The non-deferrable confirmation gate is the pattern's key invariant — without it, users can bypass it accidentally.
+
+**Pattern: Governed Skill Phase Loop**:
+1. Pre-run safety advisory (non-blocking, set expectations)
+2. Input acknowledgment phase (detect mode, ask targeted questions)
+3. Optional KB pre-check (surface known solutions before expensive RCA)
+4. Diagnosis phase (structured reasoning: 5 Whys or equivalent)
+5. Plan phase + non-deferrable confirmation gate (no code changes before yes)
+6. Implementation phase (strict file scope, deviation = re-confirm)
+7. Verification phase (PASS/FAIL/SKIPPED — all valid)
+8. Documentation phase (review gate, not auto-write)
+
+**Single-file sequencing note**: When all phases write to one file, they MUST run sequentially. Plan for 5-8 orchestration waves even if the feature appears small.
+
+**Tags**: #agent-architecture #skill-design #confirmation-gate #governed-loop #feature-071
+
+---
+
+### Entry 26: Feature 078 — STACK.md Convention Contract Validated Across Three Diverse Packs
+
+## [Architecture] - The STACK.md convention contract pattern is now proven across three distinct technology stacks
+
+**Date**: 2026-03-05
+**Feature**: 078 — Python FastAPI + React Stack Pack
+**Category**: Architecture / Stack Pack Design
+
+**What Happened**: Feature 078 delivered the third stack pack (fastapi-react), joining nextjs-supabase and knowledge-system. All three packs follow the same STACK.md convention contract pattern — a single authoritative file that defines directory layout, naming conventions, dependency rules, and agent behavior for a given technology stack. The fastapi-react pack included 354 lines of convention contract, 8 agent personas, 2 rule files, and a full scaffold (FastAPI + Alembic + React/Vite + Docker Compose). Delivery was smooth with no significant surprises, completing within a single session (~3.4 hours estimated, same-day actual).
+
+**Lesson**: The STACK.md convention contract pattern is now validated across three diverse technology stacks (Next.js/Supabase, knowledge-system, Python FastAPI/React). This confirms the pattern is stack-agnostic and should be the canonical standard for all future stack packs. The pattern's strength is that it provides a single source of truth that both human developers and AI agents can reference for technology-specific conventions.
+
+**Tags**: #architecture #stack-pack #convention-contract #STACK-md #feature-078
 
 ---
 

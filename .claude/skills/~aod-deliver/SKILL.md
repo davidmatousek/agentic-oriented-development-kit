@@ -133,31 +133,32 @@ Options:
 
 **If "Yes"**: Ask the user to describe each idea. For each idea provided:
 
-1. Create a GitHub Issue with `stage:discover` label using `aod_gh_create_issue` from `.aod/scripts/bash/github-lifecycle.sh`:
-   - Title: `{idea_description}`
-   - Body:
-     ```markdown
-     # {idea_description}
+1. **MUST** use the standalone `create-issue.sh` script to create the GitHub Issue (do NOT call `gh issue create` directly — the script handles both issue creation and project board sync):
+   ```bash
+   bash .aod/scripts/bash/create-issue.sh \
+     --title "{idea_description}" \
+     --body "$BODY" \
+     --stage discover \
+     --type retro
+   ```
+   Where `$BODY` contains:
+   ```markdown
+   # {idea_description}
 
-     ## ICE Score
-     Impact: —, Confidence: —, Effort: — = **Not yet scored**
+   ## ICE Score
+   Impact: —, Confidence: —, Effort: — = **Not yet scored**
 
-     ## Evidence
-     Retrospective: Emerged during delivery of {feature_name}
+   ## Evidence
+   Retrospective: Emerged during delivery of {feature_name}
 
-     ## Metadata
-     - Source: Retrospective
-     - Priority: Not yet scored
-     - Date: {YYYY-MM-DD}
-     - Status: New (from retrospective)
-     - Origin Feature: {feature_name}
-     ```
-   - Stage: `discover`
-   - Type: `retro` (4th parameter to `aod_gh_create_issue`)
-
-   The `type:retro` label is applied automatically by `aod_gh_create_issue` when `"retro"` is passed as the 4th parameter. The function also adds the issue to the Projects board automatically.
-
-   **IMPORTANT**: If you create the issue with `gh issue create` directly instead of `aod_gh_create_issue`, you MUST also add it to the Projects board: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$new_issue_number" "discover"`
+   ## Metadata
+   - Source: Retrospective
+   - Priority: Not yet scored
+   - Date: {YYYY-MM-DD}
+   - Status: New (from retrospective)
+   - Origin Feature: {feature_name}
+   ```
+   The script applies the `type:retro` label automatically and adds the issue to the Projects board with the correct Status column.
 
 2. If `gh` is unavailable, log the idea to stdout with guidance:
    ```

@@ -117,7 +117,7 @@ All governance decisions must meet:
 
 **Feasibility Check**: `specs/{feature-id}/feasibility-check.md` with Verdict, Effort, Timeline (Optimistic/Realistic/Pessimistic), Confidence, Recommendations.
 
-**Agent Assignments**: Feasibility status, Wave Strategy, Agent-to-Task mapping by wave.
+**Agent Assignments**: Feasibility status, Wave Strategy, Agent-to-Task mapping by wave using ONLY exact agent names from `.claude/agents/_README.md`. Never invent generic labels (e.g. `file-agent`, `doc-agent`, `qa-agent`). Read the registry first, then map each task to a valid `subagent_type`.
 
 ---
 

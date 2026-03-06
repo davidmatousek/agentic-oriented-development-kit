@@ -33,6 +33,8 @@ Significant technical decisions with context and trade-offs
 - `ADR-006-non-fatal-observability-operations.md` - Non-fatal error handling for observability and circuit-breaker functions (Feature 054)
 - `ADR-008-opt-out-flag-for-default-quality-gates.md` - Opt-out flag (`--no-simplify`) for default-on quality gate steps in commands (Feature 065)
 - `ADR-009-template-variable-expansion-scope.md` - Expanding `{{PROJECT_NAME}}` placeholder to all user-facing template files (Feature 061)
+- `ADR-010-minimal-return-architecture.md` - Minimal return architecture for subagent→main token efficiency (Feature 073)
+- `ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md` - Multi-flag opt-out pattern and step insertion convention for `/aod.build` (Feature 080)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

@@ -223,10 +223,33 @@ triad:
 
 Invoke team-lead agent to create `agent-assignments.md`.
 
-**Reference**: Use [Agent Registry](.claude/agents/) for task-to-agent mapping.
+**REQUIRED**: Team-lead MUST read `.claude/agents/_README.md` before assigning tasks and use ONLY exact agent names from the Agent Registry. Do NOT invent generic labels like `file-agent`, `doc-agent`, or `qa-agent` — these are not valid subagent types.
+
+**Agent Roster** (valid `subagent_type` values for the Agent tool):
+
+| Agent name | Use for |
+|---|---|
+| `senior-backend-engineer` | Backend code, APIs, config files, SKILL.md authoring, markdown file creation/editing |
+| `frontend-developer` | UI components, client-side code |
+| `tester` | Validation scenarios, acceptance testing, QA |
+| `security-analyst` | Security reviews, vulnerability assessment |
+| `devops` | Deployment, CI/CD, infrastructure |
+| `code-reviewer` | Code quality review |
+| `web-researcher` | External research, documentation lookup |
+| `debugger` | Bug investigation, root cause analysis |
+| `architect` | System design, architecture decisions |
+| `product-manager` | Product requirements, scope decisions |
+| `ux-ui-designer` | UI/UX design, wireframes |
+| `orchestrator` | Multi-agent coordination, wave execution |
+
+**Common fallback mappings** (when no specialist fits):
+- Markdown/documentation writing → `senior-backend-engineer`
+- File creation or editing (non-code) → `senior-backend-engineer`
+- Validation/acceptance scenario execution → `tester`
+- Research and external docs → `web-researcher`
 
 **Output includes**:
-- Agent Assignment Matrix (task to agent mapping based on Agent Registry)
+- Agent Assignment Matrix (task to agent mapping using exact names above)
 - Parallel Execution Waves (grouped by dependencies)
 - Quality Gates between waves
 - Time estimates per wave

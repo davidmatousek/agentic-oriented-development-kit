@@ -96,7 +96,7 @@ Q5: How will you measure success? (1-2 key metrics)
    Then regenerate BACKLOG.md: `.aod/scripts/bash/backlog-regenerate.sh`
    **Issue-Required Gate**: If no issue is found after all detection methods:
    1. Use `AskUserQuestion` with three options:
-      - **Auto-create Issue** (Recommended): Run `gh issue create --title "TOPIC" --label "stage:define"` to create a new Issue automatically. Use the returned Issue number as the PRD number.
+      - **Auto-create Issue** (Recommended): Run `bash .aod/scripts/bash/create-issue.sh --title "TOPIC" --stage define` to create a new Issue with board sync. Use the returned Issue number as the PRD number.
       - **Provide Issue number**: User enters an existing GitHub Issue number manually. Validate it exists via `gh issue view NNN` before proceeding.
       - **Abort**: Cancel PRD creation cleanly with message "PRD creation requires a backing GitHub Issue. Create one at your repo's Issues page and re-run /aod.define."
    2. If `gh` CLI is unavailable and user cannot provide a number, abort with guidance: "The `gh` CLI is not available. Please create a GitHub Issue manually and re-run `/aod.define <topic> #NNN`."

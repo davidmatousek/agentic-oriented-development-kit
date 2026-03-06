@@ -9,7 +9,7 @@
 
 ## Summary
 
-Feature 065 integrates the Claude Code built-in `/simplify` skill into `/aod.build` as Step 6 (Code Simplification). The step runs by default after all implementation tasks complete, with `--no-simplify` as an opt-out flag for contexts where simplification is inappropriate (methodology-only repos, CI pipelines, time-sensitive builds). No new external dependencies are introduced -- the feature reuses the existing Claude Code built-in `/simplify` skill and `git` CLI. All changes are Markdown command file modifications only.
+Feature 065 integrates the Claude Code built-in `/simplify` skill into `/aod.build` as the Code Simplification step (originally Step 6; renumbered to Step 7 by Feature 080 which inserted a Security Scan step at Step 6). The step runs by default after all implementation tasks complete, with `--no-simplify` as an opt-out flag for contexts where simplification is inappropriate (methodology-only repos, CI pipelines, time-sensitive builds). No new external dependencies are introduced -- the feature reuses the existing Claude Code built-in `/simplify` skill and `git` CLI. All changes are Markdown command file modifications only.
 
 ---
 

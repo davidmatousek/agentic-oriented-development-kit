@@ -29,10 +29,12 @@ We will implement `/simplify` as a **default-on step with an `--no-simplify` opt
 
 The flag must be:
 - Declared in the command's flag-parsing section
-- Checked immediately before Step 6 executes
+- Checked immediately before the Code Simplification step executes
 - Documented in CLAUDE.md and `.claude/rules/commands.md` alongside the command
 
 The step is skipped and logged (`"Simplification skipped (--no-simplify)"`) when the flag is present.
+
+**Multi-flag extension (Feature 080)**: Feature 080 added a second opt-out flag, `--no-security`, following the same `--no-X` convention established here. Both flags are fully independent — either or both may be specified in a single invocation (`/aod.build --no-security --no-simplify`). See [ADR-011](ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md) for the multi-flag coexistence pattern and step insertion convention.
 
 ---
 
@@ -121,6 +123,7 @@ Negative flags (`--no-X`) communicate that X is the default. Positive flags (`--
 ## Related Decisions
 
 - ADR-002: On-Demand Reference File Segmentation (Feature 030) -- established the pattern of reading built-in skill references only when needed
+- [ADR-011: Multi-Flag Opt-Out Pattern and Step Insertion Convention](ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md) -- extends this decision to multiple independent opt-out flags; documents step insertion convention and security-before-simplify ordering rationale
 - [Pattern: Built-in Skill Invocation from a Command](../03_patterns/README.md#pattern-built-in-skill-invocation-from-a-command) -- documents the implementation pattern for this decision
 
 ---

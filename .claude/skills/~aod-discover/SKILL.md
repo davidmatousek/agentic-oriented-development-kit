@@ -34,7 +34,7 @@ Extract the idea description from user arguments. If no description is provided,
 
 The GitHub Issue number is the canonical idea ID. There is no separate `IDEA-NNN` numbering scheme.
 
-- The ID is assigned automatically when `gh issue create` runs in Step 5a
+- The ID is assigned automatically when `create-issue.sh` runs in Step 5a
 - Refer to ideas by their GitHub Issue number using `#NNN` format (e.g., `#42`)
 - No scanning, parsing, or incrementing is needed — GitHub handles ID assignment
 
@@ -171,7 +171,7 @@ Next: Run `/aod.validate #{NNN}` to submit for PM review, or continue capturing 
 
 Create a GitHub Issue for lifecycle tracking:
 
-1. Build the issue body using the structured format from `github-lifecycle.sh`:
+1. Build the issue body using the structured format:
    ```markdown
    ## Idea
 
@@ -190,15 +190,17 @@ Create a GitHub Issue for lifecycle tracking:
    - Status: {status}
    ```
 
-2. Call `aod_gh_create_issue` (from `.aod/scripts/bash/github-lifecycle.sh`):
-   - Title: `{idea_description}` (clean title, no prefix)
-   - Body: structured markdown above
-   - Stage: `discover`
-   - Issue type: `"idea"` (applies `type:idea` label automatically)
+2. **MUST** use the standalone `create-issue.sh` script (do NOT call `gh issue create` directly — the script handles both issue creation and project board sync):
+   ```bash
+   bash .aod/scripts/bash/create-issue.sh \
+     --title "{idea_description}" \
+     --body "$BODY" \
+     --stage discover \
+     --type idea
+   ```
+   The script outputs the issue number on stdout. Capture it — this becomes the canonical idea ID (`#NNN`).
 
-3. Capture the returned issue number — this becomes the canonical idea ID (`#NNN`).
-
-4. If `gh` is unavailable, skip silently (graceful degradation).
+3. If `gh` is unavailable, skip silently (graceful degradation).
 
 ## Step 5b: Regenerate BACKLOG.md
 
@@ -446,13 +448,14 @@ Ideas scoring below 12 are automatically deferred. In the full flow (`/aod.disco
 ## Quality Checklist
 
 - [ ] Entry point correctly detected (discover/idea/validate)
-- [ ] Idea ID is the GitHub Issue number (`#NNN`), assigned by `gh issue create`
+- [ ] Idea ID is the GitHub Issue number (`#NNN`), assigned by `create-issue.sh`
 - [ ] Source captured from user selection
 - [ ] Evidence prompted after ICE scoring (predefined categories + free text)
 - [ ] Evidence included in GitHub Issue body and display outputs
 - [ ] ICE score computed correctly (additive I+C+E)
 - [ ] Auto-defer gate applied (< 12 = Deferred, flow stops in full flow)
-- [ ] GitHub Issue created with structured body, `stage:discover` label, and `type:idea` label
+- [ ] GitHub Issue created via `create-issue.sh` (NOT `gh issue create` directly) with structured body, `stage:discover` label, and `type:idea` label
+- [ ] Issue added to Projects board with correct Status column (verified via script output)
 - [ ] BACKLOG.md regenerated after Issue creation
 - [ ] Governance tier read from constitution (light/standard/full, default: standard)
 - [ ] Light tier: PM validation skipped in full flow, with note to user

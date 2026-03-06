@@ -833,7 +833,7 @@ aod_gh_create_issue() {
         local existing_url
         existing_url=$(gh issue view "$existing_number" --json url --jq '.url' 2>/dev/null) || true
         if [[ -n "$existing_url" ]]; then
-            aod_gh_add_to_board "$existing_url" "$stage" >/dev/null 2>&1 || true
+            aod_gh_add_to_board "$existing_url" "$stage" >/dev/null || true
         fi
 
         echo "$existing_number"
@@ -861,7 +861,7 @@ aod_gh_create_issue() {
         local issue_url
         issue_url=$(gh issue view "$issue_number" --json url --jq '.url' 2>/dev/null) || true
         if [[ -n "$issue_url" ]]; then
-            aod_gh_add_to_board "$issue_url" "$stage" >/dev/null 2>&1 || true
+            aod_gh_add_to_board "$issue_url" "$stage" >/dev/null || true
         fi
 
         echo "$issue_number"

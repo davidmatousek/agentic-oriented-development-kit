@@ -1,6 +1,6 @@
 # Claude Agent Infrastructure
 
-This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 13 automation skills, and 14 slash commands for streamlined feature development.
+This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 14 automation skills, and 14 slash commands for streamlined feature development.
 
 ## Overview
 
@@ -88,6 +88,7 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
+| **~aod-bugfix** | One-shot governed bug fix loop (diagnose → plan → implement → verify → document) | When a bug is reported, error message/stack trace pasted, or fix is needed |
 | **root-cause-analyzer** | Perform 5 Whys root cause analysis | Complex bugs, recurring issues, workflow blockers |
 | **code-execution-helper** | Execute code for quota checks, API validation | Pre-flight quota checks, resource validation |
 | **git-workflow-helper** | Git workflow automation (commits, PRs, branches) | Creating commits, managing branches, PR creation |
@@ -97,6 +98,12 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
 | **aod-stack** | Manage stack packs (activate, remove, list, scaffold) | Setting up stack-specific conventions, scaffolding projects |
+
+### Security Skills
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **security** | SAST/SCA security scan — OWASP Top 10 + CVE patterns, audit artifacts, severity gate | Invoked automatically as Step 6 of `/aod.build`; run standalone via `/security` for ad-hoc scans |
 
 ### Thinking & Analysis Skills
 
@@ -131,6 +138,14 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 | `/aod.stack remove` | Deactivate the active pack | N/A |
 | `/aod.stack list` | List available packs | N/A |
 | `/aod.stack scaffold` | Scaffold project from active pack | N/A |
+
+### Security Commands
+
+| Command | Purpose | Governance |
+|---------|---------|-----------|
+| `/security` | SAST/SCA scan — OWASP Top 10 + CVE analysis, audit artifacts, severity gate | Invoked as Step 6 of `/aod.build`; opt-out via `--no-security` |
+
+Key outputs: `specs/{NNN}-*/security-scan.md` (human-readable), `.security/scan-log.jsonl`, `.security/vulnerabilities.jsonl`, `.security/reports/*.sarif` (SARIF 2.1.0), `.security/reports/sca-*.cdx.json` (CycloneDX 1.5 SBOM). Blocks on CRITICAL/HIGH findings until acknowledged or fixed.
 
 ### Utility Commands
 

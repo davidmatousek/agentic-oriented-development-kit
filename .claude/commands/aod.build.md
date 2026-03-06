@@ -14,22 +14,35 @@ Consider user input before proceeding (if not empty).
 
 Parse optional flags from `$ARGUMENTS`. Flags can appear anywhere in the arguments string.
 
+Both flags are independent — they may coexist in a single invocation (e.g., `--no-security --no-simplify`). Each controls only its own step.
+
 **Step 0a: Parse --no-simplify**
 
 1. If `$ARGUMENTS` contains `--no-simplify`:
    - Set `skip_simplify = true`
    - Strip `--no-simplify` from `$ARGUMENTS` (trim extra whitespace)
-   - Continue to Step 1 with remaining arguments
+   - Continue to next flag check with remaining arguments
 
 2. If `$ARGUMENTS` does NOT contain `--no-simplify`:
    - Set `skip_simplify = false`
+   - Continue to next flag check with `$ARGUMENTS` unchanged
+
+**Step 0b: Parse --no-security**
+
+1. If `$ARGUMENTS` contains `--no-security`:
+   - Set `skip_security = true`
+   - Strip `--no-security` from `$ARGUMENTS` (trim extra whitespace)
+   - Continue to Step 1 with remaining arguments
+
+2. If `$ARGUMENTS` does NOT contain `--no-security`:
+   - Set `skip_security = false`
    - Continue to Step 1 with `$ARGUMENTS` unchanged
 
 ## Overview
 
 Executes feature implementation with Architect checkpoint reviews at priority boundaries.
 
-**Flow**: Validate tasks --> Check checklists --> Load context --> Setup project --> Execute waves with parallel agents --> Checkpoint reviews --> Final validation --> Code simplification --> Report completion
+**Flow**: Validate tasks --> Check checklists --> Load context --> Setup project --> Execute waves with parallel agents --> Checkpoint reviews --> Final validation --> Security scan --> Code simplification --> Report completion
 
 **Key Feature**: Architect reviews at P0->P1->P2 boundaries for governed quality gates.
 
@@ -207,38 +220,74 @@ After all waves complete:
 
 6. Parse all STATUS results
 
-## Step 6: Code Simplification (Last Wave Only)
+## Step 6: Security Scan (Last Wave Only)
 
-This step runs ONLY after Step 5 (Final Validation) completes. It reviews all code changed on the feature branch for reuse, quality, and efficiency opportunities.
+This step runs ONLY after Step 5 (Final Validation) completes. It analyzes all code files and dependency manifests changed on the feature branch for OWASP Top 10 vulnerabilities and known CVE patterns.
 
 ### 6a: Check Skip Conditions
 
-1. If `skip_simplify` is true (from Step 0):
-   - Record: simplify_status = "Skipped (--no-simplify)"
+1. If `skip_security` is true (from Step 0b):
+   - Write `specs/{NNN}-*/security-scan.md` with content: `Security Scan: Skipped (--no-security)` + current timestamp
+   - Record: security_status = "Skipped (--no-security)"
    - Proceed to Step 7
+
+2. If no code files and no dependency manifests changed (pre-check via `git diff --name-only main...HEAD`):
+   - Record: security_status = "Skipped (no code or manifest files changed)"
+   - Proceed to Step 7
+
+### 6b: Invoke /security Skill
+
+Invoke the `security` skill via the Skill tool:
+```
+Skill tool: skill="security"
+```
+
+The skill handles all analysis steps internally (file detection, SAST, SCA, severity gate, artifact writing, commit strategy). Parse the result on completion.
+
+### 6c: Handle Result
+
+1. **PASSED** (no findings): Record security_status = "Passed — no issues found"; proceed to Step 7
+2. **FINDINGS ACKNOWLEDGED**: Record security_status = "Findings acknowledged ({count} finding(s))"; proceed to Step 7
+3. **BLOCKED** (developer selected "Fix now" or "Abort"):
+   - If Fix now: halt build session; display "Fix the identified issues and re-run `/aod.build` to resume at Step 6"
+   - If Abort: stop execution entirely
+4. **ERROR**: Surface AskUserQuestion: "Security scan encountered an error: {error_message}. (A) Retry, (B) Skip and complete build, (C) Abort build"
+   - If Retry: re-invoke skill (step 6b)
+   - If Skip: record security_status = "Error — skipped ({error_message})"; proceed to Step 7
+   - If Abort: stop execution
+
+## Step 7: Code Simplification (Last Wave Only)
+
+This step runs ONLY after Step 6 (Security Scan) completes. It reviews all code changed on the feature branch for reuse, quality, and efficiency opportunities.
+
+### 7a: Check Skip Conditions
+
+1. If `skip_simplify` is true (from Step 0a):
+   - Record: simplify_status = "Skipped (--no-simplify)"
+   - Proceed to Step 8
 
 2. Detect changed code files:
    - Run: `git diff --name-only main...HEAD`
    - **If this command fails** (e.g., main branch not available, detached HEAD):
      Use AskUserQuestion: "Changed file detection failed: {error_message}"
      Options: (A) Retry, (B) Skip and complete build, (C) Abort
-     If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 7
+     If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 8
    - Filter to code extensions: `.py`, `.js`, `.ts`, `.jsx`, `.tsx`, `.sh`, `.go`, `.rs`, `.java`, `.rb`, `.swift`, `.kt`
    - Exclude patterns: `*.lock`, `*.min.js`, `*.min.css`, `*.map`, `*.generated.*`, `vendor/`, `dist/`, `build/`, `node_modules/`, `.aod/`, `docs/`
    - Store result as `changed_files` list and `file_count`
 
 3. If `file_count` is 0:
    - Record: simplify_status = "Skipped (no code files changed)"
-   - Proceed to Step 7
+   - Proceed to Step 8
 
 4. If `file_count` > 50:
    - Use AskUserQuestion: "Large diff ({file_count} code files). Simplify may take several minutes. Continue or skip?"
    - Options: (A) Continue with simplify, (B) Skip simplify
-   - If user selects Skip: Record simplify_status = "Skipped (user skipped large diff)" and proceed to Step 7
+   - If user selects Skip: Record simplify_status = "Skipped (user skipped large diff)" and proceed to Step 8
 
 5. Display: "Reviewing {file_count} changed code files for simplification opportunities..."
 
-### 6b: Invoke /simplify
+### 7b: Invoke /simplify
 
 1. Record pre-invocation file states: `git diff --name-only` (to detect which files simplify actually modifies)
 
@@ -252,22 +301,22 @@ This step runs ONLY after Step 5 (Final Validation) completes. It reviews all co
    - Use AskUserQuestion: "Code simplification encountered an error: {error_message}"
    - Options:
      (A) Retry — re-invoke the skill
-     (B) Skip and complete build — proceed to Step 7
+     (B) Skip and complete build — proceed to Step 8
      (C) Abort — halt build execution
-   - If Retry: Go back to step 6b.2
-   - If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 7
+   - If Retry: Go back to step 7b.2
+   - If Skip: Record simplify_status = "Error — skipped ({error_message})" and proceed to Step 8
    - If Abort: Stop execution entirely
 
-### 6c: Evaluate Results
+### 7c: Evaluate Results
 
 1. Detect which files were modified by simplify:
    - Run: `git diff --name-only`
-   - Compare against pre-invocation state from 6b.1
+   - Compare against pre-invocation state from 7b.1
    - Store `modified_files` list and `modified_count`
 
 2. If `modified_count` is 0:
    - Record: simplify_status = "Passed — no issues found ({file_count} files reviewed)"
-   - Proceed to Step 7
+   - Proceed to Step 8
 
 3. Get diff statistics: `git diff --stat` on the modified files
    - Extract insertions, deletions counts
@@ -312,7 +361,7 @@ This step runs ONLY after Step 5 (Final Validation) completes. It reviews all co
    - Revert modified files: `git checkout -- {file1} {file2} ...`
    - Record: simplify_status = "Skipped by user after review"
 
-## Step 7: Report Completion
+## Step 8: Report Completion
 
 **Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute checkpoint/review commentary into the template structure.
 
@@ -333,6 +382,12 @@ Final Validation:
 - Architect: {status}
 - Code Review: {status}
 - Security: {status}
+
+Security Scan (Step 6):
+- SAST: {sast_status} ({code_file_count} file(s) scanned)
+- SCA: {sca_status} ({manifest_count} manifest(s) audited)
+- Report: specs/{NNN}-*/security-scan.md
+- /security: {security_status}
 
 Code Simplification:
 - /simplify: {simplify_status}
@@ -360,6 +415,9 @@ Next: /aod.deliver FEATURE: {feature_number} - {feature_name}
 - [ ] Blocking checkpoint issues resolved before proceeding
 - [ ] Final validation completed (Architect + Code + Security)
 - [ ] All tasks marked [X] in tasks.md
+- [ ] Security Scan step executed or explicitly skipped with reason (--no-security)
+- [ ] Security scan findings acknowledged or build halted on CRITICAL/HIGH
+- [ ] Security scan status recorded in completion report
 - [ ] Code Simplification step executed or explicitly skipped with reason
 - [ ] Simplify changes reviewed by user before commit (if applicable)
 - [ ] Simplify status recorded in completion report

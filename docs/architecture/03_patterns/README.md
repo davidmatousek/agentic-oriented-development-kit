@@ -59,6 +59,7 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Read-Only Dry-Run Preview](#pattern-read-only-dry-run-preview)
 - [Dual-Surface Injection](#pattern-dual-surface-injection)
 - [Minimal-Return Subagent](#pattern-minimal-return-subagent)
+- [Governed Skill Phase Loop](#pattern-governed-skill-phase-loop)
 
 ### Command Patterns (AOD Kit)
 - [Orchestrator-Awareness Guard](#pattern-orchestrator-awareness-guard)
@@ -67,6 +68,7 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 
 ### Stack Pack Architecture Patterns (AOD Kit)
 - [Two-Level Architecture (Build-Time / Run-Time)](#pattern-two-level-architecture)
+- [Convention Contract (STACK.md)](#pattern-convention-contract)
 
 ---
 
@@ -837,13 +839,20 @@ The step text uses the Skill tool (not Bash) to invoke the built-in, since built
 # In .claude/commands/aod.build.md
 
 ## Flags
-- `--no-simplify`: Skip the code simplification step (Step 6)
+- `--no-security`: Skip the security scan step (Step 6)
+- `--no-simplify`: Skip the code simplification step (Step 7)
 
 ## Steps
 
 ...
 
-### Step 6: Code Simplification (skip if --no-simplify)
+### Step 6: Security Scan (skip if --no-security)
+Invoke the /security skill to analyze changed code files and manifests for
+OWASP Top 10 vulnerabilities and known CVE patterns.
+- If `--no-security` flag is present: skip this step, write security-scan.md "Skipped" entry
+- Otherwise: Use the Skill tool to invoke `security` on changed files
+
+### Step 7: Code Simplification (skip if --no-simplify)
 Invoke the /simplify skill to reduce complexity and improve readability of
 any files modified during this build session.
 - If `--no-simplify` flag is present: skip this step entirely, log "Simplification skipped (--no-simplify)"
@@ -852,7 +861,7 @@ any files modified during this build session.
 
 ```markdown
 # In CLAUDE.md commands section
-/aod.build [--no-simplify]  # Execute with auto architect checkpoints; --no-simplify skips code simplification step
+/aod.build [--no-security] [--no-simplify]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7)
 ```
 
 #### When to Use
@@ -1073,6 +1082,119 @@ DETAILS: .claude/results/architect.md
 - [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) -- same principle of deferring content to disk until needed; applied to skill files rather than subagent returns
 - [Governance Result Caching](#pattern-governance-result-caching) -- complements this pattern by caching governance verdicts; minimal returns reduce what needs to be cached
 - [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper) -- non-compliance in return format degrades gracefully, never blocks governance
+
+---
+
+### Pattern: Governed Skill Phase Loop
+
+**Added**: Feature 071 (One-Shot Bug Fix Command — `/aod.bugfix`)
+**Skill**: `.claude/skills/~aod-bugfix/SKILL.md`
+
+#### Problem
+
+A skill needs to execute a multi-phase workflow where: (1) phases must be announced so the user knows progress without having to infer it from output; (2) at least one phase applies irreversible mutations (file edits) that require explicit user consent before proceeding; (3) secondary phases (knowledge base operations) are valuable but must not abort the primary loop if they fail; and (4) a user-reviewable artifact must be generated and approved before being persisted.
+
+A linear sequence of instructions with no phase structure, no confirmation gate, and no non-fatal boundary handling produces a skill that silently edits files, suppresses KB failures as errors, and leaves users uncertain about progress.
+
+#### Solution
+
+Structure the SKILL.md as a sequence of explicitly numbered and announced phases. Each phase follows this contract:
+
+1. **Entry announcement**: Print `[Phase N] <name>...` before executing the phase body
+2. **Mutation gate**: Before any file write or code change, present a fix plan (affected files + nature of change + confidence level) and wait for explicit user confirmation. Do NOT proceed if the user declines.
+3. **Non-fatal secondary phases**: Phases that perform optional enhancements (KB lookup, KB write, external reads) use non-fatal handling: announce failure, continue to next phase. The primary loop must complete regardless of secondary phase outcomes.
+4. **Artifact review gate**: When a phase generates a user-facing artifact (e.g., KB entry draft), display it before writing. Allow inline editing. Write only after re-confirmation.
+5. **Completion summary**: At loop end, emit a structured summary: root cause identified, files changed, verification status, artifact location (or "skipped").
+
+#### Phase Structure (from `/aod.bugfix`)
+
+```
+Phase 0   — Input Acknowledgment & Context Summary (always runs)
+Phase 0b  — KB Pre-Check (non-fatal; skips on failure, proceeds to Phase 1)
+Phase 1   — Root Cause Analysis (5 Whys methodology; states root cause in plain language)
+Phase 2   — Fix Plan + Confirmation Gate (BLOCKING: must receive explicit confirm before Phase 3)
+Phase 3   — Implementation (applies ONLY the changes described in Phase 2)
+Phase 3b  — Commit Prompt (non-blocking advisory)
+Phase 4   — Verification (best-effort; SKIPPED is valid if no test commands available)
+Phase 5   — KB Entry Review Gate (non-fatal; show draft → review → write after confirm)
+
+[Completion Summary]
+```
+
+#### Key Invariants
+
+- Phase 3 MUST NOT execute unless Phase 2 received explicit user confirmation
+- Phase 3 MUST report exactly which files were edited if it fails mid-execution (no silent partial state)
+- Phase 0b failure MUST NOT prevent Phase 1 from starting
+- Phase 5 failure MUST NOT mark the loop as failed (KB write is non-fatal per ADR-006)
+- Secondary phases (0b, 5) are always announced, never silently skipped
+
+#### When to Use
+
+- Skills that perform multi-step workflows with at least one irreversible mutation step
+- Workflows where KB or knowledge document operations are secondary (valuable but not critical path)
+- Developer-facing skills where progress transparency reduces cognitive load
+- Any skill following the diagnose → plan → implement → verify → document lifecycle shape
+
+#### When NOT to Use
+
+- Simple single-step skills where phase structure adds no navigational value
+- Skills with no mutation phases (no confirmation gate needed)
+- Background or non-interactive skills where user confirmation gates are inappropriate
+
+#### Related Patterns
+
+- [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper) — the same non-fatal principle applied to bash observability functions; this pattern applies it to AI skill phase boundaries
+- [On-Demand Reference File Segmentation](#pattern-on-demand-reference-file-segmentation) — for skills exceeding ~500 lines, combine with this pattern to split conditionally-needed phase content into on-demand reference files
+
+---
+
+### Pattern: Convention Contract
+
+**Added**: Feature 058 (Stack Packs), validated across Features 064 and 078
+
+#### Problem
+
+Stack packs need to communicate technology conventions, coding rules, and architectural constraints to AI agents in a predictable format. Without a standardized contract, each pack would define conventions differently -- some as prose, some as rules files, some embedded in agent prompts -- making it impossible for the stack activation skill to load conventions consistently. Agents would not know where to find the authoritative source for "how to write code in this stack."
+
+#### Solution
+
+Define a `STACK.md` file as the required convention contract for every stack pack. The file follows a fixed structure with a budget cap (500 lines max) to prevent context bloat:
+
+1. **Header block**: Pack metadata (target audience, stack versions, use case, deployment, philosophy) in a standardized format that the activation skill can parse
+2. **Architecture Pattern section**: Layered architecture with explicit ALWAYS/NEVER rules per layer (routes, services, models, schemas, etc.)
+3. **Conventions sections**: Backend conventions, frontend conventions, API communication patterns, testing requirements, security rules -- each with concrete examples
+4. **Validation checklist**: A checklist agents can evaluate code against to verify convention compliance
+
+The contract is loaded into every agent invocation when the pack is active (via the dual-surface injection mechanism). Agents treat STACK.md as authoritative for technology-specific decisions.
+
+#### Example
+```
+stacks/fastapi-react/STACK.md (354 lines):
+  Header        → Target, Stack, Use Case, Deployment, Philosophy
+  Architecture  → Backend (layered: routes → services → ORM)
+                → Database (SQLAlchemy 2.0 async + asyncpg)
+                → Frontend (React SPA with TanStack Query)
+  Conventions   → Backend (Pydantic schemas, dependency injection)
+                → Frontend (TypeScript strict, component patterns)
+  Security      → CORS, auth, SQL injection prevention
+  Testing       → pytest-asyncio, httpx, Vitest + RTL
+  Validation    → 15-item compliance checklist
+```
+
+#### When to Use
+- Every stack pack must include a STACK.md (it is the only required file in a pack)
+- When defining technology conventions that agents must follow during code generation
+- When multiple agent personas need a shared authoritative source for coding rules
+
+#### When NOT to Use
+- For runtime configuration (use `defaults.env` or scaffold config files instead)
+- For agent persona definitions (use `agents/*.md` persona supplements instead)
+- For rules that apply regardless of stack (use `.claude/rules/*.md` instead)
+
+#### Related Patterns
+- [Dual-Surface Injection](#pattern-dual-surface-injection) -- mechanism that loads STACK.md into agent context at activation time
+- [Two-Level Architecture](#pattern-two-level-architecture) -- knowledge-system packs use STACK.md to define both build-time and run-time conventions
 
 ---
 
