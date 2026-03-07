@@ -9,6 +9,7 @@
 |----------|---------|
 | [CLAUDE_MD_ORGANIZATION.md](CLAUDE_MD_ORGANIZATION.md) | CLAUDE.md structure and organization |
 | [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) | 3-step validation for feature completion |
+| [EVAL_CONVENTIONS.md](EVAL_CONVENTIONS.md) | Eval suite authoring, schema, execution, and grading for Claude Code skills (Feature 083) |
 | [FILE_HEADER_STANDARDS.md](FILE_HEADER_STANDARDS.md) | Standard headers for documentation files |
 | [FIVE_WHYS_METHODOLOGY.md](FIVE_WHYS_METHODOLOGY.md) | Root cause analysis methodology |
 | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Git branching, commits, and PR standards |

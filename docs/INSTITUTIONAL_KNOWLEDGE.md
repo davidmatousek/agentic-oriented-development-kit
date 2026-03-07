@@ -5,7 +5,7 @@
 **Created**: {{PROJECT_START_DATE}}
 **Last Updated**: {{CURRENT_DATE}}
 
-**Entry Count**: 26 / 20 (KB System Upgrade triggers at 20 — schedule review)
+**Entry Count**: 27 / 20 (KB System Upgrade triggers at 20 — schedule review)
 **Last Review**: {{CURRENT_DATE}}
 **Status**: ✅ Manual mode (file-based)
 
@@ -975,6 +975,32 @@ All 5 were fixed before merge. Without the checkpoint, these would have shipped 
 **Lesson**: The STACK.md convention contract pattern is now validated across three diverse technology stacks (Next.js/Supabase, knowledge-system, Python FastAPI/React). This confirms the pattern is stack-agnostic and should be the canonical standard for all future stack packs. The pattern's strength is that it provides a single source of truth that both human developers and AI agents can reference for technology-specific conventions.
 
 **Tags**: #architecture #stack-pack #convention-contract #STACK-md #feature-078
+
+---
+
+### Entry 27: Feature 083 — Skill Eval Suites (Rolled Back)
+
+## [Process] - Foundation-only features without visible user touchpoints fail the value test
+
+**Date**: 2026-03-07
+**Feature**: 083 — Skill Eval Suites
+**Category**: Process / Product Strategy
+
+**What Happened**: Feature 083 delivered eval suites for 3 core skills and an EVAL_CONVENTIONS.md guide. Technically sound — all 20 tasks completed, Triad sign-off obtained. However, during delivery retrospective the product owner identified a fundamental problem: **the feature solved a use case that doesn't exist for template adopters.** Core skills should be updated via upstream AOD template pulls, not modified by users. The eval suites added invisible infrastructure with no user-facing touchpoint, muddying the upstream template without providing visible value. Decision: roll back the eval artifacts from the upstream template.
+
+**Root Cause**: The PRD validated the *how* (can we build eval suites?) without sufficiently questioning the *who* and *when* (who would actually run these, and in what workflow?). The PM sign-off focused on requirement coverage rather than user behavior validation.
+
+**Key Lessons**:
+1. **Every file in the upstream template must justify its existence to a new user.** If a user would look at a directory and ask "what is this for?" without a clear answer, it shouldn't be there.
+2. **"Foundation investment" is not a valid justification for shipping.** If Phase 1 doesn't change any user workflow, it's premature. Ship the foundation *with* the integration (e.g., `/aod.eval` command + CI/CD) or don't ship at all.
+3. **Challenge the premise, not just the implementation.** The right question was "do users modify core skills?" not "can we test skill modifications?" The answer ("no — they pull upstream updates") invalidated the entire feature premise.
+4. **Advisory-only features are invisible features.** If something doesn't gate, notify, or surface in any workflow, users won't know it exists and won't use it.
+
+**What Was Kept**:
+- `docs/standards/EVAL_CONVENTIONS.md` — reference doc for advanced users creating custom skills (low cost, tucked in standards)
+- This KB entry — the lessons are more valuable than the code
+
+**Tags**: #process #product-strategy #rollback #feature-083 #lessons-learned
 
 ---
 
