@@ -122,18 +122,18 @@ replace_in_files() {
       -not -path "./node_modules/*" \
       -not -name "*.png" -not -name "*.jpg" -not -name "*.ico" \
       -exec sed -i '' \
-        -e "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" \
-        -e "s/{{PROJECT_DESCRIPTION}}/$PROJECT_DESCRIPTION/g" \
-        -e "s/{{GITHUB_ORG}}/$GITHUB_ORG/g" \
-        -e "s/{{GITHUB_REPO}}/$GITHUB_REPO/g" \
-        -e "s/{{AI_AGENT}}/$AI_AGENT/g" \
-        -e "s/{{TECH_STACK}}/$TECH_STACK/g" \
-        -e "s/{{TECH_STACK_DATABASE}}/$TECH_STACK_DATABASE/g" \
-        -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
-        -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
-        -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
-        -e "s/{{CURRENT_DATE}}/$CURRENT_DATE/g" \
-        -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
+        -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
+        -e "s|{{PROJECT_DESCRIPTION}}|$PROJECT_DESCRIPTION|g" \
+        -e "s|{{GITHUB_ORG}}|$GITHUB_ORG|g" \
+        -e "s|{{GITHUB_REPO}}|$GITHUB_REPO|g" \
+        -e "s|{{AI_AGENT}}|$AI_AGENT|g" \
+        -e "s|{{TECH_STACK}}|$TECH_STACK|g" \
+        -e "s|{{TECH_STACK_DATABASE}}|$TECH_STACK_DATABASE|g" \
+        -e "s|{{TECH_STACK_VECTOR}}|$TECH_STACK_VECTOR|g" \
+        -e "s|{{TECH_STACK_AUTH}}|$TECH_STACK_AUTH|g" \
+        -e "s|{{RATIFICATION_DATE}}|$RATIFICATION_DATE|g" \
+        -e "s|{{CURRENT_DATE}}|$CURRENT_DATE|g" \
+        -e "s|{{CLOUD_PROVIDER}}|$CLOUD_PROVIDER|g" \
         {} +
   else
     # Linux
@@ -142,18 +142,18 @@ replace_in_files() {
       -not -path "./node_modules/*" \
       -not -name "*.png" -not -name "*.jpg" -not -name "*.ico" \
       -exec sed -i \
-        -e "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" \
-        -e "s/{{PROJECT_DESCRIPTION}}/$PROJECT_DESCRIPTION/g" \
-        -e "s/{{GITHUB_ORG}}/$GITHUB_ORG/g" \
-        -e "s/{{GITHUB_REPO}}/$GITHUB_REPO/g" \
-        -e "s/{{AI_AGENT}}/$AI_AGENT/g" \
-        -e "s/{{TECH_STACK}}/$TECH_STACK/g" \
-        -e "s/{{TECH_STACK_DATABASE}}/$TECH_STACK_DATABASE/g" \
-        -e "s/{{TECH_STACK_VECTOR}}/$TECH_STACK_VECTOR/g" \
-        -e "s/{{TECH_STACK_AUTH}}/$TECH_STACK_AUTH/g" \
-        -e "s/{{RATIFICATION_DATE}}/$RATIFICATION_DATE/g" \
-        -e "s/{{CURRENT_DATE}}/$CURRENT_DATE/g" \
-        -e "s/{{CLOUD_PROVIDER}}/$CLOUD_PROVIDER/g" \
+        -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
+        -e "s|{{PROJECT_DESCRIPTION}}|$PROJECT_DESCRIPTION|g" \
+        -e "s|{{GITHUB_ORG}}|$GITHUB_ORG|g" \
+        -e "s|{{GITHUB_REPO}}|$GITHUB_REPO|g" \
+        -e "s|{{AI_AGENT}}|$AI_AGENT|g" \
+        -e "s|{{TECH_STACK}}|$TECH_STACK|g" \
+        -e "s|{{TECH_STACK_DATABASE}}|$TECH_STACK_DATABASE|g" \
+        -e "s|{{TECH_STACK_VECTOR}}|$TECH_STACK_VECTOR|g" \
+        -e "s|{{TECH_STACK_AUTH}}|$TECH_STACK_AUTH|g" \
+        -e "s|{{RATIFICATION_DATE}}|$RATIFICATION_DATE|g" \
+        -e "s|{{CURRENT_DATE}}|$CURRENT_DATE|g" \
+        -e "s|{{CLOUD_PROVIDER}}|$CLOUD_PROVIDER|g" \
         {} +
   fi
 }
