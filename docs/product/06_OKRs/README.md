@@ -20,6 +20,12 @@ Before MVP:
 
 **First OKRs**: Typically set 4-6 weeks after MVP launch when you have initial metrics.
 
+> **AOD Lifecycle Note**: OKR documents can be scaffolded via `/aod.okrs`, which
+> generates a standard OKR template (Objective, Key Results, Initiatives) in this
+> directory with PM sign-off. `/aod.define` reads current OKRs for PRD alignment,
+> and `DOCS_TO_UPDATE_AFTER_NEW_FEATURE.md` includes OKR progress as a checklist
+> item during `/aod.deliver`. You can still create and maintain OKR files manually.
+
 ---
 
 ## Overview

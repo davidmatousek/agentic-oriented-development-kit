@@ -7,6 +7,8 @@
 
 All development must use feature branches. Never commit to main directly.
 
+**Auto-create branches**: When a workflow command (e.g., `/aod.plan`, `/aod.spec`) detects you are on `main`, automatically create the feature branch and switch to it. Do NOT ask the user for confirmation — feature branches are mandatory, not a choice.
+
 ---
 
 ## Branch Naming

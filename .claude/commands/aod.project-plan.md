@@ -154,14 +154,34 @@ triad:
 ---
 ```
 
-## Step 6: GitHub Lifecycle Update
+## Step 6: System Design Generation
+
+After frontmatter injection, auto-scaffold system design documentation from the approved plan.
+
+1. Read the just-approved `plan.md` at `specs/{NNN}-*/plan.md`
+2. Search for canonical section headings: `## Components`, `## Data Flow`, `## Tech Stack`
+3. **If at least one canonical section is found**:
+   a. Extract the content of each found section (including any Mermaid diagram blocks — preserve verbatim)
+   b. If `docs/architecture/01_system_design/` directory does not exist, create it
+   c. If `docs/architecture/01_system_design/README.md` already exists, read its current content
+   d. Append extracted content under a feature-specific heading: `### Feature {NNN}: {feature-name}`
+   e. If the feature heading already exists in the file, skip to prevent duplication
+   f. Write/update `docs/architecture/01_system_design/README.md`
+   g. Display: "System design generated: docs/architecture/01_system_design/README.md"
+4. **If no canonical sections are found** (none of `## Components`, `## Data Flow`, `## Tech Stack` exist):
+   - Display: "System design generation skipped: no canonical sections found in plan.md"
+   - Skip gracefully — this step is non-blocking
+
+**Non-blocking**: Failure in this step does not prevent plan completion. If any error occurs during file I/O, log the error and continue.
+
+## Step 7: GitHub Lifecycle Update
 
 After plan creation, regenerate BACKLOG.md to reflect current state:
 
 1. Run `.aod/scripts/bash/backlog-regenerate.sh` to refresh BACKLOG.md
 2. If `gh` is unavailable, skip silently (graceful degradation)
 
-## Step 7: Report Completion
+## Step 8: Report Completion
 
 Display summary including branch, IMPL_PLAN path, and generated artifacts:
 ```
@@ -171,6 +191,7 @@ Feature: {feature_number}
 Spec: {spec_path}
 Plan: {plan_path}
 Artifacts: research.md, data-model.md, contracts/, quickstart.md
+System Design: {generated | skipped}
 
 Dual Sign-offs:
 - PM: {pm_status}

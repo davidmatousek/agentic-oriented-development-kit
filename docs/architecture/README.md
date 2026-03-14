@@ -20,7 +20,7 @@ Technology choices and justifications
 
 ### 01_system_design/
 High-level system design and component diagrams
-- `README.md` - System architecture overview
+- `README.md` - System architecture overview (auto-scaffolded from plan.md by `/aod.project-plan` after Architect sign-off)
 - Component interaction diagrams
 - Data flow diagrams
 
@@ -31,6 +31,7 @@ Significant technical decisions with context and trade-offs
 - `ADR-002-prompt-segmentation.md` - On-demand reference file loading for context efficiency (Feature 030)
 - `ADR-005-serialization-trade-off.md` - Serialization trade-off for parallel Triad reviews (Feature 047)
 - `ADR-006-non-fatal-observability-operations.md` - Non-fatal error handling for observability and circuit-breaker functions (Feature 054)
+- `ADR-007-stack-pack-dual-surface-injection.md` - Dual-surface injection pattern for stack pack context loading (Feature 058)
 - `ADR-008-opt-out-flag-for-default-quality-gates.md` - Opt-out flag (`--no-simplify`) for default-on quality gate steps in commands (Feature 065)
 - `ADR-009-template-variable-expansion-scope.md` - Expanding `{{PROJECT_NAME}}` placeholder to all user-facing template files (Feature 061)
 - `ADR-010-minimal-return-architecture.md` - Minimal return architecture for subagent→main token efficiency (Feature 073)
@@ -55,8 +56,9 @@ Environment-specific configurations and documentation
 
 1. **Document Decisions**: Use ADRs for significant technical choices
 2. **Keep Current**: Update docs alongside code changes
-3. **Template Variables**: Use `{{TEMPLATE_VARIABLES}}` for project-specific values
-4. **Version Control**: All architecture docs in git
+3. **Auto-Scaffold**: `01_system_design/README.md` is auto-generated from plan.md during `/aod.project-plan` approval (Feature 089)
+4. **Template Variables**: Use `{{TEMPLATE_VARIABLES}}` for project-specific values
+5. **Version Control**: All architecture docs in git
 
 ---
 

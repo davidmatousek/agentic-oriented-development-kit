@@ -18,6 +18,11 @@ Before MVP:
 **Pre-MVP**: Focus on `/aod.define` (includes target users in vision) → build MVP
 **Post-MVP**: Map real user journeys based on actual behavior and feedback
 
+> **AOD Lifecycle Note**: This directory is **manually maintained** — no AOD command
+> auto-generates or updates journey maps. `/aod.define` reads this directory for
+> persona context, but does not write to it. Create journey maps as a team
+> activity based on real user research.
+
 ---
 
 ## Overview

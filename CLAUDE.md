@@ -41,7 +41,7 @@
 - `/aod.discover` → `/aod.discover` → `/aod.score` → `/aod.validate`
 
 **Triad workflow**:
-- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build`
+- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build [--no-security] [--no-simplify] [--no-docs]`
 
 **Supporting commands**:
 - `/aod.clarify` — Resolve spec ambiguities
@@ -49,6 +49,7 @@
 - `/aod.checklist` — Generate quality checklist
 - `/aod.constitution` — Manage governance principles
 - `/aod.deliver` — Close completed feature
+- `/aod.kickstart` — POC kickstart: generate consumer guide with seed features from a project idea
 - `/aod.stack` — Manage stack packs (activate, remove, list, scaffold)
 
 ## SDLC Triad Governance

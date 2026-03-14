@@ -191,6 +191,23 @@ aod_gh_validate_cache() {
         return 1
     fi
 
+    # Compare board title against expected title for this repo
+    local cached_title expected_title current_repo_name
+    cached_title=$(jq -r '.board_title // empty' "$AOD_BOARD_CACHE" 2>/dev/null)
+    if [[ -n "$cached_title" ]]; then
+        current_repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || current_repo_name=""
+        if [[ -n "$current_repo_name" ]]; then
+            expected_title="${current_repo_name}-backlog"
+        else
+            expected_title="AOD Backlog"
+        fi
+        if [[ "$cached_title" != "$expected_title" ]]; then
+            echo "[aod] Warning: Board title mismatch. Cached '$cached_title' but expected '$expected_title'. Board cache cleared — run 'aod_gh_setup_board' to reconfigure." >&2
+            rm -f "$AOD_BOARD_CACHE"
+            return 1
+        fi
+    fi
+
     return 0
 }
 
@@ -267,7 +284,15 @@ aod_gh_setup_board() {
         return 0
     }
 
-    echo "[aod] Board setup: owner=$owner (type=$owner_type)" >&2
+    # Auto-detect repo name for per-project board title
+    local repo_name
+    repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || repo_name=""
+    local board_title="AOD Backlog"
+    if [[ -n "$repo_name" ]]; then
+        board_title="${repo_name}-backlog"
+    fi
+
+    echo "[aod] Board setup: owner=$owner (type=$owner_type), board=$board_title" >&2
 
     # --- Section 2: Board creation (idempotent) ---
 
@@ -281,20 +306,20 @@ aod_gh_setup_board() {
         return 0
     }
 
-    project_number=$(echo "$existing_board" | jq -r '.projects[] | select(.title == "AOD Backlog") | .number' 2>/dev/null | head -1)
+    project_number=$(echo "$existing_board" | jq -r --arg title "$board_title" '.projects[] | select(.title == $title) | .number' 2>/dev/null | head -1)
 
     if [[ -n "$project_number" && "$project_number" != "null" ]]; then
         # Reuse existing board
-        echo "[aod] Found existing 'AOD Backlog' board (project #$project_number). Reusing." >&2
+        echo "[aod] Found existing '$board_title' board (project #$project_number). Reusing." >&2
         project_id=$(gh project view "$project_number" --owner "$owner" --format json --jq '.id' 2>/dev/null) || {
             echo "[aod] Warning: Could not get project ID for board #$project_number. Board setup skipped." >&2
             return 0
         }
     else
         # Create new board
-        echo "[aod] Creating 'AOD Backlog' board..." >&2
+        echo "[aod] Creating '$board_title' board..." >&2
         local create_result
-        create_result=$(gh project create --owner "$owner" --title "AOD Backlog" --format json 2>/dev/null) || {
+        create_result=$(gh project create --owner "$owner" --title "$board_title" --format json 2>/dev/null) || {
             echo "[aod] Warning: Failed to create Projects board. Board setup skipped." >&2
             return 0
         }
@@ -425,12 +450,14 @@ mutation($fieldId: ID!) {
         --arg build_id "$build_id" \
         --arg deliver_id "$deliver_id" \
         --arg done_id "$done_id" \
+        --arg board_title "$board_title" \
         --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         '{
             project_number: $project_number,
             project_id: $project_id,
             owner: $owner,
             owner_type: $owner_type,
+            board_title: $board_title,
             status_field_id: $status_field_id,
             status_field_name: $status_field_name,
             status_options: {
@@ -446,6 +473,17 @@ mutation($fieldId: ID!) {
 
     mkdir -p "$(dirname "$AOD_BOARD_CACHE")"
     echo "$cache_json" > "$AOD_BOARD_CACHE"
+
+    # Link board to the repo so it appears in the repo's Projects tab
+    if [[ -n "$repo_name" ]]; then
+        local repo_full
+        repo_full=$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null) || repo_full=""
+        if [[ -n "$repo_full" ]]; then
+            gh project link "$project_number" --owner "$owner" --repo "$repo_full" 2>/dev/null && \
+                echo "[aod] Linked board to repo $repo_full." >&2 || \
+                echo "[aod] Warning: Could not link board to repo. Link manually from the repo's Projects tab." >&2
+        fi
+    fi
 
     # Remove hint marker on successful setup
     rm -f "$AOD_HINT_MARKER"

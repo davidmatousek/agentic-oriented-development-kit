@@ -20,7 +20,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 /aod.spec             # Create spec.md with auto PM sign-off
 /aod.project-plan                # Create plan.md with auto PM + Architect sign-off
 /aod.tasks               # Create tasks.md with auto triple sign-off
-/aod.build [--no-security] [--no-simplify]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7); flags are independent and may coexist
+/aod.build [--no-security] [--no-simplify] [--no-docs]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7); --no-docs skips documentation steps (CHANGELOG, docs-lint, API sync); flags are independent and may coexist
 /aod.deliver {NNN} # Close feature with parallel doc updates
 ```
 
@@ -31,6 +31,9 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 /aod.analyze             # Verify spec/plan/task consistency
 /aod.checklist           # Run Definition of Done checklist
 /aod.constitution        # View or update governance constitution
+/aod.kickstart           # POC kickstart — generate consumer guide with seed features from a project idea
+/aod.roadmap             # Scaffold quarterly roadmap from completed PRDs with PM sign-off
+/aod.okrs                # Scaffold OKR document with standard template and PM sign-off
 ```
 
 **When to Use**:
@@ -39,6 +42,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 - Complex features with architecture review requirements
 - When you need documented governance trail
 - Clarifying requirements or verifying consistency at any phase
+- Kickstarting a new project with a structured seed feature backlog
 
 ### Stack Pack Commands
 
@@ -64,7 +68,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 **When to Use**:
 - Ad-hoc fixes, refactors, or direct commits to main that bypass `/aod.deliver`
 - Any time template content changes and needs to be propagated upstream
-- Standalone alternative to Step 7 of `/aod.deliver`
+- Standalone alternative to Step 8 of `/aod.deliver`
 
 ---
 
@@ -74,6 +78,7 @@ Use PDL commands for lightweight product discovery before the Triad workflow. PD
 
 ```bash
 /aod.discover <idea>            # Full discovery flow: capture → score → validate → backlog
+/aod.discover --seed <idea>     # Fast-track pre-vetted ideas (auto ICE, skip prompts/PM)
 /aod.discover <idea>           # Capture idea + ICE scoring
 /aod.score #NNN            # Re-score an existing idea (NNN = GitHub Issue number)
 /aod.validate #NNN         # PM validation gate + user story generation
@@ -82,5 +87,6 @@ Use PDL commands for lightweight product discovery before the Triad workflow. PD
 **When to Use**:
 - Capturing feature ideas during brainstorming or development
 - Evaluating ideas with ICE scoring before committing to PRD creation
+- Fast-tracking seed stories from a consumer guide (`--seed` flag)
 - Maintaining a prioritized product backlog of validated user stories
 - Running PM validation gates on ideas before heavy Triad governance

@@ -623,9 +623,20 @@ Before starting, collect:
    - `source.idea_id` is automatically set from the GitHub Issue number (resolved in Step 1 of `/aod.define`) and always equals `prd.number`
    - If user starts fresh (no backlog item selected), `idea_id` is still set to the GitHub Issue number
 
+### Step 1b: Incorporate GitHub Issue Content
+
+If a GitHub Issue was selected as the source (Step 1, Backlog Source Check), read its **full body** — especially `## Detail`, `## Stories`, `## Interface Contract`, and `## Definition of Done` sections. This content is the **primary input** for the PRD:
+
+- **Issue stories** → PRD User Stories section (preserve verbatim, convert to Job Story format)
+- **Issue acceptance criteria** → PRD Acceptance Criteria (preserve verbatim)
+- **Issue interface contract** → PRD Functional Requirements / Integration Requirements
+- **Issue Definition of Done** → PRD Success Criteria / Scope boundaries
+
+**Do NOT generate these sections from scratch when the GitHub Issue already provides them.** Build on what exists — refine, expand, and structure into PRD format, but never drop or summarize away detail that the user provided.
+
 ### Step 2: Draft PRD Sections
 
-Work through the PRD structure systematically:
+Work through the PRD structure systematically, incorporating GitHub Issue content where available:
 
 ```markdown
 ## Recommended Order:

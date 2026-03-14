@@ -13,7 +13,7 @@ Close a completed feature with a structured retrospective that captures delivery
 
 ## Prerequisites
 
-- A feature branch exists with completed work
+- A feature branch exists with completed work (typically after `/aod.build [--no-security] [--no-simplify] [--no-docs]`)
 - `.aod/spec.md` exists with the feature specification
 - `.aod/tasks.md` exists with task definitions
 - `.aod/scripts/bash/github-lifecycle.sh` is available for GitHub operations
@@ -265,34 +265,65 @@ Run `.aod/scripts/bash/backlog-regenerate.sh` to update the backlog snapshot wit
 
 ---
 
-## Step 9: Display Retrospective Summary
+## Step 9: Generate Delivery Document
+
+Generate a persistent delivery document from retrospective data collected in Steps 1-8.
+
+### 9a: Re-ground on Template
+
+Re-read `.aod/templates/delivery-template.md` before generating the document (KB Entry 9 re-grounding). This ensures the output structure matches the standardized template exactly.
+
+### 9b: Resolve Specs Directory
+
+Resolve the specs directory from the branch name:
+1. Get the feature number from the branch: `git branch --show-current` → extract NNN prefix
+2. Find the specs directory: `specs/{NNN}-*/`
+3. If the directory does not exist, create it: `mkdir -p specs/{NNN}-{feature_kebab_name}/`
+
+Store the resolved path as `specs_dir`.
+
+### 9c: Populate Delivery Document
+
+Using the template structure from `.aod/templates/delivery-template.md`, populate all sections from retrospective data:
+
+1. **Header**: Feature number, name, today's date, branch name, PR number (from git log or context)
+2. **What Was Delivered**: Read `.aod/spec.md` for completed user stories and `.aod/tasks.md` for major completed tasks. Summarize as 3-7 user-visible outcomes (not implementation details).
+3. **How to See & Test**: Extract verification steps from three sources and merge into numbered steps a developer can follow immediately:
+   - **From `.aod/spec.md`**: Read each acceptance scenario's **Then** clause — each maps to one or more verification steps.
+   - **From `.aod/plan.md`**: Extract any test commands, run commands, or manual testing instructions mentioned in the plan.
+   - **From `.aod/tasks.md`**: Extract verification steps from task descriptions and checkpoint criteria.
+   - **Format**: Number each step. Include specific CLI commands, file paths, or UI actions. Avoid vague instructions like "verify it works" — instead specify *what* to check and *how* (e.g., "Run `/aod.deliver 091` and confirm `specs/091-*/delivery.md` exists").
+4. **Delivery Metrics**: Table with estimated_duration, actual_duration, and variance (computed as over/under/on-target)
+5. **Surprise Log**: From `surprise_log` captured in Step 3
+6. **Lessons Learned**: Table with `lesson_category`, `lesson_text`, and KB entry reference from Step 6
+7. **Feedback Loop**: Count of `next_ideas` and list of each idea with GitHub Issue number
+8. **Source Artifacts**: Paths to spec.md, plan.md, tasks.md, and PRD (from spec.md frontmatter if available)
+9. **Documentation Updates**: Agent table populated from Step 3 of the command (documentation agent results)
+10. **Cleanup**: Checklist items (left unchecked — will be checked during command Steps 7-10)
+
+### 9d: Write Delivery Document
+
+Write the populated document to `{specs_dir}/delivery.md` using the Write tool.
+
+Store the delivery document path in variable `delivery_doc_path` for use in Step 10.
+
+### 9e: Non-Fatal Fallback Guard
+
+If the file write in Step 9d fails (permissions, disk full, or any error), display the full delivery document content in the terminal as a fallback. The deliver workflow MUST NOT be blocked by a file write failure (FR-009, KB Entry 14).
+
+**Missing optional data handling**: If `surprise_log`, `next_ideas`, or `lesson_text` are empty or unavailable, use "None" or "N/A" for those sections rather than leaving them blank or erroring.
+
+### 9f: Display Delivery Document
+
+After writing (or after fallback display if write failed), show the full document content in the terminal so the developer can review it immediately.
 
 ```
 AOD DELIVERY COMPLETE
 
 Feature: {feature_name}
+Delivery Document: {delivery_doc_path}
 
-Delivery Metrics:
-  Estimated Duration: {estimated_duration}
-  Actual Duration: {actual_duration}
-  Variance: {over/under/on-target}
-
-Surprise Log:
-  {surprise_log}
-
-Lessons Learned:
-  Category: {lesson_category}
-  Summary: {one_line_summary}
-  KB Entry: Entry {N} in INSTITUTIONAL_KNOWLEDGE.md
-
-Feedback Loop:
-  New Ideas: {count or "None"}
-  {for each idea: "  - {description} → Issue #{number} (type:retro)"}
-
-Next Steps:
-  - Review KB entry in docs/INSTITUTIONAL_KNOWLEDGE.md
-  - Run `/aod.discover` to score any new ideas from this retrospective
-  - Feature lifecycle is now COMPLETE
+{Full content of the generated delivery.md}
 ```
 
 ---
@@ -302,7 +333,7 @@ Next Steps:
 After all retrospective steps are complete, metrics posted, and KB entries created:
 
 1. **Transition to `stage:done`**: Run `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$issue_number" "done"` to move the label from `stage:deliver` to `stage:done`. This moves the issue to the Done column on the Projects board.
-2. **Close the GitHub Issue**: Run `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete. See INSTITUTIONAL_KNOWLEDGE.md for lessons learned."` to close the issue.
+2. **Close the GitHub Issue**: Run `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete. See: specs/{NNN}-*/delivery.md"` where `{NNN}-*` is resolved from the `delivery_doc_path` variable set in Step 9d. This cross-references the delivery document from the GitHub Issue.
 3. **Regenerate BACKLOG.md**: Run `.aod/scripts/bash/backlog-regenerate.sh` to remove the now-done item from the active backlog.
 4. If `gh` is unavailable, skip silently (graceful degradation).
 

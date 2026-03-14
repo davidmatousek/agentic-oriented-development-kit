@@ -19,6 +19,11 @@ Before MVP, you don't have enough information:
 **Pre-MVP**: Focus on `/aod.define` → build MVP
 **Post-MVP**: Create roadmap based on what you learned
 
+> **AOD Lifecycle Note**: Roadmap documents can be auto-generated via `/aod.roadmap`,
+> which scans completed PRDs in `docs/product/02_PRD/` and scaffolds a quarterly roadmap
+> in this directory with PM sign-off. `/aod.define` also reads this directory for phase
+> context when creating PRDs. You can still create and maintain roadmap files manually.
+
 ---
 
 ## Overview

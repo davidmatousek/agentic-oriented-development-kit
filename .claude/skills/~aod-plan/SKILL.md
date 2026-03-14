@@ -14,9 +14,10 @@ Stateless router that reads frontmatter from spec.md, plan.md, and tasks.md to d
 ### Step 1: Determine Feature Context
 
 1. Get branch: `git branch --show-current` → extract NNN prefix
-2. Derive specs directory: `specs/{NNN}-*/`
-3. If no specs directory found, check `.aod/spec.md` as fallback
-4. If no feature context found: warn and suggest `/aod.define` first
+2. If on `main` and a PRD exists (e.g., `docs/product/02_PRD/{NNN}-*.md`), **automatically create the feature branch** (`git checkout -b {NNN}-{kebab-name}`) per git workflow rules. Do NOT ask the user — feature branches are mandatory, not optional.
+3. Derive specs directory: `specs/{NNN}-*/`
+4. If no specs directory found, check `.aod/spec.md` as fallback
+5. If no feature context found: warn and suggest `/aod.define` first
 
 ### Step 2: Read Artifact States
 

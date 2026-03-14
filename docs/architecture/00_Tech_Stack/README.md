@@ -162,6 +162,7 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 |------|--------|---------|
 | `stacks/nextjs-supabase/` | Full | Next.js + TypeScript + Supabase + Prisma + Vercel conventions |
 | `stacks/fastapi-react/` | Full | Python FastAPI + SQLAlchemy 2.0 async + React 19 + TypeScript + Vite + Docker Compose (Feature 078) |
+| `stacks/fastapi-react-local/` | Full | Python FastAPI + SQLAlchemy 2.0 async + aiosqlite + React 19 + Vite + Tailwind CSS 4 — zero external dependencies, local-first variant (Feature 085) |
 | `stacks/swiftui-cloudkit/` | Skeleton | SwiftUI + CloudKit native iOS conventions |
 | `stacks/knowledge-system/` | Full | Markdown + YAML + Claude Code for knowledge-intensive content systems (Feature 064) |
 
@@ -181,6 +182,15 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 | Persona supplement | 100 | Specialized/hybrid agent invocations only |
 | Stack rules (all files combined) | 200 | Every agent invocation (via rules discovery) |
 | Total pack overhead | 800 | Maximum per invocation |
+
+### Kickstart Skill
+
+**Skill file**: `.claude/skills/~aod-kickstart/SKILL.md` (`/aod.kickstart`)
+- Architecture: Three-stage interactive workflow (Idea Intake → Stack Selection → Guide Generation) (Feature 085)
+- Output: `docs/guides/CONSUMER_GUIDE_{PROJECT_NAME}.md` — sequenced consumer guide with 6-10 seed features
+- Stack detection: Reads `.aod/stack-active.json` to auto-detect active pack; falls back to manual selection
+- Seed features structured for direct copy-paste into `/aod.discover`
+- No infrastructure dependencies; pure methodology/template skill
 
 ### Orchestrator Skill Architecture
 

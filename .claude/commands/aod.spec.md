@@ -22,7 +22,15 @@ Creates a feature specification with automatic PM sign-off (Constitution Princip
 2. Find PRD: `docs/product/02_PRD/{NNN}-*.md` → must exist
 3. Parse frontmatter: Verify all Triad sign-offs are APPROVED (or APPROVED_WITH_CONCERNS/BLOCKED_OVERRIDDEN)
 4. If validation fails: Show error with required workflow order and exit
-5. **GitHub Lifecycle Update (early)**: If a GitHub Issue exists for this feature, update its stage label to `stage:plan` using `aod_gh_update_stage` from `.aod/scripts/bash/github-lifecycle.sh`. This moves the issue to the Plan column on the Projects board at the *start* of specification work. Run `.aod/scripts/bash/backlog-regenerate.sh` to refresh BACKLOG.md. If `gh` is unavailable, skip silently (graceful degradation).
+5. **GitHub Lifecycle Update (early)**: Move the feature's GitHub Issue to `stage:plan` at the *start* of specification work. The issue number is the NNN prefix extracted from the branch in step 1 (e.g., branch `086-my-feature` → issue `86`). Run:
+   ```bash
+   bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage NNN plan'
+   ```
+   Then regenerate BACKLOG.md:
+   ```bash
+   bash .aod/scripts/bash/backlog-regenerate.sh
+   ```
+   If `gh` is unavailable or the issue does not exist, skip silently (graceful degradation).
 
 ## Step 2: Research Phase
 

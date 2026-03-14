@@ -84,12 +84,15 @@ Before proceeding, check for inconsistencies:
   - Delete all files in `.claude/rules/stack/`.
   - Then continue with activation.
 
-### Step 4: Copy stack rules
+### Step 4: Copy stack rules and agent supplements
 
 1. Ensure the directory `.claude/rules/stack/` exists (create it if missing).
 2. Copy every `.md` file from `stacks/{pack-name}/rules/` to
    `.claude/rules/stack/`.
-3. If `stacks/{pack-name}/rules/` is empty or does not contain `.md` files,
+3. Copy every `.md` file from `stacks/{pack-name}/agents/` to
+   `.claude/rules/stack/`, prefixing each filename with `agent-` to avoid
+   collisions (e.g., `tester.md` → `agent-tester.md`).
+4. If either directory is empty or does not contain `.md` files,
    note this in the activation summary but do not treat it as an error.
 
 ### Step 5: Generate persona-loader.md
@@ -315,7 +318,30 @@ root:
       root at `{path}`.
 2. Skip `.gitkeep` files — they are directory placeholders, not scaffold content.
 
-### Step 5: Display scaffold summary
+### Step 5: Placeholder Resolution
+
+After scaffold files are copied, automatically resolve template placeholders in `docs/` files.
+
+1. **Baseline grep** (per KB #22): Run `grep -r '{{PROJECT_NAME}}\|{{CURRENT_DATE}}' docs/` to map all placeholder occurrences before replacement. Record the count for the summary.
+2. **Source project name**:
+   a. Read `.aod/memory/constitution.md` and extract the project name from its heading or body
+   b. If not found or file does not exist: fallback to git repo basename via `basename $(git rev-parse --show-toplevel)`
+3. **Replace placeholders** in `docs/` files only:
+   - Replace all `{{PROJECT_NAME}}` occurrences with the resolved project name
+   - Replace all `{{CURRENT_DATE}}` occurrences with the current date in `YYYY-MM-DD` format
+   - **Scope boundary**: Do NOT modify files outside the `docs/` directory
+4. **Idempotent**: If a file contains no placeholders (already resolved), it remains unchanged
+5. **Display summary**:
+   ```
+   Placeholder resolution:
+     Files modified: {count}
+     Placeholders resolved: {total_count}
+       - {{PROJECT_NAME}}: {count} → {resolved_name}
+       - {{CURRENT_DATE}}: {count} → {resolved_date}
+   ```
+   If zero placeholders found, display: "Placeholder resolution: no placeholders found in docs/ files"
+
+### Step 6: Display scaffold summary
 
 ```
 Project scaffolded from: {pack-name}

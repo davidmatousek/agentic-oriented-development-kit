@@ -18,6 +18,10 @@ Captures a raw feature idea, scores it with ICE (Impact, Confidence, Effort), an
 
 **Flow**: Parse idea → Generate ID from GitHub Issues → Capture source → ICE scoring → Evidence → Auto-defer gate → Create GitHub Issue → Regenerate BACKLOG.md → Report result
 
+### Flags
+
+- **`--seed`**: Fast-track mode for pre-vetted ideas. Skips ICE prompts, evidence, source, and PM validation. Auto-assigns P1 defaults (I:8 C:7 E:7 = 22). Usage: `/aod.discover --seed My feature idea`
+
 ## Step 1: Validate Input
 
 1. Parse idea description from `$ARGUMENTS`
