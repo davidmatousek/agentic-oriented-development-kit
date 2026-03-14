@@ -1,13 +1,15 @@
 ---
 name: ~aod-plan
-description: Plan stage router that auto-detects artifact state and delegates to the correct sub-step (/aod.spec, /aod.project-plan, or /aod.tasks) without the user needing to remember the sequence. Use this skill when you need to navigate the Plan stage, auto-route plan commands, or determine which planning sub-step comes next.
+description: "Plan stage orchestrator that runs all three Plan sub-steps (spec → project-plan → tasks) in sequence with governance gates. Stops on rejection, continues through approvals. Use this skill when you need to run the full Plan stage, navigate planning sub-steps, or resume after a rejection."
 ---
 
-# Plan Stage Router Skill
+# Plan Stage Orchestrator Skill
 
 ## Purpose
 
-Stateless router that reads frontmatter from spec.md, plan.md, and tasks.md to determine which Plan sub-step to invoke next. Reduces cognitive load by auto-detecting progress through the Plan stage's 3 sub-steps.
+Orchestrates the full Plan stage by running spec → project-plan → tasks in sequence. After each sub-step completes and its governance review passes (APPROVED), the orchestrator automatically advances to the next sub-step. If any review returns CHANGES_REQUESTED or BLOCKED, the orchestrator stops and reports the rejection so the user can fix and re-run `/aod.plan` to resume.
+
+With 1M context, all three artifacts and their reviews fit comfortably in a single session.
 
 ## How It Works
 
@@ -88,22 +90,41 @@ In Light tier, when spec.md exists but has no PM sign-off, the router **skips** 
 
 **Invariant**: Triple sign-off on tasks.md is the governance floor for ALL tiers, including Light.
 
-### Step 5: Execute or Report
+### Step 5: Execute Orchestration Loop
 
-Based on decision table result:
+Based on the decision table, determine the **starting sub-step** (the first one that needs work). Then run sub-steps in sequence, advancing automatically on approval.
 
-- **Invoke sub-command**: Use the Skill tool to invoke the appropriate skill (`aod.spec`, `aod.project-plan`, or `aod.tasks`)
-- **Plan stage complete**: Display completion message:
-  ```
-  Plan stage complete.
+**Loop logic**:
 
-  All artifacts approved:
-  - spec.md: PM sign-off ✓
-  - plan.md: PM + Architect sign-off ✓
-  - tasks.md: PM + Architect + Team-Lead sign-off ✓
+1. **Invoke the current sub-step** using the Skill tool (`aod.spec`, `aod.project-plan`, or `aod.tasks`)
+2. **After the sub-step completes**, check the governance outcome:
+   - **APPROVED** (or APPROVED_WITH_CONCERNS): Display a brief progress line, then **re-read artifact states** (Step 2) and **re-apply the decision table** (Step 4) to determine the next sub-step. Continue the loop.
+   - **CHANGES_REQUESTED or BLOCKED**: **Stop the loop.** Display the rejection details and instruct the user to fix the issues, then re-run `/aod.plan` to resume.
+3. **If the decision table returns "Plan stage complete"**: Exit the loop and display:
 
-  Next: Run /aod.build to start implementation.
-  ```
+```
+PLAN STAGE COMPLETE
+
+All artifacts approved:
+- spec.md: PM sign-off ✓
+- plan.md: PM + Architect sign-off ✓
+- tasks.md: PM + Architect + Team-Lead sign-off ✓
+
+Next: Run /aod.build to start implementation.
+```
+
+**Progress display between sub-steps**:
+
+After each approved sub-step, display a brief status line before advancing:
+
+```
+✓ spec.md — PM approved. Advancing to project-plan...
+```
+```
+✓ plan.md — PM + Architect approved. Advancing to tasks...
+```
+
+**Important**: Re-read artifact states after each sub-step. Do NOT assume the next sub-step — the decision table handles edge cases (e.g., plan.md exists but lost dual approval).
 
 ## Edge Cases
 
@@ -117,10 +138,13 @@ then return to /aod.plan.
 ```
 
 ### Direct sub-command invocation
-The router does NOT block direct invocation of `/aod.spec`, `/aod.project-plan`, or `/aod.tasks`. Those commands work independently — the router is a convenience layer, not a gatekeeper.
+The orchestrator does NOT block direct invocation of `/aod.spec`, `/aod.project-plan`, or `/aod.tasks`. Those commands work independently — the orchestrator is a convenience layer, not a gatekeeper.
 
 ### Re-run after rejection
-If a governance gate rejects (e.g., PM requests changes to spec.md), the user fixes issues and re-runs `/aod.plan`. The router detects the missing/rejected sign-off and re-invokes the correct sub-step.
+If a governance gate rejects (e.g., PM requests changes to spec.md), the user fixes issues and re-runs `/aod.plan`. The orchestrator detects the missing/rejected sign-off and re-invokes the correct sub-step, then continues the loop from there.
+
+### Mid-stage resume
+If the user previously completed spec.md and plan.md (both approved) and runs `/aod.plan`, the orchestrator skips directly to `/aod.tasks` — it only runs what's needed.
 
 ## Integration
 
@@ -130,10 +154,10 @@ If a governance gate rejects (e.g., PM requests changes to spec.md), the user fi
 - `specs/{NNN}-*/tasks.md` — check existence and triple sign-off
 - `docs/product/02_PRD/{NNN}-*.md` — check PRD existence (edge case)
 
-### Invokes
+### Invokes (in sequence, advancing on approval)
 - `/aod.spec` — when spec needs creation or PM approval
 - `/aod.project-plan` — when plan needs creation or dual approval
 - `/aod.tasks` — when tasks need creation or triple approval
 
 ### Updates
-- None (stateless router — reads only)
+- None (orchestrator reads artifact state, sub-commands write artifacts)
