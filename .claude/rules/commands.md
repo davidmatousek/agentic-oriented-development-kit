@@ -20,8 +20,9 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 /aod.spec             # Create spec.md with auto PM sign-off
 /aod.project-plan                # Create plan.md with auto PM + Architect sign-off
 /aod.tasks               # Create tasks.md with auto triple sign-off
-/aod.build [--no-security] [--no-simplify] [--no-docs]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7); --no-docs skips documentation steps (CHANGELOG, docs-lint, API sync); flags are independent and may coexist
+/aod.build [--no-security]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6)
 /aod.deliver {NNN} # Close feature with parallel doc updates
+/aod.document            # Human-driven quality review (code simplification, docstrings, CHANGELOG, API docs)
 ```
 
 ### Utility Commands
@@ -43,6 +44,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 - When you need documented governance trail
 - Clarifying requirements or verifying consistency at any phase
 - Kickstarting a new project with a structured seed feature backlog
+- Post-delivery code quality review (code simplification, CHANGELOG, docstrings, API docs)
 
 ### Stack Pack Commands
 

@@ -1,13 +1,13 @@
 ---
 name: ~aod-run
-description: Full lifecycle orchestrator that chains all 5 AOD stages (Discover, Define, Plan, Build, Deliver) with disk-persisted state for session resilience and governance gates at every boundary. Use this skill when you need to run the full lifecycle, orchestrate stages, resume orchestration, or check orchestration status.
+description: Full lifecycle orchestrator that chains all 5 AOD stages (Discover, Define, Plan, Build, Deliver) with disk-persisted state for session resilience and governance gates at every boundary. A 6th stage (Document) runs separately via /aod.document. Use this skill when you need to run the full lifecycle, orchestrate stages, resume orchestration, or check orchestration status.
 ---
 
 # Full Lifecycle Orchestrator Skill
 
 ## Purpose
 
-Single-command lifecycle orchestrator that chains all 5 AOD stages autonomously, pausing at governance gates for Triad sign-offs and persisting state to disk for session resilience.
+Single-command lifecycle orchestrator that chains all 5 AOD stages autonomously, pausing at governance gates for Triad sign-offs and persisting state to disk for session resilience. After Deliver completes, the user runs `/aod.document` separately for human-driven quality review (Stage 6).
 
 **Entry Points**:
 - Raw idea: `"description"` → start at Discover
@@ -71,7 +71,40 @@ Follow the Dry-Run Entry instructions from that file. The Dry-Run Entry handler 
 | `resume` | Resume Entry (in entry-modes.md) | Load state file, validate, continue |
 | `status` | Status Entry (in entry-modes.md) | Read-only display, then exit |
 
-After the entry handler sets up state, all modes (except `status`) converge to the **Core Loop**.
+After the entry handler sets up state, all modes (except `status`) converge to the **Consent Prompt**, then the **Core Loop**.
+
+### Step 1b: Autonomous Mode Consent
+
+Before entering the Core Loop, display the autonomous mode consent prompt and capture the user's choice. This is the **only** human interaction point in the entire autonomous run.
+
+**Display**:
+
+```
+AOD ORCHESTRATOR — Autonomous Mode
+====================================
+This will run the full lifecycle autonomously:
+
+  Discover → Define → Plan → Build → Deliver
+
+Autonomous mode will:
+  - Auto-select defaults for all interactive prompts
+  - Auto-retry governance rejections (up to 3 attempts)
+  - Halt on circuit breaker or BLOCKED (requires manual fix + resume)
+  - Split across sessions if the feature is too large
+
+All decisions are logged to run-state.json for post-run review.
+
+After delivery, run /aod.document for human quality review
+(code simplification, docstrings, CHANGELOG, API docs).
+
+Proceed? (Y/n)
+```
+
+**Handle response**:
+- **Yes (or empty/default)**: Set `autonomous_mode = true`. All stage skill invocations will include `--autonomous` in args. Continue to Core Loop.
+- **No**: Set `autonomous_mode = false`. Skills are invoked without `--autonomous` (interactive mode). Continue to Core Loop.
+
+**On resume** (`--resume`): If the state file contains `"autonomous_mode": true`, skip the consent prompt and continue in autonomous mode. Do not re-ask.
 
 ### Step 2: Core State Machine Loop
 
@@ -86,37 +119,59 @@ This is the central orchestration logic. It runs after any entry handler has est
 5. **Write pre-stage checkpoint**: Update state with `current_stage` status = `"in_progress"` and current timestamp. Write atomically via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'<json>'"'"''`.
 6. **Display stage map**: Show current progress (see [Stage Map Display](#stage-map-display))
 7. **Display transition message**: Show formatted header for the stage about to execute (see [Transition Messages](#transition-messages))
+7a. **Aggressive pre-Build boundary**: If the stage about to execute is `build`, apply an extra-aggressive context boundary before invocation:
+    1. Summarize all prior stages into a compact metadata block (~500 tokens max):
+       - Feature: `{feature_id}` - `{feature_name}`
+       - Branch: `{branch}`
+       - Spec: `{path}` (APPROVED by PM)
+       - Plan: `{path}` (APPROVED by PM + Architect)
+       - Tasks: `{path}` (APPROVED by PM + Architect + Team-Lead)
+       - Wave count: `{N}`
+    2. Clear ALL prior stage content from working context
+    3. Build skill reads its own context (tasks.md, plan.md, assignments) fresh
+    4. Display: `"[Pre-Build boundary] Prior stages summarized (~500 tokens). Build reads context fresh."`
 8. **Invoke stage skill**: Use the Skill tool to invoke the appropriate stage skill (see [Stage Skill Mapping](#stage-skill-mapping)). Pass required context (idea text, issue number, artifact paths from prior stages).
 9. **Detect governance result**: After the skill returns, first check the governance cache via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_governance_cache "{artifact}" "{reviewer}"'`. If the cache returns a verdict (not `"null"`), use the cached result. If the cache returns `"null"`, **MANDATORY**: You MUST use the Read tool to load `references/governance.md` before proceeding with governance gate detection. Do NOT rely on memory of prior governance content. If the file cannot be read, display an error and STOP. Follow the Governance Gate Detection and Governance Tier instructions from that file. Apply tier-specific rules.
 
-   **Serialized Triad Reviews (Feature 047)**: When a governance gate requires multiple reviewers (e.g., plan.md requires PM + Architect, tasks.md requires PM + Architect + Team-Lead), execute reviews **sequentially** instead of in parallel:
+   **Parallel Triad Reviews**: When a governance gate requires multiple reviewers (e.g., plan.md requires PM + Architect, tasks.md requires PM + Architect + Team-Lead), execute reviews **in parallel** using multiple Agent tool calls in a single message:
 
-   1. **Sequential execution order**: PM review first, then Architect review, then Team-Lead review (if applicable)
-   2. **Context clearing between reviewers**: After each reviewer completes, **MANDATORY**: Re-read `references/governance.md` to clear reviewer context and prevent template drift (per KB Entry 9).
-   3. **Cache each verdict**: After each individual reviewer completes, cache their verdict via `aod_state_cache_governance` before invoking the next reviewer
-   4. **Early termination on rejection**: If any reviewer returns CHANGES_REQUESTED or BLOCKED, stop the review sequence immediately — do not invoke remaining reviewers. Handle the rejection per step 10.
-   5. **All reviewers use same checklists and criteria**: The only change is execution order (sequential vs. parallel). Same reviewers, same review prompts, same approval criteria.
+   1. **Parallel execution**: Launch all required reviewers simultaneously via Agent tool calls in one message. Each reviewer runs in its own agent context, preventing cross-contamination.
+   2. **Cache all verdicts**: After all reviewers return, cache each verdict via `aod_state_cache_governance` before evaluating the aggregate result.
+   3. **Aggregate evaluation**: After all reviewers complete, evaluate the combined result. If **any** reviewer returned CHANGES_REQUESTED or BLOCKED, handle per step 10 (use the most severe status).
+   4. **Same checklists and criteria**: Parallel execution uses the same reviewers, review prompts, and approval criteria as sequential — only the execution model changes.
 
-   **Wall-clock trade-off**: Sequential execution adds ~15-20 seconds per review cycle compared to parallel execution. This trade-off is documented in ADR-005 and is acceptable per PRD priority stack (Quality > Few Pauses > Speed).
+   **Context note**: Parallel reviews are safe with 1M context. Each reviewer runs in an isolated agent context, so there is no cross-reviewer drift. Re-grounding (see below) applies **once after all reviewers return**, not between each reviewer.
 10. **Handle result**:
     - **APPROVED / APPROVED_WITH_CONCERNS**: Mark stage completed in state, record artifacts, write checkpoint, continue loop
     - **CHANGES_REQUESTED**: Follow the Rejection Handling instructions in `references/governance.md` (re-read if not already loaded). This includes Retry Tracking and Max-Retry Circuit Breaker checks.
     - **BLOCKED**: Follow the Blocked Handling instructions in `references/governance.md` (re-read if not already loaded).
     - **No governance gate for this stage/tier**: Mark completed, continue
 11. **Write post-stage checkpoint**: Update state with completion status, artifacts, governance results, timestamp. Write atomically via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'<json>'"'"''`.
+11a. **Apply context boundary** (all stage transitions): When advancing from one stage to the next:
+    1. Display: `"[Context boundary] Clearing {completed_stage} context"`
+    2. Retain ONLY from the completed stage:
+       - `status` (APPROVED / completed)
+       - `artifact_paths` (list of file paths)
+       - `feature_id`, `github_issue`, `branch`
+       - governance verdict summary (one line per reviewer)
+    3. The next stage skill will re-read any artifacts it needs via Read tool
+    4. Skill file content from the completed stage is NOT carried forward
 12. **Update GitHub Issue label**: If `gh` available, update stage label (see [GitHub Integration](#github-integration))
 13. **Loop**: Return to step 1
 
-**Re-grounding after governance reviews**: After any governance review produces variable-length output (reviewer feedback, rejection details, override justifications), **MANDATORY**: Re-read `references/governance.md` before continuing the loop to prevent template drift (per KB Entry 9). This replaces the pre-segmentation pattern of re-reading the full SKILL.md.
+**Re-grounding policy** (context-thrifty): Re-read reference files only when variable-length output has been injected into context since the last read. This prevents template drift without wasting context on redundant reads.
 
-**Re-grounding in serialized reviews**: When executing serialized Triad reviews (Feature 047), the re-grounding instruction applies **after each individual reviewer** in the sequence, not just at the end. After PM review output, re-read `references/governance.md` before invoking Architect. After Architect review output, re-read `references/governance.md` before invoking Team-Lead (if applicable). This ensures each reviewer starts with clean context.
-
-**Re-grounding after lifecycle complete display**: After displaying lifecycle completion or lifecycle-already-complete output, **MANDATORY**: Re-read `references/error-recovery.md` to ensure the completion template is followed exactly.
+- **After governance reviews**: If reviewer feedback, rejection details, or override justifications produced significant output (>50 lines), re-read `references/governance.md` before continuing the loop. With parallel reviews, this applies **once after all reviewers return**, since each reviewer runs in an isolated agent context.
+- **After rejection/blocked handling**: Re-read `references/governance.md` before re-entering the loop, since user interaction and error display inject variable-length content.
+- **After lifecycle complete display**: Re-read `references/error-recovery.md` to ensure the completion template is followed exactly.
+- **Skip re-grounding** when: the previous step produced minimal output (stage map display, short status messages, cache hits). Unnecessary re-reads waste ~4-7K tokens each.
 
 **Stage sequence**: `discover` → `define` → `plan` (spec → project_plan → tasks) → `build` → `deliver`
 
+**Note**: `aod.run` orchestrates stages 1-5. Stage 6 (Document) is a separate human-driven command (`/aod.document`) run after Deliver. It is NOT part of this orchestrator.
+
 **Exit conditions**:
-- All stages completed → display lifecycle summary
+- All stages completed → display lifecycle summary with `/aod.document` reminder
 - BLOCKED with no resolution → save state, exit
 - User chooses to pause → save state, exit
 - Session ends → user resumes with `--resume` in new session
@@ -140,7 +195,7 @@ The Plan stage contains 3 substages executed in strict sequence. The orchestrato
    - `project_plan` completed → set `current_substage = "tasks"`, set `stages.plan.substages.tasks.status = "in_progress"`. **Apply context boundary** (see step 3a).
    - `tasks` completed → set `current_substage = null`, mark overall Plan stage as `"completed"`, set `stages.plan.completed_at = {now}`
 
-3a. **Context boundary at substage transitions** (FR-013, FR-014, FR-015, FR-016):
+3a. **Context boundary at substage transitions** (FR-013, FR-014, FR-015, FR-016) — *retained for context thrift; prevents accumulation even with 1M window*:
 
    When advancing from one substage to the next (spec → project_plan, or project_plan → tasks), apply a context boundary to prevent context accumulation:
 
@@ -195,13 +250,13 @@ Each lifecycle stage maps to an existing AOD skill invoked via the Skill tool. T
 
 | Stage | Substage | Skill to Invoke | Skill Tool Name | Arguments to Pass |
 |-------|----------|----------------|-----------------|-------------------|
-| Discover | — | Discovery flow | `aod.discover` | Idea text (for new ideas) or issue context |
-| Define | — | PRD creation | `aod.define` | Feature topic/title from idea or issue |
-| Plan | spec | Specification | `aod.spec` | (reads spec context from branch) |
-| Plan | project_plan | Architecture plan | `aod.project-plan` | (reads spec from branch) |
-| Plan | tasks | Task breakdown | `aod.tasks` | (reads plan from branch) |
-| Build | — | Implementation | `aod.build` | (reads tasks from branch) |
-| Deliver | — | Delivery retrospective | `aod.deliver` | Feature number and name |
+| Discover | — | Discovery flow | `aod.discover` | `--autonomous "{idea_text}"` (if autonomous_mode) or idea text only |
+| Define | — | PRD creation | `aod.define` | `--autonomous "{feature_title}"` (if autonomous_mode) or feature title only |
+| Plan | spec | Specification | `aod.spec` | `--autonomous` (if autonomous_mode) or no args |
+| Plan | project_plan | Architecture plan | `aod.project-plan` | `--autonomous` (if autonomous_mode) or no args |
+| Plan | tasks | Task breakdown | `aod.tasks` | `--autonomous` (if autonomous_mode) or no args |
+| Build | — | Implementation | `aod.build` | `--orchestrated --autonomous` (if autonomous_mode) or `--orchestrated` only |
+| Deliver | — | Delivery retrospective | `aod.deliver` | `--autonomous "FEATURE: {NNN} - {name}"` (if autonomous_mode) or feature info only |
 
 **Invocation pattern**: Use the Skill tool with `skill: "{skill_name}"` and pass arguments as `args: "{arguments}"`.
 
@@ -216,11 +271,21 @@ Each lifecycle stage maps to an existing AOD skill invoked via the Skill tool. T
 
 **Argument formatting per stage**:
 
-- **Discover**: `args: "{idea_text}"` — pass the raw idea description
-- **Define**: `args: "{feature_title}"` — pass the feature title/topic for PRD creation
-- **Plan stages**: no args needed — skills read context from current branch's spec directory
-- **Build**: no args needed — reads tasks.md from branch
-- **Deliver**: `args: "FEATURE: {NNN} - {feature_name}"` — pass feature number and name
+When `autonomous_mode == true`, prepend `--autonomous` to all skill args:
+
+- **Discover**: `args: "--autonomous {idea_text}"` — pass flag + raw idea description
+- **Define**: `args: "--autonomous {feature_title}"` — pass flag + feature title/topic
+- **Plan stages**: `args: "--autonomous"` — flag only; skills read context from branch
+- **Build**: `args: "--orchestrated --autonomous"` — both flags enable orchestrated + autonomous modes
+- **Deliver**: `args: "--autonomous FEATURE: {NNN} - {feature_name}"` — flag + feature info
+
+When `autonomous_mode == false` (interactive), omit `--autonomous`:
+
+- **Discover**: `args: "{idea_text}"`
+- **Define**: `args: "{feature_title}"`
+- **Plan stages**: no args
+- **Build**: `args: "--orchestrated"`
+- **Deliver**: `args: "FEATURE: {NNN} - {feature_name}"`
 
 ### Post-Stage Context Extraction
 
@@ -263,11 +328,69 @@ After each stage skill returns, the orchestrator extracts context from the produ
 3. Mark overall Plan stage as completed
 4. Write updated state atomically
 
+**After Plan:tasks completes (continued) — Size Estimation Display**:
+
+After recording Plan:tasks artifacts and before the Core Loop advances to Build, perform a size estimation:
+
+1. Read `agent-assignments.md` from `specs/{NNN}-*/agent-assignments.md`
+2. Count the number of waves (sections labeled "Wave 1", "Wave 2", etc.)
+3. Apply the heuristic:
+   - `wave_count <= 3` → `session_strategy = "one-shot"`, `estimated_sessions = 1`
+   - `wave_count <= 6` → `session_strategy = "cautious"`, `estimated_sessions = 2`
+   - `wave_count > 6` → `session_strategy = "multi-session"`, `estimated_sessions = ceil(wave_count / 3)`
+4. Update state with the estimation:
+   ```
+   bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'{"session_strategy":"{strategy}","estimated_sessions":{N},"build_progress":{"total_waves":{wave_count},"completed_waves":0,"session_breaks":[]}}'"'"''
+   ```
+5. Display the build estimate:
+
+   ```
+   --- BUILD ESTIMATE ---
+   Waves: {wave_count}
+   Estimated sessions: {estimated_sessions}
+
+   {If wave_count <= 3: "Expected to complete in this session."}
+   {If wave_count > 3: "May require ~{estimated_sessions} sessions. The orchestrator will auto-break and resume if needed."}
+   ```
+
 **After Build completes**:
 
-1. The build stage produces implementation files tracked via tasks.md `[X]` markers
-2. Record artifacts: Add `"tasks.md (all tasks completed)"` to `stages.build.artifacts`
-3. Write updated state atomically
+1. Read tasks.md from `specs/{NNN}-*/tasks.md`
+2. Count total tasks (lines matching `- [ ]` or `- [X]`)
+3. Count completed tasks (lines matching `- [X]`)
+4. Determine the last completed wave by reading `agent-assignments.md` and cross-referencing completed tasks
+5. **If completed < total (session break protocol)**:
+   - Parse the `AOD_BUILD_RESULT` comment from build output
+   - Log in error_log with type `"build_incomplete"` and message including wave progress
+   - Update `build_progress` in state:
+     ```
+     bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'{"build_progress":{"total_waves":{total},"completed_waves":{N},"session_breaks":[{"session":{session_count},"waves_completed":"{range}","timestamp":"{now}"}]}}'"'"''
+     ```
+   - Log the session break decision to `autonomous_decisions`:
+     ```
+     bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_append ".autonomous_decisions" '"'"'{"decision":"session_break","reason":"Build incomplete: {completed}/{total} tasks after wave {N}","timestamp":"{now}"}'"'"''
+     ```
+   - Display the session break message:
+     ```
+     AOD ORCHESTRATOR — Session Break
+     ==================================
+     Feature: {feature_name} (#{github_issue})
+     Build: Wave {N}/{total_waves} complete ({completed_tasks}/{total_tasks} tasks)
+
+     The remaining waves require a new conversation.
+
+     To continue:
+       /aod.run --resume
+
+     The orchestrator will pick up from Wave {N+1} automatically.
+
+     Resume prompt (copy-paste):
+       claude "Resume aod.run for #{github_issue} — {feature_name}. Run /aod.run --resume"
+     ```
+   - **STOP** — Do NOT continue to Deliver. Exit the Core Loop.
+6. **If completed == total**: Mark Build as completed, continue to Deliver
+7. Record artifacts: Add `"tasks.md (all tasks completed)"` to `stages.build.artifacts`
+8. Write updated state atomically
 
 **After Deliver completes**:
 
@@ -324,6 +447,8 @@ All stages complete:
 ```
 Stage Map:
   [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver
+
+Remaining: /aod.document (manual)
 ```
 
 ### Transition Messages
@@ -451,3 +576,40 @@ Capture stage errors and significant events in the state file's `error_log` arra
    - **GitHub errors**: When `gh` CLI operations fail
 
 5. **Error entries are append-only**: Never remove or modify existing error log entries. The log provides a chronological audit trail.
+
+   | Type | When Used | Recoverable |
+   |------|-----------|-------------|
+   | `build_incomplete` | Post-build verification finds incomplete tasks | true |
+
+### Adaptive Session Management
+
+The orchestrator adapts its session strategy based on feature size. Small features complete in one session; large features automatically split across sessions when context runs out.
+
+**Size Estimation Heuristic** (executed after Plan:tasks completes, before Build):
+
+```
+wave_count = count of waves in agent-assignments.md
+
+if wave_count <= 3:
+  session_strategy = "one-shot"
+  estimated_sessions = 1
+elif wave_count <= 6:
+  session_strategy = "cautious"
+  estimated_sessions = 2
+else:
+  session_strategy = "multi-session"
+  estimated_sessions = ceil(wave_count / 3)
+```
+
+**Session breaks are reactive, not predictive**: Token heuristics don't work — Claude Code doesn't expose token usage to skills. Instead, `aod.build` runs waves until either all complete (`AOD_BUILD_RESULT:COMPLETE`) or context degrades (`AOD_BUILD_RESULT:PARTIAL`). Post-build verification in the orchestrator then triggers a session break if tasks remain incomplete.
+
+**State fields for session management**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session_strategy` | string | `"one-shot"`, `"cautious"`, or `"multi-session"` — set after Plan:tasks |
+| `estimated_sessions` | number | Estimated session count from heuristic |
+| `build_progress` | object | `{total_waves, completed_waves, session_breaks[]}` — updated after each build run |
+| `autonomous_decisions` | array | Log of automated decisions (session breaks, auto-retries) for post-run review |
+
+**Resume-after-break flow**: When `aod.run --resume` loads a state where Build is `in_progress`, it re-invokes `aod.build --orchestrated --autonomous`. Build's Step 1.6 detects completed waves via `[X]` markers and continues from the next incomplete wave. This repeats (recursive session breaks) until all waves complete, then the orchestrator advances to Deliver.

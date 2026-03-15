@@ -10,6 +10,22 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. Default: `autonomous = false`
+
+## Step 0y: Parse --revision
+
+1. If `$ARGUMENTS` contains `--revision`:
+   - Set `revision_mode = true`
+   - Strip `--revision` from `$ARGUMENTS` (trim extra whitespace)
+   - Read `.aod/revision-context.md` for reviewer feedback (contains reviewer name, attempt number, artifact path, and full feedback text)
+   - Store feedback as `revision_feedback`
+2. Default: `revision_mode = false`
+
 ## Overview
 
 Creates a feature specification with automatic PM sign-off (Constitution Principle VIII: Product-Spec Alignment). Generates spec.md inline with research grounding and governance review.
@@ -94,6 +110,14 @@ PRD context: {prd_path}
 **Pass research.md to Step 3** for use as context during spec generation.
 
 ## Step 3: Generate Specification (Inline)
+
+**If `revision_mode == true`** (re-invocation after governance rejection):
+1. Read the existing spec at `specs/{NNN}-*/spec.md` (do not start from scratch)
+2. Read `revision_feedback` from `.aod/revision-context.md`
+3. Apply targeted changes to address the specific issues raised by the reviewer
+4. Preserve sections the reviewer did not flag — only regenerate flagged sections
+5. Skip research phase (Step 2) — research from the original run is still valid
+6. Proceed directly to Step 3.4 (Quality Validation) after updating the spec
 
 The text the user typed after the command **is** the feature description. Do not ask the user to repeat it unless they provided an empty command.
 
@@ -194,7 +218,9 @@ b. **Run Validation Check**: Review the spec against each checklist item
 c. **Handle Validation Results**:
    - **If all items pass**: Mark checklist complete and proceed
    - **If items fail**: List failing items, update spec, re-validate (max 3 iterations)
-   - **If [NEEDS CLARIFICATION] markers remain**: Present up to 3 clarification questions in table format, wait for user response, update spec
+   - **If [NEEDS CLARIFICATION] markers remain**:
+     - **If `autonomous == true`**: Auto-resolve all markers with best inference from PRD context. Display: `"Auto-resolved: {count} NEEDS CLARIFICATION markers from PRD context (autonomous mode)"`. Do not prompt.
+     - Else: Present up to 3 clarification questions in table format, wait for user response, update spec
 
 d. **Update Checklist** with current pass/fail status
 
@@ -250,7 +276,8 @@ NOTES: [Your detailed feedback]
 
 **BLOCKED**:
 1. Display blocker with veto domain (PM=product scope)
-2. Use AskUserQuestion with options:
+2. **If `autonomous == true`**: **HALT** — save state and stop. Display: `"BLOCKED in autonomous mode — halting. Manual intervention required."`. Do NOT auto-override BLOCKED status.
+3. Use AskUserQuestion with options:
    - **Resolve**: Address issues and re-run /aod.spec
    - **Override**: Provide justification (min 20 chars), mark as BLOCKED_OVERRIDDEN
    - **Abort**: Exit workflow

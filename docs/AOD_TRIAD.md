@@ -20,20 +20,22 @@
 
 ## Lifecycle Context
 
-The **AOD Lifecycle** defines 5 stages that every feature progresses through:
+The **AOD Lifecycle** defines 6 stages that every feature progresses through:
 
 ```
-Discover → Define → Plan → Build → Deliver
+Discover → Define → Plan → Build → Deliver → Document
 ```
+
+Stages 1-5 are orchestrated by `/aod.run`. Stage 6 (Document) is a separate human-driven command (`/aod.document`) for code quality review.
 
 The **Triad** operates as a governance layer at stage boundaries (gates), not as stages themselves:
 
 ```
-  Discover    │ G1 │    Define     │ G2 │     Plan      │ G3 │    Build     │ G4 │   Deliver
-              │    │               │    │               │    │              │    │
-  Ideas,      │gate│  PRD,        │gate│  spec.md,     │gate│  Execute    │gate│  Close,
-  scoring     │    │  research    │    │  plan.md,     │    │  tasks,     │    │  verify,
-              │    │               │    │  tasks.md     │    │  review     │    │  document
+  Discover    │ G1 │    Define     │ G2 │     Plan      │ G3 │    Build     │ G4 │   Deliver    │    │   Document
+              │    │               │    │               │    │              │    │              │    │
+  Ideas,      │gate│  PRD,        │gate│  spec.md,     │gate│  Execute    │gate│  Close,      │    │  Simplify,
+  scoring     │    │  research    │    │  plan.md,     │    │  tasks,     │    │  verify,     │    │  docstrings,
+              │    │               │    │  tasks.md     │    │  review     │    │  retro       │    │  CHANGELOG
 ```
 
 **Governance Tiers** (configurable per project):
@@ -258,6 +260,7 @@ Creates `specs/{NNN}-*/research.md` with:
 /aod.project-plan          # Plan stage: Create plan.md with auto PM + Architect sign-off
 /aod.tasks                 # Plan stage: Create tasks.md with auto PM + Architect + Team-Lead sign-off
 /aod.build                 # Build stage: Execute with auto architect checkpoints
+/aod.document              # Document stage: Human-driven quality review
 ```
 
 **Benefits of `/aod.*` Commands**:

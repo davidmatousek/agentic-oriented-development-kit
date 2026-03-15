@@ -10,6 +10,22 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. Default: `autonomous = false`
+
+## Step 0y: Parse --revision
+
+1. If `$ARGUMENTS` contains `--revision`:
+   - Set `revision_mode = true`
+   - Strip `--revision` from `$ARGUMENTS` (trim extra whitespace)
+   - Read `.aod/revision-context.md` for reviewer feedback (contains reviewer name, attempt number, artifact path, and full feedback text)
+   - Store feedback as `revision_feedback`
+2. Default: `revision_mode = false`
+
 ## Overview
 
 Self-contained implementation planning command with automatic PM + Architect dual sign-off.
@@ -24,6 +40,14 @@ Self-contained implementation planning command with automatic PM + Architect dua
 4. If validation fails: Show error with required workflow order and exit
 
 ## Step 2: Generate Plan
+
+**If `revision_mode == true`** (re-invocation after governance rejection):
+1. Read the existing plan at `specs/{NNN}-*/plan.md` (do not start from scratch)
+2. Read `revision_feedback` from `.aod/revision-context.md`
+3. Apply targeted changes to address the specific issues raised by the reviewer
+4. Preserve sections the reviewer did not flag — only regenerate flagged sections
+5. Skip Phase 0 research (already completed) — jump directly to updating the flagged sections
+6. Proceed directly to Step 3 (Dual Sign-off) after updating the plan
 
 ### 2a: Setup
 
@@ -128,7 +152,8 @@ NOTES: [Your detailed feedback]
 
 **Any BLOCKED**:
 1. Display blocker with veto domain (PM=product scope, Architect=technical)
-2. Use AskUserQuestion with options:
+2. **If `autonomous == true`**: **HALT** — save state and stop. Display: `"BLOCKED in autonomous mode — halting. Manual intervention required."`. Do NOT auto-override BLOCKED status.
+3. Use AskUserQuestion with options:
    - **Resolve**: Address issues and re-submit to blocked reviewer
    - **Override**: Provide justification (min 20 chars), mark as BLOCKED_OVERRIDDEN
    - **Abort**: Cancel plan creation

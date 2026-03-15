@@ -10,6 +10,22 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. Default: `autonomous = false`
+
+## Step 0y: Parse --revision
+
+1. If `$ARGUMENTS` contains `--revision`:
+   - Set `revision_mode = true`
+   - Strip `--revision` from `$ARGUMENTS` (trim extra whitespace)
+   - Read `.aod/revision-context.md` for reviewer feedback (contains reviewer name, attempt number, artifact path, and full feedback text)
+   - Store feedback as `revision_feedback`
+2. Default: `revision_mode = false`
+
 ## Overview
 
 Generate an actionable, dependency-ordered tasks.md with automatic Triad triple sign-off governance.
@@ -24,6 +40,14 @@ Generate an actionable, dependency-ordered tasks.md with automatic Triad triple 
 4. If validation fails: Show error with required workflow order and exit
 
 ## Step 2: Generate Tasks
+
+**If `revision_mode == true`** (re-invocation after governance rejection):
+1. Read the existing tasks at `specs/{NNN}-*/tasks.md` (do not start from scratch)
+2. Read `revision_feedback` from `.aod/revision-context.md`
+3. Apply targeted changes to address the specific issues raised by the reviewer
+4. Preserve sections the reviewer did not flag — only regenerate flagged sections
+5. Skip prerequisite loading (already in context) — jump directly to updating the flagged sections
+6. Proceed directly to Step 3 (Triple Sign-off) after updating the tasks
 
 ### 2a. Setup
 
@@ -180,14 +204,16 @@ NOTES: [Your detailed feedback]
 
 **Any BLOCKED**:
 1. Display blocker with veto domain (PM=scope, Architect=technical, Team-Lead=timeline)
-2. Use AskUserQuestion with options:
+2. **If `autonomous == true`**: **HALT** — save state and stop. Display: `"BLOCKED in autonomous mode — halting. Manual intervention required."`. Do NOT auto-override BLOCKED status.
+3. Use AskUserQuestion with options:
    - **Resolve**: Address issues and re-submit to blocked reviewer
    - **Override**: Provide justification, mark as BLOCKED_OVERRIDDEN
    - **Abort**: Cancel task generation
 
 **Multiple BLOCKED (cross-domain conflict)**:
 1. Display all blockers with their domains
-2. Use AskUserQuestion for executive decision:
+2. **If `autonomous == true`**: **HALT** — same as single BLOCKED above.
+3. Use AskUserQuestion for executive decision:
    - **Product priority**: Override non-PM blocks
    - **Technical priority**: Override non-Architect blocks
    - **Schedule priority**: Override non-Team-Lead blocks

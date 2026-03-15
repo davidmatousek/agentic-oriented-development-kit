@@ -91,7 +91,7 @@ After each stage skill returns, detect the governance gate result by reading the
 **Recognized rejection statuses**: `CHANGES_REQUESTED`
 **Recognized blocker statuses**: `BLOCKED`
 
-**Re-grounding**: After reading governance results (which may contain variable-length reviewer feedback), re-read this file (`references/governance.md`) before continuing the loop to prevent template drift (per KB Entry 9).
+**Re-grounding** (context-thrifty): After governance reviews that produce significant variable-length output (>50 lines of reviewer feedback, rejection details, override justifications), re-read this file (`references/governance.md`) before continuing the loop to prevent template drift (per KB Entry 9). Skip re-grounding when output is minimal (cache hits, short approvals). With parallel Triad reviews, re-ground **once after all reviewers return** — agent isolation prevents cross-reviewer drift.
 
 ## Governance Tier
 
@@ -169,7 +169,11 @@ Feedback:
 The reviewer has requested changes before this stage can be approved.
 ```
 
-3. **Offer options**: Use AskUserQuestion to present choices:
+3. **Offer options**:
+
+   **If `autonomous_mode == true`**: Auto-select `"Address now"`. Display: `"Auto-selected: Address now (autonomous mode)"`. Skip to step 4 "Address now" handling. Do NOT prompt the user.
+
+   Use AskUserQuestion to present choices:
    - Question: "How would you like to proceed?"
    - Options:
      - "Address now" — Continue in this session. The orchestrator will re-invoke the stage skill to address the changes, then re-submit for governance review.
@@ -181,10 +185,24 @@ The reviewer has requested changes before this stage can be approved.
      1. Increment `intervention_count` in state (user is manually intervening)
      2. **Clear governance cache** for the artifact being re-invoked: `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_clear_governance_cache "{artifact}"'`. This ensures fresh reviews are required after changes.
      3. Write updated state atomically
-     4. Re-invoke the stage skill via Skill tool (same skill, same arguments as the original invocation)
-     5. After skill returns, re-check governance gate result (return to Core Loop step 9)
-     6. If approved: continue with normal completion flow
-     7. If rejected again: return to this Rejection Handling flow (loop)
+     4. **Write revision context** to `.aod/revision-context.md` before re-invocation:
+        ```markdown
+        ---
+        reviewer: {reviewer agent name}
+        attempt: {attempt_number}
+        artifact: {original artifact path}
+        stage: {current stage}
+        substage: {current substage or null}
+        ---
+
+        ## Reviewer Feedback
+
+        {full text of reviewer notes/required changes}
+        ```
+     5. Re-invoke the stage skill via Skill tool with `--revision` flag appended to the original arguments (e.g., `skill="aod.spec", args="--revision --autonomous"`)
+     6. After skill returns, re-check governance gate result (return to Core Loop step 9)
+     7. If approved: continue with normal completion flow. Clean up `.aod/revision-context.md` (delete it).
+     8. If rejected again: return to this Rejection Handling flow (loop) — the next iteration will overwrite `.aod/revision-context.md` with fresh feedback
 
    - **"Pause orchestration"**:
      1. Record the rejection in state (see [Retry Tracking](#retry-tracking))
@@ -255,6 +273,8 @@ After 3 consecutive rejections on the same governance gate, the orchestrator sto
 1. **Count consecutive rejections**: Query the `gate_rejections` array for entries matching the current `stage` + `substage` + `reviewer` combination. Count how many consecutive entries exist (i.e., entries with sequential `attempt` numbers without an intervening approval).
 
 2. **Check threshold**: If the count is >= 3:
+
+   - **If `autonomous_mode == true`**: **HALT** — do NOT auto-override. 3 consecutive rejections means the issue is genuinely broken and requires human intervention. Auto-select `"Pause and fix manually"`. Display: `"CIRCUIT BREAKER in autonomous mode — halting. 3 consecutive rejections require manual fix. Resume with --resume."`. Save state and STOP.
 
    - **Do NOT offer "Address now"**. Instead, display the circuit breaker message:
 
@@ -348,7 +368,11 @@ A reviewer has identified a critical issue that prevents this stage
 from being approved. This is a hard block, not a request for changes.
 ```
 
-4. **Offer options**: Use AskUserQuestion to present choices:
+4. **Offer options**:
+
+   **If `autonomous_mode == true`**: **HALT** — BLOCKED is a hard veto; autonomous mode cannot override reviewer judgment. Save state with stage marked as `failed`, log error, and STOP. Display: `"BLOCKED in autonomous mode — halting. A reviewer has issued a hard block. Manual intervention required. Resume with --resume."`. Do NOT auto-override.
+
+   Use AskUserQuestion to present choices:
    - Question: "A governance gate has been blocked. How would you like to proceed?"
    - Options:
      - "Resolve and re-submit" — Address the blocker in this session. The orchestrator will re-invoke the stage skill, then re-submit for governance review.
@@ -360,11 +384,12 @@ from being approved. This is a hard block, not a request for changes.
    - **"Resolve and re-submit"**:
      1. Increment `intervention_count`
      2. Write updated state
-     3. Re-invoke the stage skill via Skill tool
-     4. After skill returns, re-check governance gate (return to Core Loop step 9)
-     5. If now approved: continue normally
-     6. If blocked again: return to this Blocked Handling flow
-     7. **Note**: The max-retry circuit breaker also applies to BLOCKED results. After 3 consecutive BLOCKED results on the same gate, the circuit breaker fires.
+     3. **Write revision context** to `.aod/revision-context.md` (same format as Rejection Handling step 4 — reviewer, attempt, artifact, stage, substage, and full blocker feedback)
+     4. Re-invoke the stage skill via Skill tool with `--revision` flag appended to the original arguments
+     5. After skill returns, re-check governance gate (return to Core Loop step 9)
+     6. If now approved: continue normally. Clean up `.aod/revision-context.md`.
+     7. If blocked again: return to this Blocked Handling flow
+     8. **Note**: The max-retry circuit breaker also applies to BLOCKED results. After 3 consecutive BLOCKED results on the same gate, the circuit breaker fires.
 
    - **"Override with justification"**:
      1. The user's justification is captured from the AskUserQuestion response (they provide it via the "Other" free-text option or it's implied by selecting Override)

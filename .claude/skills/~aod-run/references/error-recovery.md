@@ -80,6 +80,8 @@ Guard clause that prevents restarting an already-completed lifecycle. This is ch
    Stage Map:
      [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver
 
+   If not yet done: /aod.document (human-driven quality review)
+
    To start a new feature:
      /aod.run "your new idea"
      /aod.run #NNN
@@ -130,6 +132,7 @@ Artifacts:
   - ...
 
 Next: /aod.deliver FEATURE: {feature_id} - {feature_name}
+Then: /aod.document (human-driven quality review)
 ```
 
 4. **Archive state file**: Copy the state file to the specs directory for permanent record:

@@ -41,14 +41,17 @@
 - `/aod.discover` → `/aod.discover` → `/aod.score` → `/aod.validate`
 
 **Triad workflow**:
-- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build [--no-security] [--no-simplify] [--no-docs]`
+- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build [--no-security]`
+
+**Post-delivery**:
+- `/aod.deliver` — Close completed feature
+- `/aod.document` — Human-driven quality review (simplify, docstrings, CHANGELOG, API docs)
 
 **Supporting commands**:
 - `/aod.clarify` — Resolve spec ambiguities
 - `/aod.analyze` — Cross-artifact consistency check
 - `/aod.checklist` — Generate quality checklist
 - `/aod.constitution` — Manage governance principles
-- `/aod.deliver` — Close completed feature
 - `/aod.kickstart` — POC kickstart: generate consumer guide with seed features from a project idea
 - `/aod.stack` — Manage stack packs (activate, remove, list, scaffold)
 

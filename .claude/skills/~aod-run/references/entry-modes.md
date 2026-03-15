@@ -45,6 +45,10 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
     "build": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null },
     "deliver": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null }
   },
+  "session_strategy": null,
+  "estimated_sessions": null,
+  "build_progress": null,
+  "autonomous_decisions": [],
   "error_log": [],
   "gate_rejections": []
 }
@@ -146,6 +150,10 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
     "build": { "status": "pending", ... },
     "deliver": { "status": "pending", ... }
   },
+  "session_strategy": null,
+  "estimated_sessions": null,
+  "build_progress": null,
+  "autonomous_decisions": [],
   "error_log": [],
   "gate_rejections": []
 }
@@ -344,7 +352,21 @@ Stage Map:
   {markers per stage}
 ```
 
-13. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop). The current stage from the state file determines where execution resumes. If a stage is `in_progress`, re-execute it from its beginning (idempotent restart). If a stage is `completed`, advance to the next pending stage.
+   **Resume-after-break enhancement**: If `current_stage` is `build` and `build_progress` exists in state (indicating a prior session break), display additional build progress context:
+
+   ```
+   Build Progress: Wave {completed_waves}/{total_waves} ({session_breaks count} prior session break(s))
+   Resuming from Wave {completed_waves + 1}...
+   ```
+
+   When `autonomous_mode == true` in the state file, skip any confirmation prompts and auto-continue directly to the Core Loop. The brief status summary above is sufficient — no user interaction needed.
+
+13. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop). The current stage from the state file determines where execution resumes.
+
+   - If a stage is `in_progress`, re-execute it from its beginning (idempotent restart). If a stage is `completed`, advance to the next pending stage.
+   - **Build resume-after-break**: When Build is `in_progress`, `aod.build --orchestrated --autonomous` is re-invoked. Build's existing Step 1.6 detects completed waves via `[X]` markers in tasks.md and continues from the next incomplete wave. Post-Build verification (see SKILL.md "After Build completes") then checks task completion:
+     - If still incomplete → another session break (recursive until done)
+     - If all complete → advance to Deliver
 
 ## Artifact Consistency Validation
 

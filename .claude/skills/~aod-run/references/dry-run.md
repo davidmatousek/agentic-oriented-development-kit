@@ -290,6 +290,7 @@ Source: {.aod/memory/constitution.md | default}
 
 NOTE: This is a preview only. No files were created or modified.
 To execute: /aod.run {original args without --dry-run}
+After delivery: /aod.document (human-driven quality review — Stage 6)
 ```
 
 **Mode-specific context** (varies by sub-mode):

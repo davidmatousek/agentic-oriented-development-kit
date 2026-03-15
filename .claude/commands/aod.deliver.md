@@ -14,6 +14,13 @@ $ARGUMENTS
 
 Feature number (e.g., `007` or `007-phase-brain-rag`). If omitted, detect from recent PRs or prompt.
 
+## Step 0: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. Default: `autonomous = false`
+
 ## Step 1: Validate Closure Readiness
 
 Run these checks (in parallel where possible):
@@ -38,7 +45,9 @@ Only prompt the user if an automated step fails (e.g., merge conflicts, CI failu
 
 ### Other Validation Failures
 
-- Tasks incomplete: (A) Mark complete, (B) Abort, (C) Proceed anyway
+- Tasks incomplete:
+  - **If `autonomous == true`**: Auto-select `"Proceed anyway"`. Display: `"Auto-selected: Proceed past incomplete tasks (autonomous mode)"`
+  - Else: (A) Mark complete, (B) Abort, (C) Proceed anyway
 
 ## Step 2: Gather Feature Context
 
@@ -80,7 +89,7 @@ Output: List files updated with brief summary.
 | Scenario | Action |
 |----------|--------|
 | All succeed | Proceed to Step 5 (Documentation Change Validation) |
-| Partial failure | Prompt: (A) Retry failed, (B) Proceed anyway, (C) Abort |
+| Partial failure | **If `autonomous == true`**: Auto-select `"Proceed anyway"`. Else: Prompt: (A) Retry failed, (B) Proceed anyway, (C) Abort |
 | All fail | Abort and report errors |
 
 ## Step 5: Documentation Change Validation
@@ -109,8 +118,11 @@ Run the `~aod-deliver` skill's retrospective flow (Steps 2-8 from `.claude/skill
 
 1. **Delivery Metrics**: Capture estimated vs. actual duration (actual computed from branch creation date)
 2. **Surprise Log**: Prompt for "what surprised us" (1 sentence minimum, required)
+   - **If `autonomous == true`**: Auto-provide `"Automated delivery — no surprises logged"`. Display: `"Auto-selected: default surprise log (autonomous mode)"`
 3. **Feedback Loop**: Prompt for new ideas — each creates a GitHub Issue via `bash .aod/scripts/bash/create-issue.sh --title "IDEA" --stage discover --type retro` (handles both issue creation and project board sync)
+   - **If `autonomous == true`**: Skip feedback prompt (no new ideas to capture). Display: `"Auto-selected: skip feedback loop (autonomous mode)"`
 4. **Lessons Learned**: Capture key lesson with category, append KB entry to `docs/INSTITUTIONAL_KNOWLEDGE.md`
+   - **If `autonomous == true`**: Auto-generate a brief lesson from the delivery context. Display: `"Auto-generated: KB entry from delivery context (autonomous mode)"`
 5. **GitHub Update**: Post delivery metrics as comment on feature's GitHub Issue, transition to `stage:deliver` (at retrospective start)
 6. **BACKLOG.md**: Regenerate via `.aod/scripts/bash/backlog-regenerate.sh`
 
@@ -124,9 +136,11 @@ Run the `~aod-deliver` skill's retrospective flow (Steps 2-8 from `.claude/skill
 This step applies ONLY to the template project (product-led-spec-kit). Consumer projects will never have `scripts/extract.sh` — skip this step entirely with NO output, NO message, and NO mention in the closure report.
 
 1. Check if `scripts/extract.sh` exists **and** `../agentic-oriented-development-kit/` exists
-2. **If both found**: Ask the user: "Run upstream sync?"
-   - (A) Yes — run `scripts/extract.sh --sync` (or invoke `/aod.sync-upstream` if available)
-   - (B) Skip — continue without syncing
+2. **If both found**:
+   - **If `autonomous == true`**: Auto-select `"Yes"`. Display: `"Auto-selected: Run upstream sync (autonomous mode)"`. Run the sync.
+   - Ask the user: "Run upstream sync?"
+     - (A) Yes — run `scripts/extract.sh --sync` (or invoke `/aod.sync-upstream` if available)
+     - (B) Skip — continue without syncing
 3. **If either is missing**: Skip with ZERO output — do not print any message, warning, or status. Proceed directly to Step 9.
 4. Only include the "AOD-kit upstream sync" line in the closure report (Step 12) if `scripts/extract.sh` exists
 

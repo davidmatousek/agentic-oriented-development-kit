@@ -108,19 +108,18 @@ Execute feature development workflows efficiently through parallel agent coordin
 
 ### Wave Execution Pattern
 
-**For each wave** (execute ONE wave per conversation):
+**For each wave** (up to 3 waves per conversation):
 ```
 1. Identify ready tasks (dependencies met)
 2. Group by agent type
 3. Launch parallel: Single message with multiple Task calls
 4. Monitor: Watch TodoWrite updates
 5. Validate: All tasks marked [X]
-6. STOP: Run /continue to generate handoff file. Display wave summary and halt.
-   Do NOT proceed to next wave. Output resume prompt for the user.
+6. If <3 waves executed this conversation: continue to next wave
+   If 3+ waves executed: Run /continue, display wave summary, STOP.
 ```
 
-**CRITICAL**: Never execute multiple waves in a single conversation. This causes context overflow.
-Each wave runs in its own conversation. The next conversation resumes from the first incomplete wave.
+**Wave limit**: 3 waves per conversation (hard ceiling). This keeps usage well within 1M context windows while allowing meaningful multi-wave progress. Each new conversation resumes from the first incomplete wave.
 
 ### Resume Protocol
 
@@ -262,7 +261,7 @@ Avoid:
 - Skipping blocker detection (leads to stalled workflows)
 - Executing without team-lead approval (governance bypass)
 - Modifying tasks.md structure (only mark completion)
-- Executing multiple waves in one conversation (causes context overflow)
+- Executing more than 3 waves in one conversation (exceeds safe context budget)
 
 ---
 

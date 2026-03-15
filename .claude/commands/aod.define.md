@@ -10,6 +10,22 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. Default: `autonomous = false`
+
+## Step 0y: Parse --revision
+
+1. If `$ARGUMENTS` contains `--revision`:
+   - Set `revision_mode = true`
+   - Strip `--revision` from `$ARGUMENTS` (trim extra whitespace)
+   - Read `.aod/revision-context.md` for reviewer feedback (contains reviewer name, attempt number, artifact path, and full feedback text)
+   - Store feedback as `revision_feedback`
+2. Default: `revision_mode = false`
+
 ## Overview
 
 Wraps ~aod-define skill with automatic Triad triple sign-off.
@@ -22,7 +38,8 @@ Check if product vision documents exist:
 - `docs/product/01_Product_Vision/product-vision.md`
 
 **If vision docs DON'T exist** (first PRD for this project):
-1. Use AskUserQuestion:
+1. **If `autonomous == true`**: Auto-select `"Skip"`. Display: `"Auto-selected: Skip vision workshop (autonomous mode)"`. Proceed directly to Step 1.
+2. Use AskUserQuestion:
    - **Quick Vision**: Answer 3 questions to create vision docs (recommended for new projects)
    - **Skip**: Proceed directly to PRD creation (for experienced users)
 
@@ -48,8 +65,9 @@ Q3: What are the 2-3 core features?
    - Core capabilities table (Q3)
 
 **If vision docs exist BUT contain `[To be refined]` markers** (seeded by `make init`):
-1. Display the current seeded vision (mission statement from init)
-2. Run **Vision Refinement Workshop** — use AskUserQuestion for each:
+1. **If `autonomous == true`**: Skip vision refinement. Display: `"Auto-selected: Skip vision refinement (autonomous mode)"`. Proceed to Step 1.
+2. Display the current seeded vision (mission statement from init)
+3. Run **Vision Refinement Workshop** — use AskUserQuestion for each:
 
 ```
 🎯 Vision Refinement Workshop (5 questions)
@@ -100,7 +118,9 @@ Q5: How will you measure success? (1-2 key metrics)
 1. Parse topic from `$ARGUMENTS` (kebab-case format)
 2. If empty: Error "Usage: /aod.define <topic>" and exit
 3. Check `docs/product/02_PRD/` for existing PRD with same topic
-4. If exists: Use AskUserQuestion with options: View existing, Create with suffix (v2), Abort
+4. If exists:
+   - **If `autonomous == true`**: Auto-select `"Create with suffix (v2)"`. Display: `"Auto-selected: Create new PRD (autonomous mode)"`
+   - Else: Use AskUserQuestion with options: View existing, Create with suffix (v2), Abort
 5. **GitHub Lifecycle Update (early)**: Move the feature's GitHub Issue to `stage:define` at the *start* of PRD creation. Detection order (use first match):
    1. If `$ARGUMENTS` contains a numeric value (`#NNN` or bare `NNN`), look up the GitHub Issue directly: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue NNN`
    2. Search GitHub Issues by topic title: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_find_issue "TOPIC_TITLE"`
@@ -108,7 +128,8 @@ Q5: How will you measure success? (1-2 key metrics)
    Once the issue number is found, run: `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage ISSUE_NUMBER define`
    Then regenerate BACKLOG.md: `.aod/scripts/bash/backlog-regenerate.sh`
    **Issue-Required Gate**: If no issue is found after all detection methods:
-   1. Use `AskUserQuestion` with three options:
+   1. **If `autonomous == true`**: Auto-select `"Auto-create Issue"`. Display: `"Auto-selected: Auto-create Issue (autonomous mode)"`. Run the create-issue script and proceed.
+   2. Use `AskUserQuestion` with three options:
       - **Auto-create Issue** (Recommended): Run `bash .aod/scripts/bash/create-issue.sh --title "TOPIC" --stage define` to create a new Issue with board sync. Use the returned Issue number as the PRD number.
       - **Provide Issue number**: User enters an existing GitHub Issue number manually. Validate it exists via `gh issue view NNN` before proceeding.
       - **Abort**: Cancel PRD creation cleanly with message "PRD creation requires a backing GitHub Issue. Create one at your repo's Issues page and re-run /aod.define."
@@ -116,6 +137,8 @@ Q5: How will you measure success? (1-2 key metrics)
    3. Store the resolved Issue number for use in Steps 5 and 6.
 
 ## Step 2: Classify PRD Type
+
+**If `autonomous == true`**: Auto-select `"Feature"` workflow. Display: `"Auto-selected: Feature workflow (autonomous mode)"`. Skip to Step 3.
 
 Use AskUserQuestion to determine workflow type:
 
@@ -125,6 +148,14 @@ Use AskUserQuestion to determine workflow type:
 | Feature | UI, API, dashboard, user-facing | Parallel (PM draft → Architect + Team-Lead reviews in parallel) |
 
 ## Step 3: Draft PRD
+
+**If `revision_mode == true`** (re-invocation after governance rejection):
+1. Read the existing PRD at `docs/product/02_PRD/{NNN}-*.md` (do not start from scratch)
+2. Read `revision_feedback` from `.aod/revision-context.md`
+3. Apply targeted changes to address the specific issues raised by the reviewer
+4. Preserve sections the reviewer did not flag — only regenerate flagged sections
+5. Skip the workflow classification (Step 2) — reuse the same workflow type as the original
+6. Proceed directly to Step 4 (reviews) after updating the PRD
 
 **Infrastructure workflow**:
 1. Launch architect agent for baseline technical assessment
@@ -165,7 +196,8 @@ NOTES: [Your detailed feedback]
 
 **Any BLOCKED**:
 1. Display blocker with veto domain (Architect=technical, Team-Lead=timeline)
-2. Use AskUserQuestion with options:
+2. **If `autonomous == true`**: **HALT** — save state and stop. Display: `"BLOCKED in autonomous mode — halting. Manual intervention required."`. Do NOT auto-override BLOCKED status.
+3. Use AskUserQuestion with options:
    - **Resolve**: Address issues and re-submit to blocked reviewer
    - **Override**: Provide justification (min 20 chars), mark as BLOCKED_OVERRIDDEN
    - **Abort**: Cancel PRD creation
