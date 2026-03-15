@@ -17,12 +17,17 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 
 ```bash
 /aod.define <topic>         # Create PRD with Triad validation (includes optional vision workshop)
-/aod.spec             # Create spec.md with auto PM sign-off
-/aod.project-plan                # Create plan.md with auto PM + Architect sign-off
-/aod.tasks               # Create tasks.md with auto triple sign-off
+/aod.plan                   # Plan stage orchestrator: chains spec → project-plan → tasks with governance gates
 /aod.build [--no-security]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6)
-/aod.deliver {NNN} # Close feature with parallel doc updates
-/aod.document            # Human-driven quality review (code simplification, docstrings, CHANGELOG, API docs)
+/aod.deliver {NNN}          # Close feature with parallel doc updates
+/aod.document               # Human-driven quality review (code simplification, docstrings, CHANGELOG, API docs)
+```
+
+**Individual Plan sub-commands** (use `/aod.plan` unless you need to run steps separately):
+```bash
+/aod.spec                   # Create spec.md with auto PM sign-off
+/aod.project-plan           # Create plan.md with auto PM + Architect sign-off
+/aod.tasks                  # Create tasks.md with auto triple sign-off
 ```
 
 ### Utility Commands

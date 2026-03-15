@@ -18,22 +18,22 @@
 │                          AOD LIFECYCLE                                     │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  Discovery                                  Delivery
-  ─────────                                  ────────
+  Discovery                       Delivery                                Quality
+  ─────────                       ────────                                ───────
 
-  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-  │1.Discover│───▶│ 2.Define │───▶│ 3. Plan  │───▶│ 4.Build  │───▶│5.Deliver │
-  │          │    │          │    │          │    │          │    │          │
-  └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
-       │                                                               │
-       └───────────────────── Feedback Loop ◀──────────────────────────┘
+  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+  │1.Discover│─▶│ 2.Define │─▶│ 3. Plan  │─▶│ 4.Build  │─▶│5.Deliver │─▶│6.Document│
+  │          │  │          │  │          │  │          │  │          │  │          │
+  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+       │                                                        │
+       └──────────────────── Feedback Loop ◀────────────────────┘
 ```
 
 ---
 
 ## What is AOD?
 
-AOD is **Agentic Oriented Development** -- a unified lifecycle with 5 stages that takes work from raw idea to delivered feature. Governance gates (Triad sign-offs) operate as a **separate, configurable layer** between stages. AOD answers two questions: **"Should we build this?"** (Discovery) and **"How do we build this right?"** (Delivery).
+AOD is **Agentic Oriented Development** -- a unified lifecycle with 6 stages across 3 phases that takes work from raw idea to delivered, documented feature. Governance gates (Triad sign-offs) operate as a **separate, configurable layer** between stages. AOD answers three questions: **"Should we build this?"** (Discovery), **"How do we build this right?"** (Delivery), and **"Is the quality where it needs to be?"** (Quality).
 
 ---
 
@@ -42,15 +42,16 @@ AOD is **Agentic Oriented Development** -- a unified lifecycle with 5 stages tha
 The fastest path from idea to implementation:
 
 ```bash
-# Full flow: 5 commands covering 5 stages
+# Full flow: 6 commands covering 6 stages
 /aod.discover "Add dark mode support"     # Stage 1: Capture idea + ICE score + PM validation
 /aod.define dark-mode-support             # Stage 2: Create PRD with Triad review
 /aod.plan                                 # Stage 3: Router (run 3x for spec → plan → tasks)
 /aod.build                                # Stage 4: Execute tasks with Architect checkpoints
 /aod.deliver                              # Stage 5: Close feature with retrospective
+/aod.document                             # Stage 6: Human-driven quality review
 ```
 
-`/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks). It auto-detects which sub-step you're on.
+`/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks). It auto-detects which sub-step you're on. `/aod.document` runs separately after delivery for human-driven code quality review.
 
 ---
 
@@ -65,6 +66,7 @@ The fastest path from idea to implementation:
 | `/aod.plan` | 3. Plan | Router: auto-delegates to `/aod.spec`, `/aod.project-plan`, `/aod.tasks` |
 | `/aod.build` | 4. Build | Execute tasks with architect checkpoints |
 | `/aod.deliver` | 5. Deliver | Close feature with DoD check and retrospective |
+| `/aod.document` | 6. Document | Human-driven code simplification, docstrings, CHANGELOG, API sync |
 
 ### Utility Commands
 
@@ -144,6 +146,7 @@ governance:
 | Plan: Tasks | PM + Architect + Team-Lead | `/aod.tasks` (via `/aod.plan`) |
 | Build | Architect checkpoints | `/aod.build` |
 | Deliver | DoD check | `/aod.deliver` |
+| Document | Human approval per step | `/aod.document` |
 
 Each step auto-validates before proceeding. If a reviewer returns **CHANGES REQUESTED**, the phase repeats until all required sign-offs are **APPROVED**.
 

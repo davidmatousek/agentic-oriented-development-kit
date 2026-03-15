@@ -19,6 +19,7 @@ A quick-lookup guide for transitioning from the old `/pdl.*` and `/triad.*` comm
 | -- (NEW) | `/aod.plan` | Plan (router) |
 | `/aod.build` | `/aod.build` | Build |
 | `/aod.deliver` | `/aod.deliver` | Deliver |
+| -- (NEW) | `/aod.document` | Document |
 
 ### Utility Commands
 
@@ -75,7 +76,7 @@ A quick-lookup guide for transitioning from the old `/pdl.*` and `/triad.*` comm
 
 | File | Purpose |
 |------|---------|
-| `docs/guides/AOD_LIFECYCLE.md` | Lifecycle reference (5 stages, governance tiers, command mapping) |
+| `docs/guides/AOD_LIFECYCLE.md` | Lifecycle reference (6 stages, governance tiers, command mapping) |
 | `docs/guides/AOD_MIGRATION.md` | This document |
 
 ---
@@ -90,7 +91,7 @@ If you have muscle memory for the old command names, here is what you need to kn
 
 3. **Your existing specs, plans, and tasks files are unaffected.** The `.aod/spec.md`, `.aod/plan.md`, and `.aod/tasks.md` files keep their names and format. Frontmatter structure is unchanged.
 
-4. **The lifecycle documentation explains the new model.** See `docs/guides/AOD_LIFECYCLE.md` for the full 5-stage lifecycle reference, governance tier descriptions, and a "Where Do I Find Things?" cross-zone guide.
+4. **The lifecycle documentation explains the new model.** See `docs/guides/AOD_LIFECYCLE.md` for the full 6-stage lifecycle reference, governance tier descriptions, and a "Where Do I Find Things?" cross-zone guide.
 
 ---
 
@@ -130,7 +131,7 @@ Triple sign-off is the minimum governance floor for all tiers.
 
 ### GitHub-Backed Tracking
 
-Every `/aod.*` lifecycle command now updates a GitHub Issue with a `stage:*` label reflecting the current lifecycle stage. After each command, `BACKLOG.md` is regenerated from GitHub Issues, grouped by stage (Discover, Define, Plan, Build, Deliver).
+Every `/aod.*` lifecycle command now updates a GitHub Issue with a `stage:*` label reflecting the current lifecycle stage. After each command, `BACKLOG.md` is regenerated from GitHub Issues, grouped by stage (Discover, Define, Plan, Build, Deliver, Document).
 
 - Run `/aod.status` at any time for an on-demand backlog snapshot with item counts per stage.
 - If `gh` CLI is unavailable or no GitHub remote is configured, commands proceed normally and skip GitHub operations with a warning.

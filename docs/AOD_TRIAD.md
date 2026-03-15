@@ -7,7 +7,7 @@
 
 ## What is the AOD Triad?
 
-**The AOD Triad** is the governance layer of the AOD Lifecycle, ensuring Product-Architecture-Engineering alignment at every stage boundary. While the AOD Lifecycle defines five stages (Discover, Define, Plan, Build, Deliver), the Triad provides the approval gates that control progression between them.
+**The AOD Triad** is the governance layer of the AOD Lifecycle, ensuring Product-Architecture-Engineering alignment at every stage boundary. While the AOD Lifecycle defines six stages across three phases (Discovery: Discover, Define; Delivery: Plan, Build, Deliver; Quality: Document), the Triad provides the approval gates that control progression between them.
 
 **The Three Roles**:
 1. **PM (product-manager)**: Defines **What** & **Why** (user value, business goals)
@@ -53,24 +53,21 @@ See `docs/guides/AOD_LIFECYCLE.md` for the full lifecycle reference.
 ## Complete Lifecycle with Triad Governance (Simple)
 
 ```
- DISCOVER        │ DEFINE          │         PLAN                          │ BUILD           │ DELIVER
-                 │                 │                                       │                 │
-┌──────────────┐ │ ┌──────────────┐ │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │ ┌──────────────┐
-│              │ │ │              │ │ │              │ │              │ │              │ │ │              │
-│  /aod.define │ │ │  /aod.spec   │ │ │/aod.project- │ │  /aod.tasks  │ │  /aod.build  │ │ │  /aod.close  │
-│  (PRD)       │ │ │  (spec.md)   │ │ │ plan         │ │  (tasks.md)  │ │  (execute)   │ │ │  (deliver)   │
-│              │ │ │              │ │ │  (plan.md)   │ │              │ │              │ │ │              │
-└──────────────┘ │ └──────────────┘ │ └──────────────┘ └──────────────┘ └──────────────┘ │ └──────────────┘
-      ↓          │       ↓          │       ↓                ↓                ↓          │       ↓
- PM + Arch +    G1   Research +    G2   PM + Arch       PM + Arch +     Arch checkpts   G4   Verify +
- Tech-Lead           PM sign-off        sign-off        Tech-Lead       during exec          document
- validation                                             sign-off (G3)
-
-Creates PRD          Research →        Creates plan.md  Creates tasks    Executes tasks      Close feature
-with Triad           Creates spec.md   with architecture with breakdown  with reviews        with docs
+ DISCOVER       │ DEFINE         │       PLAN          │ BUILD          │ DELIVER        │ DOCUMENT
+                │                │                     │                │                │
+┌─────────────┐ │ ┌─────────────┐ │ ┌────────────────┐ │ ┌─────────────┐ │ ┌─────────────┐ │ ┌──────────────┐
+│             │ │ │             │ │ │                │ │ │             │ │ │             │ │ │              │
+│/aod.discover│ │ │ /aod.define │ │ │   /aod.plan    │ │ │ /aod.build │ │ │/aod.deliver │ │ │/aod.document │
+│  (idea)     │ │ │  (PRD)      │ │ │ (spec → plan → │ │ │  (execute) │ │ │  (close)    │ │ │  (quality    │
+│             │ │ │             │ │ │  tasks)        │ │ │             │ │ │             │ │ │   review)    │
+└─────────────┘ │ └─────────────┘ │ └────────────────┘ │ └─────────────┘ │ └─────────────┘ │ └──────────────┘
+      ↓         │       ↓         │        ↓           │       ↓         │       ↓         │       ↓
+ PM valid.     G1  PM + Arch +   G2  PM spec sign-off G3  Arch checkpts G4  DoD check     G5  Human approval
+ (tier-dep.)       Tech-Lead         PM+Arch plan                            + retro            per step
+                   validation        Triple sign-off
 ```
 
-**Governance gates (G1-G4) auto-validate before stage transitions** ✅
+**Governance gates (G1-G5) auto-validate before stage transitions** ✅
 
 ---
 
@@ -253,14 +250,19 @@ Creates `specs/{NNN}-*/research.md` with:
 
 ### Automatic Governance (Recommended)
 
-**Complete Production Workflow** (ALL `/aod.*`):
+**Complete Production Workflow** (recommended):
 ```bash
 /aod.define <topic>        # Define stage: Create PRD with auto-Triad validation
-/aod.spec                  # Plan stage: Create spec.md with auto PM sign-off
-/aod.project-plan          # Plan stage: Create plan.md with auto PM + Architect sign-off
-/aod.tasks                 # Plan stage: Create tasks.md with auto PM + Architect + Team-Lead sign-off
+/aod.plan                  # Plan stage: Chains spec → project-plan → tasks with governance gates
 /aod.build                 # Build stage: Execute with auto architect checkpoints
 /aod.document              # Document stage: Human-driven quality review
+```
+
+**Individual Plan sub-commands** (available if you need to run steps separately):
+```bash
+/aod.spec                  # Create spec.md with auto PM sign-off
+/aod.project-plan          # Create plan.md with auto PM + Architect sign-off
+/aod.tasks                 # Create tasks.md with auto PM + Architect + Team-Lead sign-off
 ```
 
 **Benefits of `/aod.*` Commands**:

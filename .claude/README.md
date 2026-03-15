@@ -124,11 +124,18 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 | Command | Purpose | Auto Sign-offs |
 |---------|---------|----------------|
 | `/aod.define <topic>` | Create PRD with PM + Architect + Tech-Lead validation | 3-way (PM, Architect, Tech-Lead) |
+| `/aod.plan` | Plan stage: chains spec → project-plan → tasks | PM → PM+Architect → Triple |
+| `/aod.build` | Execute with architect checkpoints | Architect checkpoints at milestones |
+| `/aod.deliver {NNN}` | Close feature with parallel doc updates | Automatic documentation |
+| `/aod.document` | Code quality review (simplify, docstrings, CHANGELOG) | — |
+
+**Plan sub-commands** (invoked by `/aod.plan`; use individually only if needed):
+
+| Command | Purpose | Auto Sign-offs |
+|---------|---------|----------------|
 | `/aod.spec` | Create spec.md with PM sign-off | 1-way (PM) |
 | `/aod.project-plan` | Create plan.md with PM + Architect sign-off | 2-way (PM, Architect) |
 | `/aod.tasks` | Create tasks.md with triple sign-off | 3-way (PM, Architect, Tech-Lead) |
-| `/aod.build` | Execute with architect checkpoints | Architect checkpoints at milestones |
-| `/aod.deliver {NNN}` | Close feature with parallel doc updates | Automatic documentation |
 
 ### Stack Pack Commands
 
@@ -173,23 +180,20 @@ Key outputs: `specs/{NNN}-*/security-scan.md` (human-readable), `.security/scan-
 # 1. Create PRD with automatic validation
 /aod.define "User authentication with OAuth2"
 
-# 2. Create specification with PM sign-off
-/aod.spec
+# 2. Plan — chains spec → project-plan → tasks with governance gates
+/aod.plan
 
-# 3. Create architecture with PM + Architect sign-off
-/aod.project-plan
-
-# 4. Generate tasks with triple sign-off (PM + Architect + Tech-Lead)
-/aod.tasks
-
-# 5. Execute implementation with architect checkpoints
+# 3. Execute implementation with architect checkpoints
 /aod.build
 
-# 6. Close feature with documentation updates
+# 4. Close feature with documentation updates
 /aod.deliver 001
+
+# 5. Code quality review (optional)
+/aod.document
 ```
 
-**Automatic Sign-offs**: PM approves product requirements, Architect approves technical design, Tech-Lead optimizes task assignment for parallel execution.
+**Automatic Sign-offs**: PM approves product requirements, Architect approves technical design, Tech-Lead optimizes task assignment for parallel execution. `/aod.plan` handles all three Plan sub-steps with their respective governance gates.
 
 ---
 

@@ -126,7 +126,7 @@ Step 4: PM Finalizes PRD
 ├─ Incorporate: Tech-Lead timeline + Architect feedback
 ├─ Validate: Product requirements still achievable
 ├─ Publish: Approved PRD with triple validation
-└─ Output: Final PRD ready for /aod.spec
+└─ Output: Final PRD ready for /aod.plan
 ```
 
 **Timeline**: ~2-4 hours for full Triad review cycle

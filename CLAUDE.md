@@ -41,7 +41,8 @@
 - `/aod.discover` → `/aod.discover` → `/aod.score` → `/aod.validate`
 
 **Triad workflow**:
-- `/aod.define` → `/aod.spec` → `/aod.project-plan` → `/aod.tasks` → `/aod.build [--no-security]`
+- `/aod.define` → `/aod.plan` → `/aod.build [--no-security]`
+- (`/aod.plan` chains: spec → project-plan → tasks automatically)
 
 **Post-delivery**:
 - `/aod.deliver` — Close completed feature
@@ -81,7 +82,7 @@ When invoked as a subagent (via Agent tool), return ONLY:
 - Policy applies to subagent→main returns only, not user-facing output
 
 ## Key Principles
-- **Vision First**: `/aod.define` (includes vision) → spec → plan → tasks
+- **Vision First**: `/aod.define` (includes vision) → `/aod.plan` (spec → plan → tasks)
 - **Triple Sign-off**: PM + Architect + Team-Lead approval on tasks.md
 - **Definition of Done**: 3-step validation before marking complete
 

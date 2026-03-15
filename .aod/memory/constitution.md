@@ -421,9 +421,7 @@ Product Manager is responsible for maintaining alignment between:
 - **product-manager agent**: Product Manager with alignment validation expertise
 - **architect agent**: Architect with technical design and review expertise
 - **/aod.define**: Create PRD documents
-- **/aod.spec**: Create specifications from PRD inputs
-- **/aod.project-plan**: Create technical plans from specifications
-- **/aod.tasks**: Create implementation tasks from plans
+- **/aod.plan**: Plan stage orchestrator — chains spec → project-plan → tasks with governance gates
 - **/aod.analyze**: Validate consistency across artifacts
 
 **Reference**: See `.claude/agents/product-manager.md` for PM responsibilities, `.claude/agents/architect.md` for Architect responsibilities, and `docs/standards/PRODUCT_SPEC_ALIGNMENT.md` for comprehensive alignment guide
@@ -544,7 +542,7 @@ All PRDs MUST have:
 
 ### Lifecycle Stages
 
-The AOD Lifecycle is a single, named sequence of **5 stages** organized into **2 phases**. All work passes through these stages in order.
+The AOD Lifecycle is a single, named sequence of **6 stages** organized into **3 phases**. All work passes through these stages in order.
 
 **Discovery Phase** (What to build):
 
@@ -561,6 +559,12 @@ The AOD Lifecycle is a single, named sequence of **5 stages** organized into **2
 | **Build** | Implement tasks with Architect checkpoints | `/aod.build` |
 | **Deliver** | Validate against DoD, run retrospective, close feature | `/aod.deliver` |
 
+**Quality Phase** (Is the quality where it needs to be):
+
+| Stage | Purpose | Primary Command |
+|-------|---------|-----------------|
+| **Document** | Human-driven code simplification, docstrings, CHANGELOG, API docs | `/aod.document` |
+
 ### Governance Gates
 
 Governance gates are a **separate layer** from lifecycle stages. Gates are Triad approval checkpoints that operate **at stage boundaries** -- they determine who approves, not what work is done.
@@ -574,21 +578,23 @@ Governance gates are a **separate layer** from lifecycle stages. Gates are Triad
 | Plan: tasks | Triple sign-off | PM + Architect + Team-Lead |
 | Build (continuous) | Architect checkpoints | Architect |
 | Deliver exit | Definition of Done check | PM + Architect + Team-Lead |
+| Document (per step) | Human approval | Human (accept/reject/skip per step) |
 
 **Invariants**:
 - Triple sign-off (PM + Architect + Team-Lead on tasks.md) is the **minimum governance floor** for all tiers
 - DoD check applies to **all tiers**
 - Architect build checkpoints apply to **all tiers**
+- Document stage (human approval per step) applies to **all tiers**
 
 ### Governance Tiers
 
 Three tiers determine which gates are active. Tiers affect only the Discover, Define, and Plan stage gates.
 
-| Tier | Discover Gate | Define Gate | Plan Gates | Build Gate | Deliver Gate |
-|------|---------------|-------------|------------|------------|--------------|
-| **Light** | Optional | Skip | Triple sign-off only | On | DoD |
-| **Standard** (default) | On | On | PM+Arch + Triple | On | DoD |
-| **Full** | On | On | PM spec + PM+Arch plan + Triple | On | DoD |
+| Tier | Discover Gate | Define Gate | Plan Gates | Build Gate | Deliver Gate | Document Gate |
+|------|---------------|-------------|------------|------------|--------------|---------------|
+| **Light** | Optional | Skip | Triple sign-off only | On | DoD | Human approval |
+| **Standard** (default) | On | On | PM+Arch + Triple | On | DoD | Human approval |
+| **Full** | On | On | PM spec + PM+Arch plan + Triple | On | DoD | Human approval |
 
 **When to use each tier**:
 

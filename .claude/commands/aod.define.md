@@ -246,7 +246,7 @@ Run `.aod/scripts/bash/backlog-regenerate.sh`. If `gh` is unavailable, skip sile
 
 ## Step 8: Report Completion
 
-**Re-ground before output**: Re-read the template below exactly. Do not paraphrase or substitute reviewer recommendations for the `Next:` line — it must always be `/aod.plan PRD: {prd_number} - {topic}`.
+**CRITICAL — Re-ground before output**: The `Next:` line MUST be exactly `/aod.plan PRD: {prd_number} - {topic}`. NOT `/aod.spec`, NOT `/aod.project-plan`, NOT any other command. The command after `/aod.define` is ALWAYS `/aod.plan`. Copy the template below verbatim — do not improvise or substitute.
 
 Display summary:
 ```

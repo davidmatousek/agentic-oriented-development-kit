@@ -8,46 +8,48 @@
 
 ## The AOD Lifecycle
 
-The AOD Lifecycle is a single, linear sequence of 5 stages organized into 2 phases. All work passes through these stages from idea to delivered feature.
+The AOD Lifecycle is a single, linear sequence of **6 stages** organized into **3 phases**. All work passes through these stages from idea to delivered, documented feature.
 
 ```
-                    DISCOVERY                              DELIVERY
-          .-----------------------. .------------------------------------------------.
-          |                       | |                                                |
-          |   [1. Discover]-->[2. Define]-->[3. Plan]-->[4. Build]-->[5. Deliver]    |
-          |                       | |                                                |
-          '-----------------------' '------------------------------------------------'
-                                                                          |
-                                                                   Feedback Loop
-                                                                          |
-                                                              New ideas --> Discover
+         DISCOVERY                    DELIVERY                                     QUALITY
+.-----------------------. .----------------------------------------------. .---------------.
+|                       | |                                              | |               |
+| [1. Discover]-->[2. Define]-->[3. Plan]-->[4. Build]-->[5. Deliver]----->[ 6. Document] |
+|                       | |                                              | |               |
+'-----------------------' '----------------------------------------------' '---------------'
+                                                                |
+                                                         Feedback Loop
+                                                                |
+                                                    New ideas --> Discover
 ```
+
+Stages 1-5 are orchestrated by `/aod.run`. Stage 6 (Document) is a separate human-driven command (`/aod.document`) for post-delivery quality review.
 
 ### Lifecycle with Governance Gates
 
 Governance gates are Triad approval checkpoints that operate **between stages**, not as stages themselves. Gates determine who approves before work advances.
 
 ```
-  DISCOVERY PHASE                          DELIVERY PHASE
-  ================                         ======================================
+  DISCOVERY PHASE                          DELIVERY PHASE                               QUALITY PHASE
+  ================                         ======================================       ==============
 
-  +------------+       +----------+        +---------+       +---------+       +---------+
-  |            |       |          |        |         |       |         |       |         |
-  | 1.Discover |       | 2.Define |        | 3. Plan |       | 4.Build |       |5.Deliver|
-  |            |       |          |        |         |       |         |       |         |
-  | Capture    |       | Create   |        | Spec    |       | Execute |       | Close   |
-  | ideas +    |       | PRD with |        | + Arch  |       | tasks   |       | feature |
-  | ICE score  |       | Triad    |        | plan +  |       | with    |       | + retro |
-  |            |       | review   |        | tasks   |       | reviews |       |         |
-  +-----+------+       +----+-----+        +----+----+       +----+----+       +----+----+
-        |                    |                   |                 |                 |
-        v                    v                   v                 v                 v
-   +---------+         +---------+     +------------------+  +---------+       +---------+
-   |  GATE   |         |  GATE   |     |      GATES       |  |  GATE   |       |  GATE   |
-   | PM val. |         | PRD     |     | PM spec sign-off |  | Arch    |       | DoD     |
-   | (tier-  |         | review  |     | PM+Arch plan     |  | check-  |       | check   |
-   | depend.)|         | (tier-  |     | Triple sign-off  |  | points  |       |         |
-   +---------+         | depend.)|     +------------------+  +---------+       +---------+
+  +------------+       +----------+        +---------+       +---------+       +---------+       +----------+
+  |            |       |          |        |         |       |         |       |         |       |          |
+  | 1.Discover |       | 2.Define |        | 3. Plan |       | 4.Build |       |5.Deliver|       |6.Document|
+  |            |       |          |        |         |       |         |       |         |       |          |
+  | Capture    |       | Create   |        | Spec    |       | Execute |       | Close   |       | Simplify |
+  | ideas +    |       | PRD with |        | + Arch  |       | tasks   |       | feature |       | docstrings|
+  | ICE score  |       | Triad    |        | plan +  |       | with    |       | + retro |       | CHANGELOG|
+  |            |       | review   |        | tasks   |       | reviews |       |         |       | API docs |
+  +-----+------+       +----+-----+        +----+----+       +----+----+       +----+----+       +----+-----+
+        |                    |                   |                 |                 |                 |
+        v                    v                   v                 v                 v                 v
+   +---------+         +---------+     +------------------+  +---------+       +---------+       +---------+
+   |  GATE   |         |  GATE   |     |      GATES       |  |  GATE   |       |  GATE   |       |  GATE   |
+   | PM val. |         | PRD     |     | PM spec sign-off |  | Arch    |       | DoD     |       | Human   |
+   | (tier-  |         | review  |     | PM+Arch plan     |  | check-  |       | check   |       | approval|
+   | depend.)|         | (tier-  |     | Triple sign-off  |  | points  |       |         |       | per step|
+   +---------+         | depend.)|     +------------------+  +---------+       +---------+       +---------+
                        +---------+
 ```
 
@@ -113,6 +115,28 @@ Governance gates are Triad approval checkpoints that operate **between stages**,
 | **Key Output** | Closed feature, retrospective, KB entry, new ideas (feedback loop) |
 | **Governance Gate** | DoD check (all tiers) |
 
+### 6. Document (Quality Phase)
+
+**Purpose**: Human-driven post-delivery quality review. Each step presents findings interactively and commits only what the human approves. This is the one stage designed for human judgment rather than agent automation.
+
+| | |
+|---|---|
+| **Primary Command** | `/aod.document` |
+| **Key Output** | Simplified code, docstrings, CHANGELOG entries, API doc sync, KB review |
+| **Governance Gate** | Human approval per step (accept/reject/skip) |
+
+**Steps** (each requires human approval):
+
+| Step | What It Does |
+|------|-------------|
+| Code Simplification | Runs `/simplify` on changed files, presents diff for review |
+| Docs-Lint | Flags complex undocumented functions, suggests docstrings |
+| CHANGELOG | Generates entries from commits, categorized by conventional commit type |
+| API Sync | Compares code endpoints against OpenAPI spec, flags mismatches |
+| KB Review | Reviews institutional knowledge entries captured during Build/Deliver |
+
+**Note**: Stage 6 is NOT part of the `/aod.run` orchestrator. It runs separately after Deliver because it requires sustained human interaction and judgment.
+
 ---
 
 ## Governance Tiers
@@ -148,6 +172,7 @@ governance:
 
 - Triple sign-off (PM + Architect + Team-Lead on tasks) is the **minimum governance floor** for all tiers
 - DoD check and Architect build checkpoints apply to **all tiers**
+- Document stage (human approval per step) applies to **all tiers**
 - Tier affects only Discover, Define, and Plan stage gates
 - Tier is configured per project, not per feature
 
@@ -157,11 +182,11 @@ governance:
 
 Which gates activate at each stage, per tier.
 
-| Tier | Discover | Define | Plan | Build | Deliver |
-|------|----------|--------|------|-------|---------|
-| **Light** | Optional | Skip | Triple sign-off only | Architect checkpoints | DoD |
-| **Standard** | PM validation | PRD review | PM+Arch + Triple | Architect checkpoints | DoD |
-| **Full** | PM validation | PRD review | PM spec + PM+Arch plan + Triple | Architect checkpoints | DoD |
+| Tier | Discover | Define | Plan | Build | Deliver | Document |
+|------|----------|--------|------|-------|---------|----------|
+| **Light** | Optional | Skip | Triple sign-off only | Architect checkpoints | DoD | Human approval |
+| **Standard** | PM validation | PRD review | PM+Arch + Triple | Architect checkpoints | DoD | Human approval |
+| **Full** | PM validation | PRD review | PM spec + PM+Arch plan + Triple | Architect checkpoints | DoD | Human approval |
 
 **Reading the matrix**: "PM+Arch + Triple" means PM and Architect sign-off on the architecture plan, followed by PM + Architect + Team-Lead sign-off on the task breakdown. "PM spec" means a separate PM sign-off on the specification before the architecture plan proceeds.
 
@@ -178,6 +203,7 @@ Which gates activate at each stage, per tier.
 | `/aod.plan` | Plan | Delivery | Router: auto-delegates to `/aod.spec`, `/aod.project-plan`, `/aod.tasks` |
 | `/aod.build` | Build | Delivery | Execute tasks with architect checkpoints |
 | `/aod.deliver` | Deliver | Delivery | Close feature with DoD check and retrospective |
+| `/aod.document` | Document | Quality | Human-driven code simplification, docstrings, CHANGELOG, API sync |
 
 ### Plan Sub-Commands (invoked by `/aod.plan` router)
 
@@ -201,10 +227,10 @@ Which gates activate at each stage, per tier.
 ### Minimum Feature Sequence
 
 ```
-/aod.discover --> /aod.define --> /aod.plan (x3 sessions) --> /aod.build --> /aod.deliver
+/aod.discover --> /aod.define --> /aod.plan --> /aod.build --> /aod.deliver --> /aod.document
 ```
 
-Five commands. `/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks).
+Six commands. `/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks). `/aod.document` runs separately after delivery for human-driven quality review.
 
 ---
 
@@ -254,6 +280,6 @@ Long-lived product artifacts that span features.
 
 ---
 
-**Last Updated**: 2026-02-09
+**Last Updated**: 2026-03-15
 **Maintained By**: Product Manager (lifecycle governance)
 **Source**: Feature 010 -- AOD Lifecycle Formalization

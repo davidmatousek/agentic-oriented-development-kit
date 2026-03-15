@@ -50,47 +50,27 @@ Per **Constitution v1.2.0, Principle X: Product-Spec Alignment (NON-NEGOTIABLE)*
    ├─ PM addresses feedback and finalizes PRD
    └─ PRD marked as "Approved" in INDEX.md
 
-3. /aod.spec                 → Create spec.md from PRD
+3. /aod.plan                      → Plan stage (chains spec → project-plan → tasks)
    │
-   ├─ Architect reads approved PRD
-   ├─ Architect creates spec.md referencing PRD
-   ├─ spec.md includes source_prd metadata
-   └─ spec.md ready for PM sign-off
+   ├─ Step 3a: /aod.spec          → Create spec.md from PRD
+   │   ├─ Architect reads approved PRD
+   │   ├─ Architect creates spec.md referencing PRD
+   │   ├─ spec.md includes source_prd metadata
+   │   └─ PM sign-off on spec.md (validates alignment)
+   │
+   ├─ Step 3b: /aod.project-plan  → Create plan.md from spec
+   │   ├─ Architect creates technical plan
+   │   ├─ plan.md references product docs
+   │   └─ PM + Architect sign-off on plan.md
+   │
+   └─ Step 3c: /aod.tasks         → Create tasks.md from plan
+       ├─ Team Lead breaks down implementation
+       ├─ tasks.md prioritization considers user value
+       └─ PM + Architect + Team-Lead sign-off on tasks.md
 
-4. PM Sign-Off on spec.md         → Validate alignment
+4. /aod.build                     → Execute implementation
    │
-   ├─ PM validates spec aligns with PRD
-   ├─ PM checks vision, OKR, and user story alignment
-   ├─ PM uses sign-off checklist (see below)
-   └─ PM approves OR exercises veto with required changes
-
-5. /aod.project-plan                    → Create plan.md from spec
-   │
-   ├─ Architect creates technical plan
-   ├─ plan.md references product docs
-   └─ plan.md ready for PM sign-off
-
-6. PM Sign-Off on plan.md         → Validate feasibility
-   │
-   ├─ PM validates plan fits roadmap timeline
-   ├─ PM checks technical approach serves user stories
-   └─ PM approves OR exercises veto
-
-7. /aod.tasks                   → Create tasks.md from plan
-   │
-   ├─ Team Lead breaks down implementation
-   ├─ tasks.md prioritization considers user value
-   └─ tasks.md ready for PM sign-off
-
-8. PM Sign-Off on tasks.md        → Validate prioritization
-   │
-   ├─ PM validates task priorities align with product priorities
-   ├─ PM checks MVP scope matches PRD in-scope items
-   └─ PM approves OR exercises veto
-
-9. /aod.build               → Execute implementation
-   │
-   └─ Implementation begins ONLY after PM approval
+   └─ Implementation begins ONLY after all Plan sign-offs approved
 ```
 
 ## Product Manager Sign-Off Checklist
@@ -220,7 +200,7 @@ Product Manager adds this section to spec.md, plan.md, or tasks.md after validat
 
 **Status**: ✅ Approved for implementation
 
-**Next Step**: [/aod.project-plan / /aod.tasks / /aod.build]
+**Next Step**: [/aod.plan (continues automatically) / /aod.build]
 
 ---
 ```
@@ -390,9 +370,7 @@ Constitution v1.2.0, Principle X makes PM sign-off **NON-NEGOTIABLE**.
 ### 2. Workflow Integration
 
 Triad commands enforce PM sign-off:
-- `/aod.spec` requires approved PRD
-- `/aod.project-plan` requires PM-approved spec.md
-- `/aod.tasks` requires PM-approved plan.md
+- `/aod.plan` requires approved PRD (chains spec → project-plan → tasks with governance gates at each step)
 - `/aod.build` requires PM-approved tasks.md
 
 ### 3. Pull Request Requirements
@@ -432,7 +410,7 @@ Use `/aod.analyze` to validate product-spec consistency:
 
 **Commands**:
 - `/aod.define <topic>` - Create new PRD
-- `/aod.spec` - Create spec from PRD
+- `/aod.plan` - Plan stage orchestrator (chains spec → project-plan → tasks)
 - `/aod.analyze` - Validate product-spec consistency
 - `/aod.clarify` - Ask clarifying questions
 

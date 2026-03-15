@@ -126,11 +126,32 @@
        +-----------------------------------------------------------------+
        | Gate: DoD check (all tiers)                                     |
        +-----------------------------------------------------------------+
+                                    |
+                                    v
+
+================================================================================================
+  STAGE 6: DOCUMENT                                              Command: /aod.document
+================================================================================================
+
+  /aod.document (human-driven — each step requires approval)
+  +-----------------------------------------------------------------------+
+  |  1. Code Simplification  → /simplify on changed files                 |
+  |  2. Docs-Lint            → Docstrings for complex undocumented funcs  |
+  |  3. CHANGELOG            → Entries from conventional commits          |
+  |  4. API Sync             → Compare endpoints vs OpenAPI spec          |
+  |  5. KB Review            → Validate institutional knowledge entries   |
+  +-----------------------------------------------------------------------+
+       +-----------------------------------------------------------------+
+       | Gate: Human approval per step (accept / reject / skip)          |
+       +-----------------------------------------------------------------+
+
+  NOTE: Stage 6 is NOT part of /aod.run. It runs separately after Deliver
+  because it requires sustained human interaction and judgment.
 
 ================================================================================================
   ARTIFACT TRAIL
 ================================================================================================
 
-  GitHub Issue --> PRD --> spec.md --> plan.md --> tasks.md --> CODE --> Retrospective
-     Discover     Define    Plan       Plan       Plan       Build      Deliver
+  GitHub Issue --> PRD --> spec.md --> plan.md --> tasks.md --> CODE --> Retrospective --> Quality Review
+     Discover     Define    Plan       Plan       Plan       Build      Deliver          Document
 ```

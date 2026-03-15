@@ -16,16 +16,16 @@ This guide covers the complete product lifecycle from raw idea to shipped featur
 ## Visual Flow
 
 ```
-                    DISCOVERY                              DELIVERY
-          .-----------------------. .------------------------------------------------.
-          |                       | |                                                |
-          |   [1. Discover]-->[2. Define]-->[3. Plan]-->[4. Build]-->[5. Deliver]    |
-          |                       | |                                                |
-          '-----------------------' '------------------------------------------------'
-                                                                          |
-                                                                   Feedback Loop
-                                                                          |
-                                                              New ideas --> Discover
+         DISCOVERY                    DELIVERY                                     QUALITY
+.-----------------------. .----------------------------------------------. .---------------.
+|                       | |                                              | |               |
+| [1. Discover]-->[2. Define]-->[3. Plan]-->[4. Build]-->[5. Deliver]----->[ 6. Document] |
+|                       | |                                              | |               |
+'-----------------------' '----------------------------------------------' '---------------'
+                                                                |
+                                                         Feedback Loop
+                                                                |
+                                                    New ideas --> Discover
 ```
 
 ---
@@ -33,16 +33,17 @@ This guide covers the complete product lifecycle from raw idea to shipped featur
 ## Complete Lifecycle Overview
 
 ```
-Discovery                                     Delivery
-──────────────────────────────────           ──────────────────────────────────
+Discovery                       Delivery                                        Quality
+─────────────────────         ──────────────────────────────────              ──────────
 
-Stage 1        Stage 2       Stage 3          Stage 4        Stage 5
-Discover    →  Define     →  Plan          →  Build       →  Deliver
-    │              │              │                │              │
-    ▼              ▼              ▼                ▼              ▼
-GitHub Issue   PRD doc      spec.md +         Implemented    Closed feature +
-+ evidence                  plan.md +         feature        retrospective +
-                            tasks.md                         KB entry
+Stage 1      Stage 2      Stage 3        Stage 4      Stage 5      Stage 6
+Discover  →  Define    →  Plan        →  Build     →  Deliver   →  Document
+    │            │            │              │            │              │
+    ▼            ▼            ▼              ▼            ▼              ▼
+GitHub       PRD doc     spec.md +      Implemented  Closed feature  Simplified code +
+Issue +                  plan.md +      feature      + retrospective docstrings +
+evidence                 tasks.md                    + KB entry      CHANGELOG +
+                                                                     API docs
 ```
 
 ---
@@ -163,6 +164,27 @@ The Plan stage has 3 sequential sub-steps. The `/aod.plan` router auto-detects w
 
 ---
 
+## Stage 6: Document
+
+**Command**: `/aod.document`
+
+**What happens**:
+1. Code Simplification — runs `/simplify` on changed files, presents diff for human review
+2. Docs-Lint — flags complex undocumented functions, suggests docstrings
+3. CHANGELOG — generates entries from commits, categorized by conventional commit type
+4. API Sync — compares code endpoints against OpenAPI spec, flags mismatches
+5. KB Review — validates institutional knowledge entries captured during Build/Deliver
+
+Each step presents findings interactively — the human accepts, rejects, or skips each one. This is the one stage designed for human judgment rather than agent automation.
+
+**Output**: Simplified code, docstrings, CHANGELOG entries, API doc sync, KB review
+
+**Governance Gate**: Human approval per step (all tiers)
+
+**Note**: Stage 6 is NOT part of `/aod.run`. It runs separately after Deliver because it requires sustained human interaction.
+
+---
+
 ## Commands by Stage
 
 | Stage | Command | Output |
@@ -172,6 +194,7 @@ The Plan stage has 3 sequential sub-steps. The `/aod.plan` router auto-detects w
 | 3. Plan | `/aod.plan` (router) | spec.md, plan.md, tasks.md |
 | 4. Build | `/aod.build` | Implemented feature |
 | 5. Deliver | `/aod.deliver` | Closed feature + retrospective |
+| 6. Document | `/aod.document` | Simplified code, docstrings, CHANGELOG, API docs |
 
 **Full flow shortcut**: `/aod.discover <idea>` covers the entire Discover stage in one command.
 
@@ -215,7 +238,7 @@ Each artifact references its source:
 ### Feature Lifecycle (GitHub Issue labels)
 
 ```
-stage:discover → stage:define → stage:plan → stage:build → stage:deliver
+stage:discover → stage:define → stage:plan → stage:build → stage:deliver → stage:document
 ```
 
 ---
@@ -271,7 +294,19 @@ stage:discover → stage:define → stage:plan → stage:build → stage:deliver
 - GitHub Issue label updated to `stage:deliver`
 - New ideas from retrospective → new GitHub Issues with `stage:discover`
 
-Feature delivered with full traceability from original idea to shipped code.
+### Step 6: Document
+
+```bash
+/aod.document
+```
+
+- Code simplification reviewed and approved
+- Docstrings added to complex undocumented functions
+- CHANGELOG updated with feature entries
+- API docs synced (if OpenAPI spec exists)
+- KB entries validated
+
+Feature delivered and documented with full traceability from original idea to shipped code.
 
 ---
 
@@ -284,3 +319,4 @@ Feature delivered with full traceability from original idea to shipped code.
 | 3. Plan | `/aod.plan` (x3) | spec + plan + tasks | PM, PM+Arch, Triple sign-off |
 | 4. Build | `/aod.build` | Implementation | Architect checkpoints |
 | 5. Deliver | `/aod.deliver` | Closed feature + retro | DoD check |
+| 6. Document | `/aod.document` | Simplified code + docs | Human approval per step |
