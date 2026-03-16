@@ -341,6 +341,22 @@ This step MUST be the very last GitHub operation, after all metrics, KB entries,
 
 ---
 
+## Step 11: Prompt for /aod.document
+
+After delivery is complete, prompt the user about the next lifecycle step:
+
+```
+Next step: Run `/aod.document` for post-delivery quality review.
+This covers code simplification, docstrings, CHANGELOG, and API docs.
+
+Run `/aod.document` now? (Y/n)
+```
+
+- If user selects "Y" or presses enter: Invoke `/aod.document`
+- If user selects "n": Display: `"Skipped. Run /aod.document when ready for post-delivery quality review."`
+
+---
+
 ## Edge Cases
 
 - **No tasks.md**: Skip DoD validation, warn user
@@ -368,3 +384,4 @@ This step MUST be the very last GitHub operation, after all metrics, KB entries,
 - [ ] Retrospective summary displayed with all metrics
 - [ ] Issue transitioned to `stage:done` label (end of retrospective)
 - [ ] GitHub Issue closed with closing comment
+- [ ] User prompted to run `/aod.document` for post-delivery quality review
