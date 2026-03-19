@@ -1,7 +1,9 @@
 # ADR-010: Minimal-Return Architecture for Subagent Context Optimization
 
-**Status**: Accepted
+**Status**: Accepted (Partially Superseded)
 **Date**: 2026-03-04
+**Superseded By**: Feature 093 — Relocate Governance Results (2026-03-19)
+**Supersession Scope**: Directory location only. `.claude/results/` → `.aod/results/`. All other decisions (file-based offloading, overwrite semantics, 10-line cap, convention-based enforcement) remain in effect. Cause: Claude Code platform write-protection on `.claude/` directory triggers interactive permission prompts, breaking autonomous governance flows.
 **Deciders**: Architect, product-manager, team-lead
 **Feature**: 073 — Minimal-Return Architecture for Subagent Context Optimization
 **PR**: #74

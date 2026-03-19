@@ -188,3 +188,4 @@ _site/
 
 # Subagent result artifacts (ephemeral, session-scoped)
 .claude/results/
+.aod/results/

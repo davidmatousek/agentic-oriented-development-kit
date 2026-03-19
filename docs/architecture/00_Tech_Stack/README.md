@@ -135,9 +135,9 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 
 ### Subagent Results Directory
 
-**Directory**: `.claude/results/` (ephemeral session artifacts, gitignored)
+**Directory**: `.aod/results/` (ephemeral session artifacts, gitignored)
 - Architecture: File-based offloading for minimal subagent returns (Feature 073)
-- Convention: Each subagent writes detailed findings to `.claude/results/{agent-name}.md` before returning
+- Convention: Each subagent writes detailed findings to `.aod/results/{agent-name}.md` before returning
 - Return policy: Subagents return only STATUS + ITEMS count + DETAILS path to the main context (max 10 lines / ~200 tokens)
 - Overwrite semantics: Each invocation overwrites the prior results file for the same agent
 - Initialization: Subagents create the directory if absent (self-healing, no pre-init required)

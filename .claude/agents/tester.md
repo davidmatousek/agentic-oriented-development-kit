@@ -11,7 +11,6 @@ description: >
   Use when: "Write tests", "create BDD tests", "write Gherkin scenarios", "test the feature",
   "create test cases", "implement step definitions", "UI testing", "API testing", "E2E testing"
 
-allowed-tools: [execute_code, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoWrite, Task]
 
 color: "#EAB308"
 

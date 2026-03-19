@@ -140,7 +140,7 @@ Escalate to the `debugger` agent only when inline 5 Whys cannot identify the roo
 Invoke the `debugger` agent as a subagent via the Agent tool. Pass the problem statement from Phase 0 and the partial 5 Whys findings as input context.
 
 **Return constraint:**
-The debugger must return at most 15 lines to this skill. Its full findings must be written to `.claude/results/debugger.md` before returning.
+The debugger must return at most 15 lines to this skill. Its full findings must be written to `.aod/results/debugger.md` before returning.
 
 **After escalation:**
 Use the debugger's root cause finding as the answer to Step 6 above, then proceed to Phase 2. If the debugger is unavailable, proceed to Phase 2 with the best root cause hypothesis established from the inline analysis — note in the Phase 2 confirmation gate that the root cause is a hypothesis, not confirmed.

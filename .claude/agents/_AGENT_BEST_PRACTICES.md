@@ -732,11 +732,11 @@ Add this section to agents invoked as subagents (via the Agent tool) to prevent 
 
 When invoked as a **subagent** (via the Agent tool), you MUST:
 
-1. Write your full review to `.claude/results/{agent-name}.md` (overwrite, do not append)
+1. Write your full review to `.aod/results/{agent-name}.md` (overwrite, do not append)
 2. Return to the caller ONLY:
     STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
     ITEMS: [N findings/concerns]
-    DETAILS: .claude/results/{agent-name}.md
+    DETAILS: .aod/results/{agent-name}.md
 
 Maximum return: 10 lines. No review rationale, code snippets, or file contents.
 Subagent-only restriction — provide full output when invoked directly by the user.
@@ -896,7 +896,7 @@ Key insights from the agent refactoring effort (Feature 003, 2026-01-31):
 
 ### Return Format Pattern
 
-For agents invoked as subagents: write full output to `.claude/results/{agent-name}.md`, return only STATUS / ITEMS / DETAILS (≤10 lines). See Section 7 Common Patterns → Return Format Pattern for full template.
+For agents invoked as subagents: write full output to `.aod/results/{agent-name}.md`, return only STATUS / ITEMS / DETAILS (≤10 lines). See Section 7 Common Patterns → Return Format Pattern for full template.
 
 ---
 

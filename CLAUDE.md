@@ -19,7 +19,8 @@
 ```
 {{PROJECT_NAME}}/
 ├── .claude/           → Agents, skills, commands
-├── .aod/              → spec.md, plan.md, tasks.md (source of truth)
+├── .aod/              → Active feature workspace (spec.md, plan.md, tasks.md)
+├── specs/             → Archived feature artifacts (per-feature history)
 ├── docs/              → Product, architecture, devops docs
 ├── scripts/           → init.sh, check.sh
 ├── stacks/            → Stack packs (conventions, personas, scaffolds)
@@ -75,7 +76,7 @@ All deployments must go through the devops agent. Never deploy without verificat
 When invoked as a subagent (via Agent tool), return ONLY:
 1. **Status** (APPROVED / CHANGES_REQUESTED / BLOCKED / pass / fail)
 2. **Item count** (if applicable)
-3. **File path** to `.claude/results/{agent-name}.md` with full details
+3. **File path** to `.aod/results/{agent-name}.md` with full details
 - Write detailed findings to results file BEFORE returning
 - Max return: 15 lines / ~200 tokens
 - NEVER return code snippets, file contents, or multi-paragraph explanations

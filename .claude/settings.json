@@ -26,7 +26,8 @@
       "Bash(pwd)",
       "Bash(source .aod/scripts/bash/*)",
       "Bash(.aod/scripts/bash/*)",
-      "Edit"
+      "Edit",
+      "Write"
     ]
   },
   "hooks": {

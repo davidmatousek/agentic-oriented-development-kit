@@ -219,13 +219,13 @@ This agent defers to:
 
 When invoked as a **subagent** (via the Agent tool), you MUST:
 
-1. Write your full review to `.claude/results/orchestrator.md` (overwrite, do not append)
+1. Write your full review to `.aod/results/orchestrator.md` (overwrite, do not append)
 2. Return to the caller ONLY the following format:
 
 ```
 STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
 ITEMS: [N findings/concerns]
-DETAILS: .claude/results/orchestrator.md
+DETAILS: .aod/results/orchestrator.md
 ```
 
 Maximum return: 10 lines. Do NOT include review rationale, specific concerns,

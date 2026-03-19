@@ -994,7 +994,7 @@ The core tension: governance reviews are valuable because they are thorough. Tru
 
 Decouple the subagent's work product from its return to the main context using **file-based offloading**:
 
-1. The subagent writes its complete findings to `.claude/results/{agent-name}.md` before returning
+1. The subagent writes its complete findings to `.aod/results/{agent-name}.md` before returning
 2. The subagent returns only a brief status summary to the main context: STATUS + ITEMS count + DETAILS file path, capped at 10 lines
 3. The main agent reads the results file on-demand when it needs to act on specific findings (e.g., when CHANGES_REQUESTED)
 4. Results files use overwrite semantics -- each invocation replaces the prior file, keeping only the current review
@@ -1003,7 +1003,7 @@ The approach has two enforcement layers:
 - **Project-wide**: A "Subagent Return Policy" section in CLAUDE.md establishes the convention for all agents
 - **Agent-level**: A "Return Format (STRICT)" section in each agent prompt specifies exact format and line limits
 
-The `.claude/results/` directory is gitignored as ephemeral session-scoped artifacts.
+The `.aod/results/` directory is gitignored as ephemeral session-scoped artifacts.
 
 #### Example
 
@@ -1014,13 +1014,13 @@ The `.claude/results/` directory is gitignored as ephemeral session-scoped artif
 
 When invoked as a **subagent** (via the Agent tool), you MUST:
 
-1. Write your full review to `.claude/results/architect.md` (overwrite, do not append)
+1. Write your full review to `.aod/results/architect.md` (overwrite, do not append)
 2. Return to the caller ONLY the following format:
 
 ```
 STATUS: [APPROVED | APPROVED_WITH_CONCERNS | CHANGES_REQUESTED | BLOCKED]
 ITEMS: [N findings/concerns]
-DETAILS: .claude/results/architect.md
+DETAILS: .aod/results/architect.md
 ```
 
 Maximum return: 10 lines. Do NOT include review rationale, specific concerns,
@@ -1031,7 +1031,7 @@ by the user, provide full output.
 ```
 
 ```
-# Results file written by architect: .claude/results/architect.md
+# Results file written by architect: .aod/results/architect.md
 STATUS: CHANGES_REQUESTED
 ITEMS: 3
 
@@ -1045,7 +1045,7 @@ ITEMS: 3
 # Return to main orchestrator (from architect subagent) — ~8 lines, ~80 tokens
 STATUS: CHANGES_REQUESTED
 ITEMS: 3
-DETAILS: .claude/results/architect.md
+DETAILS: .aod/results/architect.md
 ```
 
 #### When to Use
