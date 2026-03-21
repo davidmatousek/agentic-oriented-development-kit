@@ -187,5 +187,4 @@ _site/
 # Add your project-specific ignores here after template instantiation
 
 # Subagent result artifacts (ephemeral, session-scoped)
-.claude/results/
 .aod/results/

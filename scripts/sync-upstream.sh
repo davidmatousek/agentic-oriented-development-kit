@@ -43,6 +43,34 @@ CANONICAL_URL="https://github.com/spec-kit-ops/spec-kit.git"
 DRY_RUN=false
 JSON_OUTPUT=false
 
+# Pre-scan for --json flag to ensure error messages use correct format
+for arg in "$@"; do
+    if [[ "$arg" == "--json" ]]; then
+        JSON_OUTPUT=true
+        break
+    fi
+done
+
+# ============================================================================
+# JSON OUTPUT HELPERS
+# ============================================================================
+
+# Escape special characters for JSON string values
+# Handles: backslashes, double quotes, tabs
+# Note: Newlines in file paths are documented as unsupported (spec limitation)
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g'
+}
+
+# Output JSON to stdout when JSON_OUTPUT is enabled
+# Usage: json_output '{"key": "value"}'
+json_output() {
+    local json="$1"
+    if $JSON_OUTPUT; then
+        printf '%s\n' "$json"
+    fi
+}
+
 # ============================================================================
 # FILE OWNERSHIP CATEGORIES
 # ============================================================================
@@ -131,6 +159,11 @@ HELPEOF
 cmd_setup() {
     local custom_url=""
 
+    # JSON output tracking variables (Wave 2: T012)
+    local setup_status=""
+    local setup_remote="upstream"
+    local setup_url=""
+
     # Parse setup-specific flags
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -150,6 +183,7 @@ cmd_setup() {
     done
 
     local url="${custom_url:-$CANONICAL_URL}"
+    setup_url="$url"
 
     # Validate URL format
     if [[ -n "$custom_url" ]]; then
@@ -165,6 +199,15 @@ cmd_setup() {
     if git remote get-url upstream >/dev/null 2>&1; then
         local existing_url
         existing_url=$(git remote get-url upstream)
+        setup_status="already_configured"
+        setup_url="$existing_url"
+
+        # JSON output for already_configured (T013)
+        if $JSON_OUTPUT; then
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"already_configured\",\"remote\":\"$setup_remote\",\"url\":\"$(json_escape "$setup_url")\"}"
+            return 0
+        fi
+
         echo -e "${GREEN}Upstream remote already configured${NC}"
         echo "  URL: $existing_url"
 
@@ -181,6 +224,14 @@ cmd_setup() {
 
     # Add upstream remote
     if $DRY_RUN; then
+        setup_status="dry_run"
+
+        # JSON output for dry_run (T013)
+        if $JSON_OUTPUT; then
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"dry_run\",\"remote\":\"$setup_remote\",\"url\":\"$(json_escape "$setup_url")\"}"
+            return 0
+        fi
+
         echo -e "${YELLOW}[DRY-RUN]${NC} Would add upstream remote:"
         echo "  git remote add upstream $url"
         echo "  git fetch upstream"
@@ -193,12 +244,30 @@ cmd_setup() {
 
     echo -e "${BLUE}Fetching upstream refs...${NC}"
     if ! git fetch upstream 2>&1; then
+        setup_status="error"
+
+        # JSON output for error (T013)
+        if $JSON_OUTPUT; then
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"error\",\"remote\":\"$setup_remote\",\"url\":\"$(json_escape "$setup_url")\",\"error\":\"Failed to fetch from upstream\"}"
+            return 1
+        fi
+
         echo -e "${RED}Error: Failed to fetch from upstream${NC}" >&2
         echo "  Check that the URL is correct and you have network access." >&2
         echo "  URL: $url" >&2
         echo ""
         echo "  To remove and retry: git remote remove upstream" >&2
         return 1
+    fi
+
+    setup_status="configured"
+
+    # JSON output for successful configuration (T013)
+    if $JSON_OUTPUT; then
+        json_output "{\"schema_version\":\"1.0\",\"status\":\"configured\",\"remote\":\"$setup_remote\",\"url\":\"$(json_escape "$setup_url")\"}"
+        # Still run gitattributes setup even in JSON mode
+        _ensure_gitattributes
+        return 0
     fi
 
     echo -e "${GREEN}Upstream remote configured successfully${NC}"
@@ -218,14 +287,23 @@ cmd_setup() {
 cmd_check() {
     # Verify upstream remote exists
     if ! git remote get-url upstream >/dev/null 2>&1; then
-        echo -e "${RED}Error: No 'upstream' remote configured${NC}" >&2
-        echo "  Run: sync-upstream.sh setup" >&2
+        # JSON output for error (T006)
+        if $JSON_OUTPUT; then
+            json_output '{"schema_version":"1.0","status":"error","error":"No upstream remote configured"}'
+        else
+            echo -e "${RED}Error: No 'upstream' remote configured${NC}" >&2
+            echo "  Run: sync-upstream.sh setup" >&2
+        fi
         return 1
     fi
 
-    echo -e "${BLUE}Fetching upstream changes...${NC}"
+    if ! $JSON_OUTPUT; then echo -e "${BLUE}Fetching upstream changes...${NC}"; fi
     if ! git fetch upstream 2>&1; then
-        echo -e "${RED}Error: Failed to fetch from upstream${NC}" >&2
+        if $JSON_OUTPUT; then
+            json_output '{"schema_version":"1.0","status":"error","error":"Failed to fetch from upstream"}'
+        else
+            echo -e "${RED}Error: Failed to fetch from upstream${NC}" >&2
+        fi
         return 1
     fi
 
@@ -234,9 +312,11 @@ cmd_check() {
     if sync_point=$(git merge-base HEAD upstream/main 2>/dev/null); then
         : # sync_point is set
     else
-        echo -e "${YELLOW}Warning: No shared history found (repo may have been cloned, not forked)${NC}"
-        echo "  Using upstream/main directly for comparison."
-        echo ""
+        if ! $JSON_OUTPUT; then
+            echo -e "${YELLOW}Warning: No shared history found (repo may have been cloned, not forked)${NC}"
+            echo "  Using upstream/main directly for comparison."
+            echo ""
+        fi
         sync_point=""
     fi
 
@@ -257,12 +337,20 @@ cmd_check() {
         else
             sync_date="N/A"
         fi
+
+        # JSON output for up-to-date state (T005)
+        if $JSON_OUTPUT; then
+            json_output '{"schema_version":"1.0","status":"up_to_date","total_files":0,"categories":{}}'
+            return 0
+        fi
+
         echo -e "${GREEN}Already up to date${NC}"
         echo "  Last sync point: $sync_date"
         return 0
     fi
 
     # Parse and categorize changed files
+    # JSON output tracking: category counts collected for Wave 3 JSON output (T004)
     local skills=0 rules=0 agents=0 commands=0 scripts=0 templates=0 docs=0 core=0 config=0 other=0
     local total=0
 
@@ -304,6 +392,27 @@ cmd_check() {
 $diff_stat
 EOF
 
+    # JSON output for changes available (T005)
+    if $JSON_OUTPUT; then
+        # Build categories object - only include non-zero counts
+        local categories=""
+        if [[ $skills -gt 0 ]];    then categories="${categories}\"Skills\":$skills,"; fi
+        if [[ $rules -gt 0 ]];     then categories="${categories}\"Rules\":$rules,"; fi
+        if [[ $agents -gt 0 ]];    then categories="${categories}\"Agents\":$agents,"; fi
+        if [[ $commands -gt 0 ]];  then categories="${categories}\"Commands\":$commands,"; fi
+        if [[ $scripts -gt 0 ]];   then categories="${categories}\"Scripts\":$scripts,"; fi
+        if [[ $templates -gt 0 ]]; then categories="${categories}\"Templates\":$templates,"; fi
+        if [[ $docs -gt 0 ]];      then categories="${categories}\"Docs\":$docs,"; fi
+        if [[ $core -gt 0 ]];      then categories="${categories}\"Core\":$core,"; fi
+        if [[ $config -gt 0 ]];    then categories="${categories}\"Config\":$config,"; fi
+        if [[ $other -gt 0 ]];     then categories="${categories}\"Other\":$other,"; fi
+        # Remove trailing comma
+        categories="${categories%,}"
+
+        json_output "{\"schema_version\":\"1.0\",\"status\":\"changes_available\",\"total_files\":$total,\"categories\":{$categories}}"
+        return 0
+    fi
+
     # Display categorized summary
     echo -e "${BLUE}Upstream changes available:${NC}"
     echo ""
@@ -328,6 +437,13 @@ EOF
 # ============================================================================
 
 cmd_merge() {
+    # JSON output tracking variables (Wave 2: T007)
+    local merge_status=""
+    local merge_files_changed=0
+    local merge_conflict_count=0
+    local merge_conflicts=""  # Newline-separated list for bash 3.2 compatibility
+    local merge_memory_preserved=false
+
     # --- Pre-flight checks ---
 
     # Check for clean working tree
@@ -350,10 +466,17 @@ cmd_merge() {
     fi
 
     # Fetch latest
-    echo -e "${BLUE}Fetching upstream...${NC}"
-    if ! git fetch upstream 2>&1; then
-        echo -e "${RED}Error: Failed to fetch from upstream${NC}" >&2
-        return 1
+    if ! $JSON_OUTPUT; then
+        echo -e "${BLUE}Fetching upstream...${NC}"
+        if ! git fetch upstream 2>&1; then
+            echo -e "${RED}Error: Failed to fetch from upstream${NC}" >&2
+            return 1
+        fi
+    else
+        if ! git fetch upstream >/dev/null 2>&1; then
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"error\",\"error\":\"Failed to fetch from upstream\"}"
+            return 1
+        fi
     fi
 
     # Detect shared vs unrelated history
@@ -364,28 +487,87 @@ cmd_merge() {
 
     # --- Dry-run mode ---
     if $DRY_RUN; then
-        echo -e "${YELLOW}[DRY-RUN]${NC} Previewing merge (no changes will be made)..."
-        echo ""
+        merge_status="dry_run"
+        if ! $JSON_OUTPUT; then
+            echo -e "${YELLOW}[DRY-RUN]${NC} Previewing merge (no changes will be made)..."
+            echo ""
+        fi
 
+        local dry_run_stat=""
+        local dry_run_conflicts=""
         if $has_shared_history; then
             if git merge --no-commit upstream/main >/dev/null 2>&1; then
-                git diff --cached --stat 2>/dev/null || true
+                dry_run_stat=$(git diff --cached --stat 2>/dev/null || true)
+                if ! $JSON_OUTPUT; then
+                    echo "$dry_run_stat"
+                fi
                 git merge --abort >/dev/null 2>&1 || true
             else
-                echo -e "${YELLOW}Merge would produce conflicts:${NC}"
-                git diff --name-only --diff-filter=U 2>/dev/null || true
+                if ! $JSON_OUTPUT; then
+                    echo -e "${YELLOW}Merge would produce conflicts:${NC}"
+                fi
+                dry_run_conflicts=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+                if ! $JSON_OUTPUT; then
+                    echo "$dry_run_conflicts"
+                fi
                 git merge --abort >/dev/null 2>&1 || true
             fi
         else
-            echo -e "${YELLOW}Note: Unrelated histories — merge will use --allow-unrelated-histories${NC}"
+            if ! $JSON_OUTPUT; then
+                echo -e "${YELLOW}Note: Unrelated histories — merge will use --allow-unrelated-histories${NC}"
+            fi
             if git merge --no-commit --allow-unrelated-histories upstream/main >/dev/null 2>&1; then
-                git diff --cached --stat 2>/dev/null || true
+                dry_run_stat=$(git diff --cached --stat 2>/dev/null || true)
+                if ! $JSON_OUTPUT; then
+                    echo "$dry_run_stat"
+                fi
                 git merge --abort >/dev/null 2>&1 || true
             else
-                echo -e "${YELLOW}Merge would produce conflicts:${NC}"
-                git diff --name-only --diff-filter=U 2>/dev/null || true
+                if ! $JSON_OUTPUT; then
+                    echo -e "${YELLOW}Merge would produce conflicts:${NC}"
+                fi
+                dry_run_conflicts=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+                if ! $JSON_OUTPUT; then
+                    echo "$dry_run_conflicts"
+                fi
                 git merge --abort >/dev/null 2>&1 || true
             fi
+        fi
+
+        # Track files that would change for JSON output (T007)
+        if [[ -n "$dry_run_stat" ]]; then
+            # Extract file count from stat summary line (e.g., "10 files changed")
+            merge_files_changed=$(echo "$dry_run_stat" | grep -oE '[0-9]+ files? changed' | grep -oE '^[0-9]+' || echo "0")
+        fi
+        if [[ -n "$dry_run_conflicts" ]]; then
+            merge_conflicts="$dry_run_conflicts"
+            merge_conflict_count=$(echo "$dry_run_conflicts" | wc -l | tr -d ' ')
+        fi
+
+        # JSON output for dry-run (T008, T009)
+        if $JSON_OUTPUT; then
+            # Build conflicts JSON array
+            local conflicts_json="[]"
+            if [[ -n "$merge_conflicts" ]]; then
+                conflicts_json="["
+                local first=true
+                while IFS= read -r conflict_file; do
+                    if [[ -n "$conflict_file" ]]; then
+                        if $first; then
+                            first=false
+                        else
+                            conflicts_json="${conflicts_json},"
+                        fi
+                        conflicts_json="${conflicts_json}\"$(json_escape "$conflict_file")\""
+                    fi
+                done <<EOF
+$merge_conflicts
+EOF
+                conflicts_json="${conflicts_json}]"
+            fi
+
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"dry_run\",\"backup_branch\":\"\",\"files_changed\":$merge_files_changed,\"conflicts\":$conflicts_json,\"conflict_count\":$merge_conflict_count,\"memory_preserved\":false}"
+            return 0
         fi
 
         echo ""
@@ -425,15 +607,26 @@ cmd_merge() {
         rm -rf "$memory_backup"
         # Stage the restored memory files to resolve any conflicts there
         git add "$memory_dir" 2>/dev/null || true
+        merge_memory_preserved=true
         echo -e "${GREEN}.aod/memory/ restored from backup${NC}"
     fi
 
     # --- Report results ---
     echo ""
     if [[ $merge_result -eq 0 ]]; then
-        # Clean merge
-        local files_changed
-        files_changed=$(echo "$merge_output" | grep -c "file changed\|files changed" || echo "0")
+        # Clean merge - track for JSON output (T007)
+        merge_status="success"
+        # Extract actual file count from merge summary line (e.g., "10 files changed")
+        merge_files_changed=$(echo "$merge_output" | grep -oE '[0-9]+ files? changed' | grep -oE '^[0-9]+' || echo "0")
+        merge_conflict_count=0
+        merge_conflicts=""
+
+        # JSON output for successful merge (T008)
+        if $JSON_OUTPUT; then
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"success\",\"backup_branch\":\"$(json_escape "$backup_branch")\",\"files_changed\":$merge_files_changed,\"conflicts\":[],\"conflict_count\":0,\"memory_preserved\":$merge_memory_preserved}"
+            return 0
+        fi
+
         echo -e "${GREEN}Merge completed successfully${NC}"
         echo "$merge_output" | grep -E "file(s)? changed|insertion|deletion" || true
         echo ""
@@ -442,15 +635,18 @@ cmd_merge() {
         echo ""
         echo "  Next: Run 'sync-upstream.sh validate' to check project integrity."
     else
-        # Merge with conflicts
+        # Merge with conflicts - track for JSON output (T007)
+        merge_status="conflicts"
         local conflict_files
         conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
-        local conflict_count=0
+        merge_conflicts="$conflict_files"
         if [[ -n "$conflict_files" ]]; then
-            conflict_count=$(echo "$conflict_files" | wc -l | tr -d ' ')
+            merge_conflict_count=$(echo "$conflict_files" | wc -l | tr -d ' ')
+        else
+            merge_conflict_count=0
         fi
 
-        echo -e "${YELLOW}Merge completed with $conflict_count conflict(s)${NC}"
+        echo -e "${YELLOW}Merge completed with $merge_conflict_count conflict(s)${NC}"
         echo ""
         echo "  Files with conflicts:"
         echo "$conflict_files" | while IFS= read -r f; do
@@ -465,6 +661,32 @@ cmd_merge() {
         echo "  Or abort and restore:"
         echo "    git merge --abort"
         echo "    git checkout $backup_branch  # Restore pre-merge state"
+        # JSON output for merge with conflicts (T008)
+        if $JSON_OUTPUT; then
+            # Build conflicts JSON array
+            local conflicts_json="[]"
+            if [[ -n "$merge_conflicts" ]]; then
+                conflicts_json="["
+                local first=true
+                while IFS= read -r conflict_file; do
+                    if [[ -n "$conflict_file" ]]; then
+                        if $first; then
+                            first=false
+                        else
+                            conflicts_json="${conflicts_json},"
+                        fi
+                        conflicts_json="${conflicts_json}\"$(json_escape "$conflict_file")\""
+                    fi
+                done <<EOF
+$merge_conflicts
+EOF
+                conflicts_json="${conflicts_json}]"
+            fi
+
+            json_output "{\"schema_version\":\"1.0\",\"status\":\"conflicts\",\"backup_branch\":\"$(json_escape "$backup_branch")\",\"files_changed\":$merge_files_changed,\"conflicts\":$conflicts_json,\"conflict_count\":$merge_conflict_count,\"memory_preserved\":$merge_memory_preserved}"
+            return 0
+        fi
+
         echo ""
         echo "  Backup branch: $backup_branch"
         echo "  .aod/memory/:  preserved"
@@ -476,42 +698,76 @@ cmd_merge() {
 # ============================================================================
 
 cmd_validate() {
-    echo -e "${BLUE}Validating project integrity...${NC}"
-    echo ""
+    if ! $JSON_OUTPUT; then
+        echo -e "${BLUE}Validating project integrity...${NC}"
+        echo ""
+    fi
 
     local pass_count=0
     local fail_count=0
     local warn_count=0
 
+    # JSON output tracking: collect check results as JSON fragments (Wave 2: T010)
+    # Format: newline-separated JSON objects for bash 3.2 compatibility
+    local validate_checks=""
+
+    # Helper to add a check result to the collection
+    _add_check() {
+        local name="$1"
+        local status="$2"
+        local message="$3"
+        local remediation="${4:-}"
+        local check_json
+        if [[ -n "$remediation" ]]; then
+            check_json="{\"name\":\"$(json_escape "$name")\",\"status\":\"$status\",\"message\":\"$(json_escape "$message")\",\"remediation\":\"$(json_escape "$remediation")\"}"
+        else
+            check_json="{\"name\":\"$(json_escape "$name")\",\"status\":\"$status\",\"message\":\"$(json_escape "$message")\"}"
+        fi
+        if [[ -z "$validate_checks" ]]; then
+            validate_checks="$check_json"
+        else
+            validate_checks="$validate_checks
+$check_json"
+        fi
+    }
+
     # --- Check 1: Expected AOD files exist ---
-    echo -e "${BLUE}1. File existence checks${NC}"
+    if ! $JSON_OUTPUT; then echo -e "${BLUE}1. File existence checks${NC}"; fi
     local expected_dirs=(".aod" ".claude" "docs/core_principles" "scripts")
     for dir in "${expected_dirs[@]}"; do
         if [[ -d "$REPO_ROOT/$dir" ]]; then
-            echo -e "   ${GREEN}PASS${NC} $dir/ exists"
+            if ! $JSON_OUTPUT; then echo -e "   ${GREEN}PASS${NC} $dir/ exists"; fi
             pass_count=$((pass_count + 1))
+            _add_check "dir_$dir" "pass" "$dir/ exists"
         else
-            echo -e "   ${RED}FAIL${NC} $dir/ missing"
-            echo "         Remediation: Check if upstream merge removed this directory"
+            if ! $JSON_OUTPUT; then
+                echo -e "   ${RED}FAIL${NC} $dir/ missing"
+                echo "         Remediation: Check if upstream merge removed this directory"
+            fi
             fail_count=$((fail_count + 1))
+            _add_check "dir_$dir" "fail" "$dir/ missing" "Check if upstream merge removed this directory"
         fi
     done
 
     local expected_files=("CLAUDE.md" "Makefile" ".gitignore")
     for file in "${expected_files[@]}"; do
         if [[ -f "$REPO_ROOT/$file" ]]; then
-            echo -e "   ${GREEN}PASS${NC} $file exists"
+            if ! $JSON_OUTPUT; then echo -e "   ${GREEN}PASS${NC} $file exists"; fi
             pass_count=$((pass_count + 1))
+            _add_check "file_$file" "pass" "$file exists"
         else
-            echo -e "   ${RED}FAIL${NC} $file missing"
-            echo "         Remediation: Restore from backup branch or upstream"
+            if ! $JSON_OUTPUT; then
+                echo -e "   ${RED}FAIL${NC} $file missing"
+                echo "         Remediation: Restore from backup branch or upstream"
+            fi
             fail_count=$((fail_count + 1))
+            _add_check "file_$file" "fail" "$file missing" "Restore from backup branch or upstream"
         fi
     done
-    echo ""
+    if ! $JSON_OUTPUT; then echo ""; fi
 
     # --- Check 2: YAML frontmatter validation ---
-    echo -e "${BLUE}2. YAML frontmatter checks${NC}"
+    if ! $JSON_OUTPUT; then echo -e "${BLUE}2. YAML frontmatter checks${NC}"; fi
     local yaml_files_checked=0
     while IFS= read -r specfile; do
         if [[ -z "$specfile" ]]; then
@@ -528,27 +784,33 @@ cmd_validate() {
             local closing
             closing=$(tail -n +2 "$specfile" | grep -n "^---$" | head -1 | cut -d: -f1 || echo "")
             if [[ -n "$closing" ]] && [[ "$closing" -gt 0 ]]; then
-                echo -e "   ${GREEN}PASS${NC} $relpath — valid frontmatter"
+                if ! $JSON_OUTPUT; then echo -e "   ${GREEN}PASS${NC} $relpath — valid frontmatter"; fi
                 pass_count=$((pass_count + 1))
+                _add_check "yaml_$relpath" "pass" "$relpath — valid frontmatter"
             else
-                echo -e "   ${RED}FAIL${NC} $relpath — missing closing --- delimiter"
-                echo "         Remediation: Add closing --- after YAML frontmatter block"
+                if ! $JSON_OUTPUT; then
+                    echo -e "   ${RED}FAIL${NC} $relpath — missing closing --- delimiter"
+                    echo "         Remediation: Add closing --- after YAML frontmatter block"
+                fi
                 fail_count=$((fail_count + 1))
+                _add_check "yaml_$relpath" "fail" "$relpath — missing closing --- delimiter" "Add closing --- after YAML frontmatter block"
             fi
         else
-            echo -e "   ${YELLOW}WARN${NC} $relpath — no YAML frontmatter found"
+            if ! $JSON_OUTPUT; then echo -e "   ${YELLOW}WARN${NC} $relpath — no YAML frontmatter found"; fi
             warn_count=$((warn_count + 1))
+            _add_check "yaml_$relpath" "warn" "$relpath — no YAML frontmatter found"
         fi
     done < <(find "$REPO_ROOT/specs" -name "spec.md" -o -name "plan.md" -o -name "tasks.md" 2>/dev/null)
 
     if [[ $yaml_files_checked -eq 0 ]]; then
-        echo -e "   ${YELLOW}WARN${NC} No spec/plan/tasks files found to validate"
+        if ! $JSON_OUTPUT; then echo -e "   ${YELLOW}WARN${NC} No spec/plan/tasks files found to validate"; fi
         warn_count=$((warn_count + 1))
+        _add_check "yaml_files" "warn" "No spec/plan/tasks files found to validate"
     fi
-    echo ""
+    if ! $JSON_OUTPUT; then echo ""; fi
 
     # --- Check 3: Placeholder leak detection ---
-    echo -e "${BLUE}3. Placeholder leak detection${NC}"
+    if ! $JSON_OUTPUT; then echo -e "${BLUE}3. Placeholder leak detection${NC}"; fi
     local placeholder_found=false
     local scan_files=("CLAUDE.md" ".aod/memory/constitution.md" "Makefile" "scripts/init.sh")
     for file in "${scan_files[@]}"; do
@@ -560,21 +822,25 @@ cmd_validate() {
         matches=$(grep -n '{{[A-Z_]*}}' "$fullpath" 2>/dev/null || true)
         if [[ -n "$matches" ]]; then
             placeholder_found=true
-            echo -e "   ${YELLOW}WARN${NC} $file — placeholder(s) found:"
-            echo "$matches" | while IFS= read -r match; do
-                echo "         Line $match"
-            done
+            if ! $JSON_OUTPUT; then
+                echo -e "   ${YELLOW}WARN${NC} $file — placeholder(s) found:"
+                echo "$matches" | while IFS= read -r match; do
+                    echo "         Line $match"
+                done
+            fi
             warn_count=$((warn_count + 1))
+            _add_check "placeholder_$file" "warn" "$file — placeholder(s) found"
         fi
     done
     if ! $placeholder_found; then
-        echo -e "   ${GREEN}PASS${NC} No leaked placeholders detected"
+        if ! $JSON_OUTPUT; then echo -e "   ${GREEN}PASS${NC} No leaked placeholders detected"; fi
         pass_count=$((pass_count + 1))
+        _add_check "placeholder_scan" "pass" "No leaked placeholders detected"
     fi
-    echo ""
+    if ! $JSON_OUTPUT; then echo ""; fi
 
     # --- Check 4: Constitution integrity ---
-    echo -e "${BLUE}4. Constitution integrity${NC}"
+    if ! $JSON_OUTPUT; then echo -e "${BLUE}4. Constitution integrity${NC}"; fi
     local constitution="$REPO_ROOT/.aod/memory/constitution.md"
     if [[ -f "$constitution" ]]; then
         local template_count
@@ -582,20 +848,60 @@ cmd_validate() {
         local total_lines
         total_lines=$(wc -l < "$constitution" | tr -d ' ')
         if [[ "$template_count" -gt 0 ]]; then
-            echo -e "   ${YELLOW}WARN${NC} constitution.md has $template_count unresolved template variable(s)"
-            echo "         This may be expected if you haven't customized the constitution yet."
-            echo "         Run: /aod.constitution to configure your project values"
+            if ! $JSON_OUTPUT; then
+                echo -e "   ${YELLOW}WARN${NC} constitution.md has $template_count unresolved template variable(s)"
+                echo "         This may be expected if you haven't customized the constitution yet."
+                echo "         Run: /aod.constitution to configure your project values"
+            fi
             warn_count=$((warn_count + 1))
+            _add_check "constitution" "warn" "constitution.md has $template_count unresolved template variable(s)" "Run /aod.constitution to configure your project values"
         else
-            echo -e "   ${GREEN}PASS${NC} constitution.md — no template variables (customized)"
+            if ! $JSON_OUTPUT; then echo -e "   ${GREEN}PASS${NC} constitution.md — no template variables (customized)"; fi
             pass_count=$((pass_count + 1))
+            _add_check "constitution" "pass" "constitution.md — no template variables (customized)"
         fi
     else
-        echo -e "   ${RED}FAIL${NC} .aod/memory/constitution.md not found"
-        echo "         Remediation: Restore from backup or re-run scripts/init.sh"
+        if ! $JSON_OUTPUT; then
+            echo -e "   ${RED}FAIL${NC} .aod/memory/constitution.md not found"
+            echo "         Remediation: Restore from backup or re-run scripts/init.sh"
+        fi
         fail_count=$((fail_count + 1))
+        _add_check "constitution" "fail" ".aod/memory/constitution.md not found" "Restore from backup or re-run scripts/init.sh"
     fi
-    echo ""
+    if ! $JSON_OUTPUT; then echo ""; fi
+
+    # JSON output for validate (T011)
+    if $JSON_OUTPUT; then
+        # Determine overall status
+        local validate_status="pass"
+        if [[ $fail_count -gt 0 ]]; then
+            validate_status="fail"
+        fi
+
+        # Build checks JSON array from newline-separated JSON fragments
+        local checks_json="["
+        local first=true
+        while IFS= read -r check_line; do
+            if [[ -n "$check_line" ]]; then
+                if $first; then
+                    first=false
+                else
+                    checks_json="${checks_json},"
+                fi
+                checks_json="${checks_json}${check_line}"
+            fi
+        done <<EOF
+$validate_checks
+EOF
+        checks_json="${checks_json}]"
+
+        json_output "{\"schema_version\":\"1.0\",\"status\":\"$validate_status\",\"passed\":$pass_count,\"failed\":$fail_count,\"warnings\":$warn_count,\"checks\":$checks_json}"
+
+        if [[ $fail_count -gt 0 ]]; then
+            return 1
+        fi
+        return 0
+    fi
 
     # --- Summary ---
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -676,10 +982,14 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         *)
-            echo -e "${RED}Error: Unknown command or option: $1${NC}" >&2
-            echo "" >&2
-            echo "Usage: sync-upstream.sh <subcommand> [options]" >&2
-            echo "Run 'sync-upstream.sh --help' for details." >&2
+            if $JSON_OUTPUT; then
+                json_output "{\"schema_version\":\"1.0\",\"status\":\"error\",\"error\":\"Unknown subcommand: $1\"}"
+            else
+                echo -e "${RED}Error: Unknown command or option: $1${NC}" >&2
+                echo "" >&2
+                echo "Usage: sync-upstream.sh <subcommand> [options]" >&2
+                echo "Run 'sync-upstream.sh --help' for details." >&2
+            fi
             exit 1
             ;;
     esac

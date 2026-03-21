@@ -63,6 +63,12 @@ AOD_HINT_MARKER=".aod/memory/.board-hint-shown"
 AOD_GH_VERSION_WARNED=".aod/memory/.gh-version-warned"
 AOD_GH_SCOPE_WARNED=".aod/memory/.gh-scope-warned"
 
+# Load AOD_REPO from .env if not already set
+# This ensures gh commands target the correct repository regardless of working directory.
+if [[ -z "${AOD_REPO:-}" && -f ".env" ]]; then
+    AOD_REPO=$(grep -E '^AOD_REPO=' .env 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'") || true
+fi
+
 # Check board prerequisites: gh CLI version >= 2.40 and project scope
 # Returns: 0 if both pass, 1 if not (with one-time warnings on stderr)
 aod_gh_check_board_prereqs() {
@@ -778,6 +784,12 @@ aod_gh_check_available() {
     if ! git remote get-url origin &>/dev/null; then
         echo "[aod] Warning: No git remote 'origin' configured. GitHub operations skipped." >&2
         return 1
+    fi
+
+    # Explicit repo targeting: AOD_REPO from .env ensures gh commands
+    # target the correct repository regardless of working directory context.
+    if [[ -n "${AOD_REPO:-}" ]]; then
+        export GH_REPO="$AOD_REPO"
     fi
 
     return 0

@@ -194,7 +194,7 @@ log_degradation_event() {
     >&2 echo "[DEGRADATION] $timestamp - Feature: $feature, Fallback: $fallback_action"
 
     # Could also log to file for analytics
-    # echo "$timestamp,$feature,$fallback_action,$AOD_CLAUDE_VERSION" >> .claude/logs/degradation.csv
+    # echo "$timestamp,$feature,$fallback_action,$AOD_CLAUDE_VERSION" >> .aod/logs/degradation.csv
 }
 
 # ============================================================================

@@ -162,6 +162,17 @@ replace_in_files
 
 echo -e "${GREEN}✓ Template variables replaced${NC}"
 
+# Write AOD_REPO to .env for explicit GitHub repo targeting
+# This ensures gh commands in github-lifecycle.sh always target the correct repo.
+if [ -f ".env" ]; then
+  if ! grep -q '^AOD_REPO=' .env 2>/dev/null; then
+    echo "AOD_REPO=$GITHUB_ORG/$GITHUB_REPO" >> .env
+  fi
+else
+  echo "AOD_REPO=$GITHUB_ORG/$GITHUB_REPO" > .env
+fi
+echo -e "${GREEN}✓ AOD_REPO set in .env ($GITHUB_ORG/$GITHUB_REPO)${NC}"
+
 # Generate seeded product vision from user inputs
 VISION_FILE="docs/product/01_Product_Vision/product-vision.md"
 echo -e "${YELLOW}🔄 Seeding product vision...${NC}"

@@ -21,6 +21,7 @@ Technology choices and justifications
 ### 01_system_design/
 High-level system design and component diagrams
 - `README.md` - System architecture overview (auto-scaffolded from plan.md by `/aod.project-plan` after Architect sign-off)
+- `upstream-sync-architecture.md` - Repo topology and sync flow between private, public template, and adopter projects
 - Component interaction diagrams
 - Data flow diagrams
 
