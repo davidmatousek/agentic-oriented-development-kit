@@ -238,15 +238,22 @@ aod_gh_check_board() {
         return 1
     fi
 
-    # Validate cache
+    # Validate cache — auto-setup board if missing
     if ! aod_gh_validate_cache; then
-        # No valid cache — show first-run hint if marker doesn't exist
-        if [[ ! -f "$AOD_HINT_MARKER" ]]; then
-            echo "[aod] Tip: Run 'aod_gh_setup_board' to create a visual lifecycle board on GitHub Projects." >&2
-            mkdir -p "$(dirname "$AOD_HINT_MARKER")"
-            touch "$AOD_HINT_MARKER"
+        # No valid cache — auto-invoke setup (idempotent, gracefully degrades)
+        echo "[aod] No valid board cache found. Auto-setting up GitHub Projects board..." >&2
+        aod_gh_setup_board
+
+        # Re-validate after setup attempt
+        if ! aod_gh_validate_cache; then
+            # Setup didn't produce a valid cache — show hint once
+            if [[ ! -f "$AOD_HINT_MARKER" ]]; then
+                echo "[aod] Tip: Board auto-setup did not succeed. Check gh CLI permissions (project scope required)." >&2
+                mkdir -p "$(dirname "$AOD_HINT_MARKER")"
+                touch "$AOD_HINT_MARKER"
+            fi
+            return 1
         fi
-        return 1
     fi
 
     # All checks passed — mark as checked for this session

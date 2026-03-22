@@ -40,7 +40,7 @@ Do not proceed to Stage 1 until `docs/guides/` is confirmed to exist.
 
 ## Stage 1: Idea Intake
 
-Capture the project idea through 4 structured prompts. Store responses in variables for use in later stages.
+Capture the project idea through 5 structured prompts. Store responses in variables for use in later stages.
 
 ### Step 1.1: Capture Idea Description
 
@@ -104,7 +104,17 @@ A POC typically needs at least 3 capabilities to demonstrate value. Can you add 
 
 Then re-prompt with AskUserQuestion to capture additional capabilities.
 
-### Step 1.4: Confirm Summary
+### Step 1.4: Capture GitHub Org
+
+Use AskUserQuestion:
+
+```
+Question: "What is your GitHub org or username? (used for repo creation in the guide)"
+```
+
+Store the response as `{github_org}`.
+
+### Step 1.5: Confirm Summary
 
 Display the captured information:
 
@@ -113,6 +123,7 @@ PROJECT IDEA SUMMARY
 
 Idea: {idea_description}
 Target User: {target_user}
+GitHub Org: {github_org}
 Key Capabilities:
   1. {capability_1}
   2. {capability_2}
@@ -128,12 +139,14 @@ Options:
   - Yes: "Proceed to stack selection"
   - Edit idea: "Change the project idea description"
   - Edit user: "Change the target user"
+  - Edit org: "Change the GitHub org"
   - Edit capabilities: "Change the key capabilities"
 ```
 
 - If "Yes": proceed to Stage 2
 - If "Edit idea": return to Step 1.1
 - If "Edit user": return to Step 1.2
+- If "Edit org": return to Step 1.4
 - If "Edit capabilities": return to Step 1.3
 
 ---
@@ -252,7 +265,8 @@ Using the Guide Template (below), generate the full consumer guide. The content 
 4. **Feature summary table**: List all seed features with IDs, groups, story counts, and dependency annotations
 5. **Seed feature blocks**: Generate 6-10 features following the Ordering Principles (below), each with goal, stories, interface contracts, and DoD
 6. **Execution guide**: Standard AOD lifecycle instructions
-7. **Completion tracker**: Checkbox table for all features
+7. **Quick Start Commands**: Pre-formatted `/aod.discover --seed read #### F-NNN: {name} in {guide_path}` commands for every feature, enabling one-command-per-feature GitHub Issue creation
+8. **Completion tracker**: Checkbox table for all features
 
 **Custom stack generation**: When `{selected_pack}` is empty (custom stack), use `{custom_stack_description}` for all stack-dependent content. Seed features must be technology-appropriate — e.g., a Django + HTMX project should reference Django views, HTMX partials, and Django ORM patterns, not generic REST boilerplate. Infer architecture patterns from the described technologies.
 
@@ -292,148 +306,22 @@ Options:
 Guide written to docs/guides/CONSUMER_GUIDE_{file_name}.md
   - {feature_count} seed features across {group_count} groups
   - {line_count} lines
+  - Quick Start Commands included for one-command seeding
   - Ready for /aod.discover intake
 
 Next steps:
-  For each seed feature in dependency order:
-  1. Copy the feature block from the guide
-  2. Paste into /aod.discover to create a GitHub Issue
-  3. Run the AOD lifecycle: /aod.define → /aod.deliver
+  Use the Quick Start Commands section to seed all features into GitHub Issues.
+  Copy-paste each command into Claude Code — one per feature, in dependency order.
+  Then run the AOD lifecycle for each: /aod.define → /aod.deliver
 ```
 
 ---
 
 ## Guide Template
 
-Generate the consumer guide using this exact structure. Replace all `{placeholders}` with actual content.
+At the start of Step 3.3, use the Read tool to load `KICKSTART_TEMPLATE.md` (co-located with this SKILL.md in `.claude/skills/~aod-kickstart/`). This template defines the exact structure, section ordering, and formatting for all generated consumer guides — including setup phases, feature blocks, and tail sections. Follow it section by section, replacing all `{placeholders}` with actual content derived from Stages 1-2.
 
-### Header Format
-
-```markdown
-# Consumer Guide — {project_name} ({stack_tech})
-
-**Purpose**: {one-sentence purpose derived from idea_description}
-**What you're building**: {1-2 sentence description from idea_description}
-**Target user**: {target_user from Stage 1}
-**Key constraints**:
-- {constraint derived from stack and capabilities}
-- {constraint derived from stack and capabilities}
-
-**How to use this guide**: Work through each seed feature in order using the AOD lifecycle. Copy each feature block into `/aod.discover` to create a GitHub Issue, then run `/aod.define` through `/aod.deliver` to implement it.
-```
-
-### Setup Phases Format
-
-**Pack-based** (when `{selected_pack}` is set):
-
-```markdown
-## Prerequisites
-- {tools and runtimes from pack's STACK.md}
-
-## Phase 1: Clone & Initialize
-{standard clone and make init steps}
-
-## Phase 2: Activate Stack Pack & Scaffold
-/aod.stack use {selected_pack}
-/aod.stack scaffold
-
-## Phase 3: Install Dependencies
-{dependency install commands from pack conventions}
-```
-
-**Custom stack** (when using `{custom_stack_description}`):
-
-```markdown
-## Prerequisites
-- {tools inferred from custom stack description}
-
-## Phase 1: Clone & Initialize
-{standard clone and make init steps}
-
-## Phase 2: Custom Stack Setup
-Set up your {custom_stack_description} project structure.
-Note: No stack pack scaffold available for custom stacks.
-
-## Phase 3: Install Dependencies
-{generic dependency install guidance for described technologies}
-```
-
-### Feature Summary Table Format
-
-```markdown
-## Feature Summary
-
-| ID | Feature | Group | Stories | Depends On |
-|----|---------|-------|---------|------------|
-| F-001 | {name} | Foundation | {count} | — |
-| F-002 | {name} | Foundation | {count} | F-001 |
-| F-003 | {name} | Core | {count} | F-001, F-002 |
-```
-
-Every feature must appear in this table. The `Depends On` column uses feature IDs or `—` for no dependencies.
-
-### Seed Feature Block Format
-
-Each seed feature uses this exact format (the entire block from `####` to `---` is the copy unit for `/aod.discover`):
-
-```markdown
-### Group {N}: {Group Name}
-
-#### F-NNN: {Feature Name}
-
-**Goal**: {one-sentence goal statement}
-
-**Stories**:
-
-1. **As a {role}, I want {capability}**, so that {value}.
-   - {acceptance criterion}
-   - {acceptance criterion}
-
-2. **As a {role}, I want {capability}**, so that {value}.
-   - {acceptance criterion}
-
-**Interface Contract (produces)**:
-- {what this feature produces that downstream features depend on}
-
-**Definition of Done**: {completion criteria summary}
-
----
-```
-
-**Requirements per block**:
-- 2-5 user stories per feature
-- Each story has 1-3 acceptance criteria
-- Interface contract specifies what this feature produces for dependents
-- DoD is a single summary sentence
-- The `---` separator after each block is required
-
-### Tail Sections Format
-
-After all seed feature blocks, include:
-
-```markdown
-## How to Execute Each Feature
-
-For each feature in dependency order:
-1. Copy the feature block (from `#### F-NNN:` to `---`)
-2. Run `/aod.discover` and paste the block as the idea description
-3. Run `/aod.define` to create the PRD
-4. Run `/aod.plan` to create spec, plan, and tasks
-5. Run `/aod.build` to implement
-6. Run `/aod.deliver` to close
-
-## Feature Completion Tracker
-
-| ID | Feature | Status |
-|----|---------|--------|
-| F-001 | {name} | [ ] |
-| F-002 | {name} | [ ] |
-
-## Success Criteria
-- All {feature_count} features implemented and delivered
-- Each feature independently demonstrable
-- Valid dependency chain maintained throughout
-```
+Derive `{project_slug}` from `{project_name}` (lowercase, kebab-case). Use `{github_org}` from Step 1.4.
 
 ---
 
@@ -477,6 +365,6 @@ Order seed features according to these tiers (FR-009). Every generated guide mus
 - **No pack state modification (FR-017)**: This skill MUST NOT activate, deactivate, or modify stack pack state. Stack activation is handled separately via `/aod.stack use`. Never write to `.aod/stack-active.json`
 - **Feature count (FR-010)**: Generate exactly 6-10 seed features. Fewer than 6 does not demonstrate enough scope; more than 10 overwhelms a POC
 - **Guide line budget (SC-007)**: Generated guides must be 200-600 lines. Enough detail to be actionable, not so much that it overwhelms
-- **Discover compatibility (FR-013, SC-004)**: Each seed feature block (from `#### F-NNN:` to `---`) must be directly copy-pasteable into `/aod.discover` as the idea description. The block must contain goal, stories with acceptance criteria, interface contracts, and DoD in the exact format shown in the Guide Template section
+- **Discover compatibility (FR-013, SC-004)**: Each seed feature block (from `#### F-NNN:` to `---`) must be directly copy-pasteable into `/aod.discover` as the idea description. The block must contain goal, stories with acceptance criteria, interface contracts, and DoD in the exact format shown in `KICKSTART_TEMPLATE.md`
 - **Skill file budget (SC-008)**: This SKILL.md file must remain under 500 lines
 - **No GitHub Issues (NFR-5)**: This skill is idempotent — it only produces a guide document. It does not create GitHub Issues, modify backlog state, or trigger any side effects beyond writing the guide file

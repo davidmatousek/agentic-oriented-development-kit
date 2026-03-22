@@ -18,6 +18,8 @@ interactively and commits only what the human approves.
 
 **Flow**: Validate context → Code simplification → Docs-lint → CHANGELOG → API sync → KB review → Report
 
+**IMPORTANT**: Execute ALL steps 0–6 sequentially. Do not stop or wait for further instructions between steps. After completing each step (including user interaction), immediately proceed to the next step until the Step 6 Report is displayed.
+
 ## Step 0: Validate Context
 
 1. Get branch: `git branch --show-current` → must match `NNN-*` pattern
@@ -43,7 +45,7 @@ Detect changed code files and run /simplify for human review.
 
 1. Record pre-invocation file states: `git diff --name-only`
 2. Invoke `/simplify` skill via Skill tool
-3. If skill fails: display error, ask (A) Retry, (B) Skip, (C) Abort
+3. If skill fails: display error, ask (A) Retry, (B) Skip → proceed to Step 2, (C) Abort
 
 ### 1c: Review Results
 
@@ -64,8 +66,8 @@ Detect changed code files and run /simplify for human review.
      (B) Reject all — revert and continue
      (C) Abort
    ```
-5. Accept: stage and commit with `refactor({NNN}): simplify code per /simplify review`
-6. Reject: revert modified files with `git checkout -- {files}`
+5. Accept: stage and commit with `refactor({NNN}): simplify code per /simplify review` → proceed to Step 2
+6. Reject: revert modified files with `git checkout -- {files}` → proceed to Step 2
 
 ## Step 2: Docs-Lint
 
@@ -95,7 +97,8 @@ Analyze changed code for undocumented complex functions and suggest docstrings.
      (B) Skip all
      (C) Review individually
    ```
-3. If accepted: apply docstrings, stage, commit with `docs({NNN}): add docstrings per docs-lint`
+3. If accepted: apply docstrings, stage, commit with `docs({NNN}): add docstrings per docs-lint` → proceed to Step 3
+4. If skipped or reviewed individually: apply approved changes (if any), then proceed to Step 3
 
 ## Step 3: CHANGELOG Generation
 
@@ -128,7 +131,8 @@ Generate CHANGELOG entries from commits on the feature branch.
    (A) Accept and commit
    (B) Skip
    ```
-5. If accepted: insert under `## [Unreleased]`, stage, commit with `docs({NNN}): update CHANGELOG`
+5. If accepted: insert under `## [Unreleased]`, stage, commit with `docs({NNN}): update CHANGELOG` → proceed to Step 4
+6. If skipped: proceed to Step 4
 
 ## Step 4: API Documentation Sync
 
@@ -160,7 +164,8 @@ Compare code endpoints against OpenAPI spec and flag mismatches.
    (A) Review each individually
    (B) Skip all
    ```
-6. For each mismatch user approves: update spec, then stage and commit with `docs({NNN}): sync OpenAPI spec`
+6. For each mismatch user approves: update spec, then stage and commit with `docs({NNN}): sync OpenAPI spec` → proceed to Step 5
+7. If skipped: proceed to Step 5
 
 ## Step 5: KB Entry Review
 
@@ -169,7 +174,7 @@ Review knowledge base entries captured during build and deliver.
 1. Check `docs/INSTITUTIONAL_KNOWLEDGE.md` for recent entries related to Feature {NNN}
 2. If no entries found: display "No KB entries to review", proceed to Step 6
 3. Present each entry for validation: confirm accuracy, improve wording if needed
-4. Commit any KB updates with `docs({NNN}): review KB entries`
+4. Commit any KB updates with `docs({NNN}): review KB entries` → proceed to Step 6
 
 ## Step 6: Report
 
