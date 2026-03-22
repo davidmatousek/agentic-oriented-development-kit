@@ -37,7 +37,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Canonical upstream URL
-CANONICAL_URL="https://github.com/spec-kit-ops/spec-kit.git"
+CANONICAL_URL="https://github.com/davidmatousek/agentic-oriented-development-kit.git"
 
 # Global flags
 DRY_RUN=false
