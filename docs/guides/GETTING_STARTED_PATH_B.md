@@ -231,6 +231,8 @@ gh pr merge <number>
 
 ## Next Step
 
+**First time?** Run the [Smoke Test](SMOKE_TEST.md) first — it validates the full pipeline with a single issue before committing to all 6.
+
 Once Path B works, try [Path C (MCP Lead Agent)](GETTING_STARTED_PATH_C.md) for the autonomous version.
 
 ---

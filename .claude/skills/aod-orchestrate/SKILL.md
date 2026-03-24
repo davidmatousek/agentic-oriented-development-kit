@@ -546,24 +546,46 @@ ERROR: Failed to spawn batch for Wave {wave_number}. API response: {error}
 
 #### 7.1.3: Poll batch status
 
-Poll the batch status every 15 seconds until a terminal status is reached:
+**IMPORTANT**: Do NOT poll with individual `sleep` + `curl` tool calls — this burns through context with dozens of identical tool calls. Instead, run a **single Bash command** that loops internally and only returns when a terminal status is reached or the timeout expires.
+
+Run the following as a **single Bash tool call** with `timeout: 600000` (10 minutes). Replace `{project_id}` and `{batch_id}` with actual values:
 
 ```bash
-curl -sf "${AOD_API_URL:-http://localhost:8000}/api/v1/projects/{project_id}/batches/{batch_id}" \
-  -H "X-AOD-Source: skill"
+API="${AOD_API_URL:-http://localhost:8000}"
+BATCH_URL="${API}/api/v1/projects/{project_id}/batches/{batch_id}"
+TIMEOUT=1800  # 30 minute max
+INTERVAL=30   # poll every 30 seconds
+ELAPSED=0
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+  RESP=$(curl -sf "$BATCH_URL" -H "X-AOD-Source: skill" 2>/dev/null)
+  STATUS=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null)
+
+  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "partial_failure" ] || [ "$STATUS" = "failed" ]; then
+    echo "$RESP"
+    exit 0
+  fi
+
+  # Progress line (shown in tool output)
+  PROGRESS=$(echo "$RESP" | python3 -c "
+import sys,json
+d=json.load(sys.stdin).get('progress',{})
+print(f\"{d.get('completed',0)}/{d.get('total','?')} complete, {d.get('running',0)} running ({int($ELAPSED/60)}m elapsed)\")
+" 2>/dev/null)
+  echo "Wave {wave_number}: $PROGRESS"
+
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+echo '{"status":"timeout","error":"Polling timed out after 30 minutes"}'
+exit 1
 ```
 
-On each poll:
-1. Parse `status` field
-2. Parse `progress` object: `{total, completed, running, queued, failed}`
-3. Display progress: `"Wave {wave_number}: {completed}/{total} complete, {running} running, {failed} failed"`
-
-Wait 15 seconds between polls:
-```bash
-sleep 15
-```
-
-Continue polling until `status` is one of: `completed`, `partial_failure`, `failed`.
+After the command returns:
+1. Parse the final JSON response
+2. If `status` is `"timeout"`: Display `"Wave {wave_number}: Polling timed out after 30 minutes. Check the dashboard or run /aod.orchestrate to resume."` and STOP.
+3. Otherwise, proceed to Step 7.1.4 with the terminal status.
 
 #### 7.1.4: Handle terminal status
 
@@ -674,7 +696,7 @@ curl -sf -X POST "${AOD_API_URL:-http://localhost:8000}/api/v1/projects/{project
 
 4. Store the `session_id` to `task_id` mapping from the spawn response.
 
-5. Poll the batch status every 15 seconds (same as Step 7.1.3) until terminal.
+5. Poll the batch status using the same single-Bash-loop approach from Step 7.1.3 until terminal.
 
 6. Evaluate result:
    - If `completed`: Increment `succeeded` by 1. Display `"Issue #{issue_number} retry succeeded."`. Continue to next failed issue.
@@ -843,7 +865,7 @@ Skipped issues: {list of skipped issue numbers with reasons}
 - [ ] Task titles truncated to 200 characters
 - [ ] Task creation in wave order for depends_on ID resolution
 - [ ] Batch spawn response session_id mapping stored for status correlation
-- [ ] Poll interval is 15 seconds
+- [ ] Polling uses a single Bash loop (NOT individual sleep+curl tool calls) with 30s interval and 30m timeout
 - [ ] --dry-run exits after wave plan display without side effects (no wave-plan.md written)
 - [ ] --yes skips confirmation prompt
 - [ ] --issues filters to specified issue numbers
