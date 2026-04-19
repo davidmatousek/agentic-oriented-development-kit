@@ -62,6 +62,37 @@
 
 ---
 
+## Test Evidence
+
+### E2E Validation Gate
+
+| Field | Value |
+|-------|-------|
+| Status | {e2e_validation.status: pass/fail/skipped/error} |
+| Gate Mode | {e2e_validation.gate_mode: soft/hard} |
+| Gate Result | {e2e_validation.gate_result: pass/warn/block/skip} |
+| Tests Passed | {e2e_validation.passed}/{e2e_validation.total} |
+| Tests Failed | {e2e_validation.failed} |
+| Tests Skipped | {e2e_validation.skipped} |
+
+**Failure Details**: {Comma-separated list of e2e_validation.failing_scenarios[], or "None" if all passed, or "N/A" if skipped/error}
+
+### Archived Artifacts
+
+| Artifact | Path | Summary |
+|----------|------|---------|
+| {artifact_type} | test-results/{filename} | {brief_summary} |
+
+**Archived Artifact Metrics**:
+- Tests Run: {test_count}
+- Passed: {passed_count}
+- Failed: {failed_count}
+- Coverage: {coverage_pct or "N/A"}
+
+**Notes**: {testing_context, e.g., "E2E validated via Playwright MCP", "Unit tests via pytest", or "No test artifacts archived for this feature"}
+
+---
+
 ## Documentation Updates
 
 | Domain | Agent | Files Updated | Status |

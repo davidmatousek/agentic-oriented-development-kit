@@ -37,7 +37,7 @@
 set -euo pipefail
 
 # All stage labels used by the AOD lifecycle
-AOD_STAGE_LABELS=("stage:discover" "stage:define" "stage:plan" "stage:build" "stage:deliver" "stage:done")
+AOD_STAGE_LABELS=("stage:discover" "stage:define" "stage:plan" "stage:build" "stage:deliver" "stage:document" "stage:done")
 
 # Board column mapping: AOD stage name → GitHub Projects Status option name
 # Note: Uses a function instead of `declare -A` for bash 3.2 compatibility (macOS default).
@@ -48,6 +48,7 @@ aod_stage_to_column() {
         plan)     echo "Plan" ;;
         build)    echo "Build" ;;
         deliver)  echo "Deliver" ;;
+        document) echo "Document" ;;
         done)     echo "Done" ;;
         *)        echo "" ;;
     esac
@@ -63,10 +64,25 @@ AOD_HINT_MARKER=".aod/memory/.board-hint-shown"
 AOD_GH_VERSION_WARNED=".aod/memory/.gh-version-warned"
 AOD_GH_SCOPE_WARNED=".aod/memory/.gh-scope-warned"
 
-# Load AOD_REPO from .env if not already set
-# This ensures gh commands target the correct repository regardless of working directory.
-if [[ -z "${AOD_REPO:-}" && -f ".env" ]]; then
-    AOD_REPO=$(grep -E '^AOD_REPO=' .env 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'") || true
+# Load AOD_REPO and AOD_BOARD from .env if not already set
+# AOD_REPO ensures gh commands target the correct repository.
+# AOD_BOARD (optional) pins the project board number, skipping title-based discovery.
+if [[ -f ".env" ]]; then
+    if [[ -z "${AOD_REPO:-}" ]]; then
+        AOD_REPO=$(grep -E '^AOD_REPO=' .env 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'") || true
+    fi
+    if [[ -z "${AOD_BOARD:-}" ]]; then
+        AOD_BOARD=$(grep -E '^AOD_BOARD=' .env 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'") || true
+    fi
+fi
+
+# Export GH_REPO at source time so ALL gh calls (including direct invocations
+# in hooks and scripts) target the correct repository. Previously this was
+# deferred to aod_gh_check_available(), which meant any gh call before that
+# check (e.g., reconcile-board.sh) would resolve to the wrong repo when
+# multiple remotes exist (origin + upstream).
+if [[ -n "${AOD_REPO:-}" ]]; then
+    export GH_REPO="$AOD_REPO"
 fi
 
 # Check board prerequisites: gh CLI version >= 2.40 and project scope
@@ -147,11 +163,11 @@ aod_gh_validate_cache() {
         return 1
     fi
 
-    # Verify status_options has exactly 5 entries with non-empty option IDs
+    # Verify status_options has exactly 7 entries with non-empty option IDs
     local option_count
     option_count=$(jq '.status_options | length' "$AOD_BOARD_CACHE" 2>/dev/null)
-    if [[ "$option_count" != "6" ]]; then
-        echo "[aod] Warning: Board cache has $option_count status options (expected 6). Clearing cache — run 'aod_gh_setup_board' to reconfigure." >&2
+    if [[ "$option_count" != "7" ]]; then
+        echo "[aod] Warning: Board cache has $option_count status options (expected 7). Clearing cache — run 'aod_gh_setup_board' to reconfigure." >&2
         rm -f "$AOD_BOARD_CACHE"
         return 1
     fi
@@ -197,20 +213,20 @@ aod_gh_validate_cache() {
         return 1
     fi
 
-    # Compare board title against expected title for this repo
-    local cached_title expected_title current_repo_name
-    cached_title=$(jq -r '.board_title // empty' "$AOD_BOARD_CACHE" 2>/dev/null)
-    if [[ -n "$cached_title" ]]; then
-        current_repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || current_repo_name=""
-        if [[ -n "$current_repo_name" ]]; then
-            expected_title="${current_repo_name}-backlog"
-        else
-            expected_title="AOD Backlog"
-        fi
-        if [[ "$cached_title" != "$expected_title" ]]; then
-            echo "[aod] Warning: Board title mismatch. Cached '$cached_title' but expected '$expected_title'. Board cache cleared — run 'aod_gh_setup_board' to reconfigure." >&2
-            rm -f "$AOD_BOARD_CACHE"
-            return 1
+    # Verify cached board title matches an accepted naming pattern
+    # Skip title check when AOD_BOARD is explicitly pinned — the user chose this board.
+    # Otherwise accept: "AOD Backlog" (legacy) or "{repo-name}-backlog" (convention)
+    if [[ -z "${AOD_BOARD:-}" ]]; then
+        local cached_title current_repo_name
+        cached_title=$(jq -r '.board_title // empty' "$AOD_BOARD_CACHE" 2>/dev/null)
+        if [[ -n "$cached_title" ]]; then
+            current_repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || current_repo_name=""
+            local repo_title="${current_repo_name:+${current_repo_name}-backlog}"
+            if [[ "$cached_title" != "AOD Backlog" && -n "$repo_title" && "$cached_title" != "$repo_title" ]]; then
+                echo "[aod] Warning: Board title mismatch. Cached '$cached_title' is not 'AOD Backlog' or '$repo_title'. Board cache cleared — run 'aod_gh_setup_board' to reconfigure." >&2
+                rm -f "$AOD_BOARD_CACHE"
+                return 1
+            fi
         fi
     fi
 
@@ -297,32 +313,59 @@ aod_gh_setup_board() {
         return 0
     }
 
-    # Auto-detect repo name for per-project board title
-    local repo_name
-    repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || repo_name=""
-    local board_title="AOD Backlog"
-    if [[ -n "$repo_name" ]]; then
-        board_title="${repo_name}-backlog"
-    fi
-
-    echo "[aod] Board setup: owner=$owner (type=$owner_type), board=$board_title" >&2
-
     # --- Section 2: Board creation (idempotent) ---
 
     local project_number=""
     local project_id=""
+    local board_title=""
 
-    # Check for existing board by title
-    local existing_board
-    existing_board=$(gh project list --owner "$owner" --format json 2>/dev/null) || {
-        echo "[aod] Warning: Could not list projects for '$owner'. Board setup skipped." >&2
-        return 0
-    }
+    # If AOD_BOARD is set, use it directly (skips title-based discovery)
+    if [[ -n "${AOD_BOARD:-}" ]]; then
+        project_number="$AOD_BOARD"
+        echo "[aod] Board setup: owner=$owner (type=$owner_type), using AOD_BOARD=$project_number" >&2
+        board_title=$(gh project view "$project_number" --owner "$owner" --format json --jq '.title' 2>/dev/null) || board_title="project-$project_number"
+        project_id=$(gh project view "$project_number" --owner "$owner" --format json --jq '.id' 2>/dev/null) || {
+            echo "[aod] Warning: Could not find project #$project_number for owner '$owner'. Board setup skipped." >&2
+            return 0
+        }
+    else
+        # Auto-detect: try "{repo}-backlog", then "AOD Backlog", then create
+        local repo_name
+        repo_name=$(gh repo view --json name --jq '.name' 2>/dev/null) || repo_name=""
+        board_title="AOD Backlog"
+        local repo_title=""
+        if [[ -n "$repo_name" ]]; then
+            repo_title="${repo_name}-backlog"
+        fi
 
-    project_number=$(echo "$existing_board" | jq -r --arg title "$board_title" '.projects[] | select(.title == $title) | .number' 2>/dev/null | head -1)
+        local existing_board
+        existing_board=$(gh project list --owner "$owner" --format json 2>/dev/null) || {
+            echo "[aod] Warning: Could not list projects for '$owner'. Board setup skipped." >&2
+            return 0
+        }
 
-    if [[ -n "$project_number" && "$project_number" != "null" ]]; then
-        # Reuse existing board
+        # First try {repo}-backlog, then fall back to "AOD Backlog"
+        if [[ -n "$repo_title" ]]; then
+            project_number=$(echo "$existing_board" | jq -r --arg title "$repo_title" '.projects[] | select(.title == $title) | .number' 2>/dev/null | head -1)
+            if [[ -n "$project_number" && "$project_number" != "null" ]]; then
+                board_title="$repo_title"
+            fi
+        fi
+        if [[ -z "$project_number" || "$project_number" == "null" ]]; then
+            project_number=$(echo "$existing_board" | jq -r --arg title "AOD Backlog" '.projects[] | select(.title == $title) | .number' 2>/dev/null | head -1)
+            if [[ -n "$project_number" && "$project_number" != "null" ]]; then
+                board_title="AOD Backlog"
+            fi
+        fi
+
+        echo "[aod] Board setup: owner=$owner (type=$owner_type), board=$board_title" >&2
+    fi
+
+    if [[ -n "$project_number" && "$project_number" != "null" && -n "$project_id" && "$project_id" != "null" ]]; then
+        # Reuse existing board (AOD_BOARD path already resolved project_id)
+        echo "[aod] Found existing '$board_title' board (project #$project_number). Reusing." >&2
+    elif [[ -n "$project_number" && "$project_number" != "null" ]]; then
+        # Reuse existing board (title discovery path — resolve project_id)
         echo "[aod] Found existing '$board_title' board (project #$project_number). Reusing." >&2
         project_id=$(gh project view "$project_number" --owner "$owner" --format json --jq '.id' 2>/dev/null) || {
             echo "[aod] Warning: Could not get project ID for board #$project_number. Board setup skipped." >&2
@@ -387,6 +430,7 @@ mutation($fieldId: ID!) {
       {name: "Plan", color: YELLOW, description: ""},
       {name: "Build", color: ORANGE, description: ""},
       {name: "Deliver", color: GREEN, description: ""},
+      {name: "Document", color: PINK, description: ""},
       {name: "Done", color: GRAY, description: ""}
     ]
   }) {
@@ -406,7 +450,7 @@ mutation($fieldId: ID!) {
         local fallback_result
         fallback_result=$(gh project field-create "$project_number" --owner "$owner" \
             --name "AOD Stage" --data-type "SINGLE_SELECT" \
-            --single-select-options "Discover,Define,Plan,Build,Deliver,Done" --format json 2>/dev/null) || {
+            --single-select-options "Discover,Define,Plan,Build,Deliver,Document,Done" --format json 2>/dev/null) || {
             echo "[aod] Warning: Failed to create custom 'AOD Stage' field. Board setup skipped." >&2
             return 0
         }
@@ -429,22 +473,23 @@ mutation($fieldId: ID!) {
     }
 
     # Parse option IDs from mutation response
-    local discover_id define_id plan_id build_id deliver_id done_id
+    local discover_id define_id plan_id build_id deliver_id document_id done_id
 
     discover_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Discover") | .id' 2>/dev/null)
     define_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Define") | .id' 2>/dev/null)
     plan_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Plan") | .id' 2>/dev/null)
     build_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Build") | .id' 2>/dev/null)
     deliver_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Deliver") | .id' 2>/dev/null)
+    document_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Document") | .id' 2>/dev/null)
     done_id=$(echo "$mutation_result" | jq -r '.data.updateProjectV2Field.projectV2Field.options[] | select(.name == "Done") | .id' 2>/dev/null)
 
     # Validate all option IDs are non-empty
-    if [[ -z "$discover_id" || -z "$define_id" || -z "$plan_id" || -z "$build_id" || -z "$deliver_id" || -z "$done_id" ]]; then
-        echo "[aod] Warning: Could not parse all 6 option IDs from Status field configuration. Board setup skipped." >&2
+    if [[ -z "$discover_id" || -z "$define_id" || -z "$plan_id" || -z "$build_id" || -z "$deliver_id" || -z "$document_id" || -z "$done_id" ]]; then
+        echo "[aod] Warning: Could not parse all 7 option IDs from Status field configuration. Board setup skipped." >&2
         return 0
     fi
 
-    echo "[aod] Status field configured with 6 AOD stages." >&2
+    echo "[aod] Status field configured with 7 AOD stages." >&2
 
     # --- Section 4: Cache writing and cleanup ---
 
@@ -462,6 +507,7 @@ mutation($fieldId: ID!) {
         --arg plan_id "$plan_id" \
         --arg build_id "$build_id" \
         --arg deliver_id "$deliver_id" \
+        --arg document_id "$document_id" \
         --arg done_id "$done_id" \
         --arg board_title "$board_title" \
         --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -479,6 +525,7 @@ mutation($fieldId: ID!) {
                 Plan: $plan_id,
                 Build: $build_id,
                 Deliver: $deliver_id,
+                Document: $document_id,
                 Done: $done_id
             },
             created_at: $created_at
@@ -488,7 +535,7 @@ mutation($fieldId: ID!) {
     echo "$cache_json" > "$AOD_BOARD_CACHE"
 
     # Link board to the repo so it appears in the repo's Projects tab
-    if [[ -n "$repo_name" ]]; then
+    if [[ -n "${repo_name:-}" ]]; then
         local repo_full
         repo_full=$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null) || repo_full=""
         if [[ -n "$repo_full" ]]; then
@@ -517,7 +564,7 @@ mutation($fieldId: ID!) {
 # Add an issue to the GitHub Projects board and set its Status column
 # Args:
 #   $1 = issue_url (required, full GitHub issue URL)
-#   $2 = stage (required, one of: discover, define, plan, build, deliver, done)
+#   $2 = stage (required, one of: discover, define, plan, build, deliver, document, done)
 # Returns: 0 always (graceful degradation), item ID on stdout on success
 # Stderr: warnings on any failure
 aod_gh_add_to_board() {
@@ -648,7 +695,7 @@ aod_gh_add_to_board() {
 # without duplicating — so we skip the expensive item-list search.
 # Args:
 #   $1 = issue_url (required, full GitHub issue URL)
-#   $2 = new_stage (required, one of: discover, define, plan, build, deliver, done)
+#   $2 = new_stage (required, one of: discover, define, plan, build, deliver, document, done)
 # Returns: 0 always (graceful degradation)
 # Stderr: warnings on any failure
 aod_gh_move_on_board() {
@@ -793,11 +840,8 @@ aod_gh_check_available() {
         return 1
     fi
 
-    # Explicit repo targeting: AOD_REPO from .env ensures gh commands
-    # target the correct repository regardless of working directory context.
-    if [[ -n "${AOD_REPO:-}" ]]; then
-        export GH_REPO="$AOD_REPO"
-    fi
+    # GH_REPO is now exported at source time (top of file).
+    # No need to set it here — kept as comment for traceability.
 
     return 0
 }
@@ -838,7 +882,7 @@ aod_gh_find_issue() {
 # Args:
 #   $1 = title (required)
 #   $2 = body (required, markdown)
-#   $3 = stage (required, one of: discover, define, plan, build, deliver, done)
+#   $3 = stage (required, one of: discover, define, plan, build, deliver, document, done)
 #   $4 = issue_type (optional, e.g., "idea" or "retro" — adds type:* label)
 # Returns: 0 always (graceful degradation), issue number on stdout if created
 aod_gh_create_issue() {
@@ -930,7 +974,7 @@ aod_gh_create_issue() {
 # Update a GitHub Issue's stage label (remove old stage:* labels, add new one)
 # Args:
 #   $1 = issue number (required)
-#   $2 = new stage (required, one of: discover, define, plan, build, deliver, done)
+#   $2 = new stage (required, one of: discover, define, plan, build, deliver, document, done)
 # Returns: 0 always (graceful degradation)
 aod_gh_update_stage() {
     local issue_number="${1:-}"
@@ -968,7 +1012,7 @@ aod_gh_update_stage() {
     return 0
 }
 
-# Reconcile all open issues: ensure board column matches stage:* label
+# Reconcile all issues (open + closed): ensure board column matches stage:* label
 # Compares each issue's label to its board Status, and fixes mismatches.
 # Args: none
 # Returns: 0 always (graceful degradation)
@@ -987,16 +1031,24 @@ aod_gh_reconcile_board() {
     owner=$(jq -r '.owner' "$AOD_BOARD_CACHE" 2>/dev/null) || { return 0; }
     project_number=$(jq -r '.project_number' "$AOD_BOARD_CACHE" 2>/dev/null) || { return 0; }
 
-    # Fetch all open issues with stage:* labels
-    local issues_json
-    issues_json=$(gh issue list --json number,title,labels,url --state open --limit 100 2>/dev/null) || {
+    # Fetch all issues (open + closed) with stage:* labels
+    local open_json closed_json issues_json
+    open_json=$(gh issue list --json number,title,labels,url --state open --limit 200 2>/dev/null) || open_json="[]"
+    closed_json=$(gh issue list --json number,title,labels,url --state closed --limit 200 2>/dev/null) || closed_json="[]"
+    # Merge both lists
+    issues_json=$(python3 -c "
+import json, sys
+open_items = json.loads(sys.argv[1])
+closed_items = json.loads(sys.argv[2])
+print(json.dumps(open_items + closed_items))
+" "$open_json" "$closed_json" 2>/dev/null) || {
         echo "[aod] Warning: Failed to fetch issues for reconciliation." >&2
         return 0
     }
 
     # Fetch all board items with their status
     local board_json
-    board_json=$(gh project item-list "$project_number" --owner "$owner" --format json --limit 100 2>/dev/null) || {
+    board_json=$(gh project item-list "$project_number" --owner "$owner" --format json --limit 200 2>/dev/null) || {
         echo "[aod] Warning: Failed to fetch board items for reconciliation." >&2
         return 0
     }

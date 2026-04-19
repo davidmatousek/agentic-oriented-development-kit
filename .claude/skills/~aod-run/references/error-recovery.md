@@ -63,9 +63,9 @@ Guard clause that prevents restarting an already-completed lifecycle. This is ch
 
 **Algorithm**:
 
-1. **Read stage statuses**: Check the `status` field for all 5 stages (`discover`, `define`, `plan`, `build`, `deliver`) in the state file.
+1. **Read stage statuses**: Check the `status` field for all 6 stages (`discover`, `define`, `plan`, `build`, `deliver`, `document`) in the state file.
 
-2. **Check if all completed**: If all 5 stages have `status: "completed"`:
+2. **Check if all completed**: If all 6 stages have `status: "completed"`:
 
    - Display the lifecycle completion summary (same as [Lifecycle Complete](#lifecycle-complete)), then STOP. Do NOT proceed to the Core Loop, restart any stages, or invoke any skills.
 
@@ -75,12 +75,10 @@ Guard clause that prevents restarting an already-completed lifecycle. This is ch
    Feature: {feature_name} (#{github_issue})
    Branch: {branch}
 
-   All 5 lifecycle stages have already been completed.
+   All 6 lifecycle stages have already been completed.
 
    Stage Map:
-     [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver
-
-   If not yet done: /aod.document (human-driven quality review)
+     [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver  [x] Document
 
    To start a new feature:
      /aod.run "your new idea"
@@ -96,7 +94,7 @@ Guard clause that prevents restarting an already-completed lifecycle. This is ch
 
 ## Lifecycle Complete
 
-When all 5 stages show `status: "completed"` (checked at Core Loop step 2), display the lifecycle completion summary and archive the state file.
+When all 6 stages show `status: "completed"` (checked at Core Loop step 2), display the lifecycle completion summary and archive the state file.
 
 **Algorithm**:
 
@@ -119,20 +117,17 @@ AOD ORCHESTRATOR — Lifecycle Complete
 Feature: {feature_name} (#{github_issue})
 Branch: {branch}
 Duration: {session_count} session(s), {duration}
-Stages: 5/5 complete
+Stages: 6/6 complete
 Governance Gates: {governance_gates_passed}/{total_governance_gates} passed
 Rejections: {total_rejections} total ({intervention_count} manual interventions)
 
 Stage Map:
-  [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver
+  [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver  [x] Document
 
 Artifacts:
   - {artifact_path_1}
   - {artifact_path_2}
   - ...
-
-Next: /aod.deliver FEATURE: {feature_id} - {feature_name}
-Then: /aod.document (human-driven quality review)
 ```
 
 4. **Archive state file**: Copy the state file to the specs directory for permanent record:
@@ -143,4 +138,4 @@ Then: /aod.document (human-driven quality review)
 
 5. **Do NOT delete the active state file**: Keep `.aod/run-state.json` in place so `--status` can still read it and the lifecycle-already-complete detection works on subsequent invocations.
 
-6. **Exit**: The orchestrator's work is complete. The user can proceed with `/aod.deliver` if it wasn't already the final stage, or review the archived state.
+6. **Exit**: The orchestrator's work is complete (6/6 stages). The user can review the archived state.

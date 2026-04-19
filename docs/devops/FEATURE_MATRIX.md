@@ -13,7 +13,10 @@ This document details which Triad features are available based on Claude Code ve
 | Task Dependencies | ❌ | ✅ | Automatic blocking |
 | Memory Leak Fixes | ❌ | ✅ | Stable long workflows |
 | Graceful Degradation | ✅ | ✅ | Clear user messaging |
-| `/aod.build` Simplify Step | ✅ | ✅ | Step 6 in build; skip with `--no-simplify` (Feature 065, 2026-03-03) |
+| `/aod.build` Design Quality Gate | ✅ | ✅ | Step 6 in build; skip with `--no-design-check` (Feature 097, 2026-03-27) |
+| `/aod.build` Pre-Flight Validation | ✅ | ✅ | Step 0g in build; validates uncommitted changes + NEXT-SESSION.md (Feature 100, 2026-03-28) |
+| `/aod.build` Test Execution Gate | ✅ | ✅ | Step 4.5 in build; per-wave test discovery, execution, and regression gating. Skip with `--no-tests`, elevate to hard gate with `--require-tests` (Feature 109, 2026-03-28) |
+| `/aod.foundation` Workshop | ✅ | ✅ | Post-init vision + design identity workshop (Feature 100, 2026-03-28) |
 
 ---
 

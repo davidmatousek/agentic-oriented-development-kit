@@ -35,7 +35,7 @@ The structure:
 
 ```
 .claude/skills/~aod-run/
-  SKILL.md                    (~405 lines, always loaded)
+  SKILL.md                    (~620 lines, always loaded)
   references/
     governance.md             (~367 lines, loaded at governance gates)
     entry-modes.md            (~577 lines, loaded once per entry mode)

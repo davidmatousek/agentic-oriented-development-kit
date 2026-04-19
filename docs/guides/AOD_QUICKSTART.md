@@ -5,7 +5,7 @@
 
 **Related**:
 - [AOD Lifecycle Reference](AOD_LIFECYCLE.md) -- Stage-by-stage deep reference
-- [AOD Infographic](AOD_INFOGRAPHIC.md) -- Visual workflow at a glance
+- AOD Infographic -- (Infographic coming soon)
 - [SDLC Triad Reference](../AOD_TRIAD.md) -- Governance layer documentation
 - [AOD Migration Guide](AOD_MIGRATION.md) -- Old command mapping
 
@@ -42,16 +42,19 @@ AOD is **Agentic Oriented Development** -- a unified lifecycle with 6 stages acr
 The fastest path from idea to implementation:
 
 ```bash
+# Optional: Establish product vision and design identity after make init
+/aod.foundation                           # Guided workshop (vision + brand)
+
 # Full flow: 6 commands covering 6 stages
 /aod.discover "Add dark mode support"     # Stage 1: Capture idea + ICE score + PM validation
 /aod.define dark-mode-support             # Stage 2: Create PRD with Triad review
-/aod.plan                                 # Stage 3: Router (run 3x for spec → plan → tasks)
+/aod.plan                                 # Stage 3: Spec → project-plan → tasks (auto-advances)
 /aod.build                                # Stage 4: Execute tasks with Architect checkpoints
 /aod.deliver                              # Stage 5: Close feature with retrospective
-/aod.document                             # Stage 6: Human-driven quality review
+/aod.document                             # Stage 6: Quality review (simplify, docs, CHANGELOG)
 ```
 
-`/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks). It auto-detects which sub-step you're on. `/aod.document` runs separately after delivery for human-driven code quality review.
+`/aod.plan` auto-advances through 3 sequential sub-steps (spec → project-plan → tasks). Run it up to 3 times — each invocation advances to the next sub-step on approval. `/aod.document` runs separately after delivery (see [AOD_LIFECYCLE.md](AOD_LIFECYCLE.md) for details).
 
 ---
 
@@ -72,12 +75,28 @@ The fastest path from idea to implementation:
 
 | Command | Purpose |
 |---------|---------|
+| `/aod.foundation` | Guided post-init workshop (vision + design identity) |
 | `/aod.score` | Re-score an existing idea |
 | `/aod.status` | Regenerate BACKLOG.md, show stage summary |
 | `/aod.analyze` | Cross-artifact consistency check |
 | `/aod.clarify` | Resolve spec ambiguities |
 | `/aod.checklist` | Generate quality checklist (Definition of Done) |
 | `/aod.constitution` | View or update governance constitution |
+| `/aod.kickstart` | POC kickstart — generate consumer guide with seed features |
+| `/aod.blueprint` | Multi-feature story generation from consumer guide |
+| `/aod.roadmap` | Scaffold quarterly roadmap from completed PRDs |
+| `/aod.okrs` | Scaffold OKR document with standard template |
+| `/aod.stack` | Manage stack packs (activate, remove, list, scaffold) |
+| `/aod.run` | Full lifecycle orchestrator — chains stages 1-5 |
+
+### Choosing Your Entry Point
+
+| Scenario | Start With |
+|----------|-----------|
+| Raw idea, need validation | `/aod.discover` |
+| Requirements already clear | `/aod.define` |
+| Want full automation (stages 1-5) | `/aod.run` |
+| Multiple features from a blueprint | `/aod.orchestrate` |
 
 ---
 

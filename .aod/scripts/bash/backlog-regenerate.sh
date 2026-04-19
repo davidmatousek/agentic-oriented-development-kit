@@ -72,7 +72,7 @@ generate_backlog() {
 HEADER
 
     # Process each stage
-    for stage in discover define plan build deliver; do
+    for stage in discover define plan build deliver document; do
         local label="stage:${stage}"
 
         # Capitalize first letter (bash 3.2 compatible — ${stage^} requires bash 4+)
@@ -132,6 +132,8 @@ for issue in data:
         print(f'| #{num} | {title} | In progress | {updated} |')
     elif stage == 'deliver':
         print(f'| #{num} | {title} | {updated} | — | {updated} |')
+    elif stage == 'document':
+        print(f'| #{num} | {title} | In progress | {updated} |')
 " 2>/dev/null) || stage_rows=""
 
         # Stage-specific table headers
@@ -156,6 +158,10 @@ for issue in data:
                 echo "| # | Title | Delivered | Retro | Updated |"
                 echo "|---|-------|-----------|-------|---------|"
                 ;;
+            document)
+                echo "| # | Title | Status | Updated |"
+                echo "|---|-------|--------|---------|"
+                ;;
         esac
 
         if [[ -z "$stage_rows" ]]; then
@@ -172,7 +178,7 @@ for issue in data:
     untracked=$(echo "$RAW_JSON" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:done'}
+stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:document', 'stage:done'}
 for issue in data:
     labels = {l['name'] for l in issue.get('labels', [])}
     if not labels.intersection(stage_labels):
@@ -201,14 +207,21 @@ for issue in data:
 OUTPUT=$(generate_backlog)
 echo "$OUTPUT" > "$BACKLOG_FILE"
 
+# Board reconciliation: sync orphaned issues and fix column mismatches
+if aod_gh_check_board 2>/dev/null; then
+  aod_gh_reconcile_board || true
+else
+  echo "[aod] Board reconciliation skipped (board unavailable)." >&2
+fi
+
 # Summary
 if $JSON_MODE; then
     # Count items per stage
     python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-counts = {'discover': 0, 'define': 0, 'plan': 0, 'build': 0, 'deliver': 0, 'done': 0, 'untracked': 0}
-stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:done'}
+counts = {'discover': 0, 'define': 0, 'plan': 0, 'build': 0, 'deliver': 0, 'document': 0, 'done': 0, 'untracked': 0}
+stage_labels = {'stage:discover', 'stage:define', 'stage:plan', 'stage:build', 'stage:deliver', 'stage:document', 'stage:done'}
 for issue in data:
     labels = {l['name'] for l in issue.get('labels', [])}
     matched = labels.intersection(stage_labels)

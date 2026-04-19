@@ -98,9 +98,12 @@ FRONTEND_URL=http://localhost:{{FRONTEND_PORT}}
 **Optional Variables**:
 ```
 AOD_LOG_FILE=.aod/logs/aod.log
+AOD_BOARD=3
 ```
 
 The `AOD_LOG_FILE` variable controls where the logging utility writes its output. If not specified, it defaults to `.aod/logs/aod.log`. You can override this to write logs to a different location.
+
+The `AOD_BOARD` variable pins the GitHub Projects board number for issue-board sync. When set, `github-lifecycle.sh` skips title-based board discovery and targets this board directly. If not specified, the script discovers the board by matching the title pattern `{repo-name}-backlog` or `AOD Backlog`.
 
 ---
 

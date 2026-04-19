@@ -18,9 +18,9 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 ```bash
 /aod.define <topic>         # Create PRD with Triad validation (includes optional vision workshop)
 /aod.plan                   # Plan stage orchestrator: chains spec → project-plan → tasks with governance gates
-/aod.build [--no-security]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6)
-/aod.deliver {NNN}          # Close feature with parallel doc updates
-/aod.document               # Human-driven quality review (code simplification, docstrings, CHANGELOG, API docs)
+/aod.build [--no-security] [--no-design-check]  # Execute with auto architect checkpoints; --no-security skips Security Scan (Step 7); --no-design-check skips Design Quality Gate (Step 6)
+/aod.deliver <NNN>          # Close feature with parallel doc updates
+/aod.document [--autonomous]  # Quality review: code simplification, docstrings, CHANGELOG, API docs (--autonomous for orchestrator-driven runs)
 ```
 
 **Individual Plan sub-commands** (use `/aod.plan` unless you need to run steps separately):
@@ -37,9 +37,21 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 /aod.analyze             # Verify spec/plan/task consistency
 /aod.checklist           # Run Definition of Done checklist
 /aod.constitution        # View or update governance constitution
+/aod.foundation          # Guided post-init workshop — establish product vision and design identity
 /aod.kickstart           # POC kickstart — generate consumer guide with seed features from a project idea
+/aod.blueprint           # Multi-feature story generation from consumer guide
+/aod.status              # Regenerate BACKLOG.md and show lifecycle stage summary
 /aod.roadmap             # Scaffold quarterly roadmap from completed PRDs with PM sign-off
 /aod.okrs                # Scaffold OKR document with standard template and PM sign-off
+```
+
+### Orchestration & Lifecycle Commands
+
+```bash
+/aod.run                 # Full lifecycle orchestrator — chains all 6 stages with governance gates
+/aod.orchestrate         # Multi-feature wave execution from /aod.blueprint output
+/execute                 # Execute ad-hoc tasks with automatic agent assignment
+/continue                # Generate session handoff file for seamless work resumption
 ```
 
 **When to Use**:
@@ -50,6 +62,7 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 - Clarifying requirements or verifying consistency at any phase
 - Kickstarting a new project with a structured seed feature backlog
 - Post-delivery code quality review (code simplification, CHANGELOG, docstrings, API docs)
+- Running the full lifecycle end-to-end or orchestrating batch feature execution
 
 ### Stack Pack Commands
 
@@ -84,11 +97,9 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 Use PDL commands for lightweight product discovery before the Triad workflow. PDL is optional — you can start directly at `/aod.define` if you prefer.
 
 ```bash
-/aod.discover <idea>            # Full discovery flow: capture → score → validate → backlog
+/aod.discover <idea>            # Full discovery flow: capture → score → backlog
 /aod.discover --seed <idea>     # Fast-track pre-vetted ideas (auto ICE, skip prompts/PM)
-/aod.discover <idea>           # Capture idea + ICE scoring
-/aod.score #NNN            # Re-score an existing idea (NNN = GitHub Issue number)
-/aod.validate #NNN         # PM validation gate + user story generation
+/aod.score #NNN                 # Re-score an existing idea (NNN = GitHub Issue number)
 ```
 
 **When to Use**:
@@ -96,4 +107,3 @@ Use PDL commands for lightweight product discovery before the Triad workflow. PD
 - Evaluating ideas with ICE scoring before committing to PRD creation
 - Fast-tracking seed stories from a consumer guide (`--seed` flag)
 - Maintaining a prioritized product backlog of validated user stories
-- Running PM validation gates on ideas before heavy Triad governance

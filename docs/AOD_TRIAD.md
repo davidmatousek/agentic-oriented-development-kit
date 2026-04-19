@@ -26,7 +26,7 @@ The **AOD Lifecycle** defines 6 stages that every feature progresses through:
 Discover → Define → Plan → Build → Deliver → Document
 ```
 
-Stages 1-5 are orchestrated by `/aod.run`. Stage 6 (Document) is a separate human-driven command (`/aod.document`) for code quality review.
+Stages 1-5 are orchestrated by `/aod.run`. Stage 6 (Document) runs separately after delivery -- see [AOD_LIFECYCLE.md](guides/AOD_LIFECYCLE.md) for details.
 
 The **Triad** operates as a governance layer at stage boundaries (gates), not as stages themselves:
 
@@ -255,7 +255,7 @@ Creates `specs/{NNN}-*/research.md` with:
 /aod.define <topic>        # Define stage: Create PRD with auto-Triad validation
 /aod.plan                  # Plan stage: Chains spec → project-plan → tasks with governance gates
 /aod.build                 # Build stage: Execute with auto architect checkpoints
-/aod.document              # Document stage: Human-driven quality review
+/aod.document              # Document stage: Quality review (supports --autonomous)
 ```
 
 **Individual Plan sub-commands** (available if you need to run steps separately):

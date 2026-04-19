@@ -1,13 +1,13 @@
 ---
 name: ~aod-run
-description: Full lifecycle orchestrator that chains all 5 AOD stages (Discover, Define, Plan, Build, Deliver) with disk-persisted state for session resilience and governance gates at every boundary. A 6th stage (Document) runs separately via /aod.document. Use this skill when you need to run the full lifecycle, orchestrate stages, resume orchestration, or check orchestration status.
+description: Full lifecycle orchestrator that chains all 6 AOD stages (Discover, Define, Plan, Build, Deliver, Document) with disk-persisted state for session resilience and governance gates at every boundary. Use this skill when you need to run the full lifecycle, orchestrate stages, resume orchestration, or check orchestration status.
 ---
 
 # Full Lifecycle Orchestrator Skill
 
 ## Purpose
 
-Single-command lifecycle orchestrator that chains all 5 AOD stages autonomously, pausing at governance gates for Triad sign-offs and persisting state to disk for session resilience. After Deliver completes, the user runs `/aod.document` separately for human-driven quality review (Stage 6).
+Single-command lifecycle orchestrator that chains all 6 AOD stages autonomously, pausing at governance gates for Triad sign-offs and persisting state to disk for session resilience. After Deliver completes, Document runs automatically as Stage 6.
 
 **Entry Points**:
 - Raw idea: `"description"` → start at Discover
@@ -84,7 +84,7 @@ AOD ORCHESTRATOR — Autonomous Mode
 ====================================
 This will run the full lifecycle autonomously:
 
-  Discover → Define → Plan → Build → Deliver
+  Discover → Define → Plan → Build → Deliver → Document
 
 Autonomous mode will:
   - Auto-select defaults for all interactive prompts
@@ -93,9 +93,6 @@ Autonomous mode will:
   - Split across sessions if the feature is too large
 
 All decisions are logged to run-state.json for post-run review.
-
-After delivery, run /aod.document for human quality review
-(code simplification, docstrings, CHANGELOG, API docs).
 
 Proceed? (Y/n)
 ```
@@ -113,8 +110,8 @@ This is the central orchestration logic. It runs after any entry handler has est
 **Loop algorithm**:
 
 1. **Read loop context**: Use Bash to read loop context via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_loop_context'` — returns `{stage}|{substage}|{stage_status}` (e.g., `plan|spec|in_progress`). Parse the pipe-delimited result. **Do NOT use `aod_state_read` here** — the compound helper extracts only the 3 fields needed for routing.
-2. **Check completion**: If stage_status from step 1 indicates all stages may be complete, verify by checking all 5 stage statuses via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_multi ".stages.discover.status" ".stages.define.status" ".stages.plan.status" ".stages.build.status" ".stages.deliver.status"'`. If all show `completed`, **MANDATORY**: You MUST use the Read tool to load `references/error-recovery.md`, then follow the Lifecycle Complete instructions. Do NOT rely on memory of prior error-recovery content. If the file cannot be read, display an error and STOP.
-3. **Determine next stage**: Use the `current_stage` and `stage_status` from step 1. If status is `"completed"`, advance to the next stage in sequence: `discover` → `define` → `plan` → `build` → `deliver`
+2. **Check completion**: If stage_status from step 1 indicates all stages may be complete, verify by checking all 6 stage statuses via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_get_multi ".stages.discover.status" ".stages.define.status" ".stages.plan.status" ".stages.build.status" ".stages.deliver.status" ".stages.document.status"'`. If all show `completed`, **MANDATORY**: You MUST use the Read tool to load `references/error-recovery.md`, then follow the Lifecycle Complete instructions. Do NOT rely on memory of prior error-recovery content. If the file cannot be read, display an error and STOP. **Note**: If `.stages.document.status` returns null (legacy 5-stage state file), treat as `pending`.
+3. **Determine next stage**: Use the `current_stage` and `stage_status` from step 1. If status is `"completed"`, advance to the next stage in sequence: `discover` → `define` → `plan` → `build` → `deliver` → `document`
 4. **Handle Plan substages**: If `current_stage` is `plan`, use the `substage` from step 1 and cycle through `spec` → `project_plan` → `tasks`. Only advance past Plan when all 3 substages complete. **When advancing between substages, apply context boundary** (see Plan Substage Tracking step 3a) to clear previous substage content and retain only approval metadata.
 5. **Write pre-stage checkpoint**: Update state with `current_stage` status = `"in_progress"` and current timestamp. Write atomically via `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_write '"'"'<json>'"'"''`.
 6. **Display stage map**: Show current progress (see [Stage Map Display](#stage-map-display))
@@ -166,12 +163,10 @@ This is the central orchestration logic. It runs after any entry handler has est
 - **After lifecycle complete display**: Re-read `references/error-recovery.md` to ensure the completion template is followed exactly.
 - **Skip re-grounding** when: the previous step produced minimal output (stage map display, short status messages, cache hits). Unnecessary re-reads waste ~4-7K tokens each.
 
-**Stage sequence**: `discover` → `define` → `plan` (spec → project_plan → tasks) → `build` → `deliver`
-
-**Note**: `aod.run` orchestrates stages 1-5. Stage 6 (Document) is a separate human-driven command (`/aod.document`) run after Deliver. It is NOT part of this orchestrator.
+**Stage sequence**: `discover` → `define` → `plan` (spec → project_plan → tasks) → `build` → `deliver` → `document`
 
 **Exit conditions**:
-- All stages completed → display lifecycle summary with `/aod.document` reminder
+- All stages completed → display lifecycle summary (6/6)
 - BLOCKED with no resolution → save state, exit
 - User chooses to pause → save state, exit
 - Session ends → user resumes with `--resume` in new session
@@ -257,6 +252,7 @@ Each lifecycle stage maps to an existing AOD skill invoked via the Skill tool. T
 | Plan | tasks | Task breakdown | `aod.tasks` | `--autonomous` (if autonomous_mode) or no args |
 | Build | — | Implementation | `aod.build` | `--orchestrated --autonomous` (if autonomous_mode) or `--orchestrated` only |
 | Deliver | — | Delivery retrospective | `aod.deliver` | `--autonomous "FEATURE: {NNN} - {name}"` (if autonomous_mode) or feature info only |
+| Document | — | Documentation review | `aod.document` | `--autonomous` (if autonomous_mode) or no args |
 
 **Invocation pattern**: Use the Skill tool with `skill: "{skill_name}"` and pass arguments as `args: "{arguments}"`.
 
@@ -278,6 +274,7 @@ When `autonomous_mode == true`, prepend `--autonomous` to all skill args:
 - **Plan stages**: `args: "--autonomous"` — flag only; skills read context from branch
 - **Build**: `args: "--orchestrated --autonomous"` — both flags enable orchestrated + autonomous modes
 - **Deliver**: `args: "--autonomous FEATURE: {NNN} - {feature_name}"` — flag + feature info
+- **Document**: `args: "--autonomous"` — flag only; skill reads context from branch
 
 When `autonomous_mode == false` (interactive), omit `--autonomous`:
 
@@ -286,6 +283,7 @@ When `autonomous_mode == false` (interactive), omit `--autonomous`:
 - **Plan stages**: no args
 - **Build**: `args: "--orchestrated"`
 - **Deliver**: `args: "FEATURE: {NNN} - {feature_name}"`
+- **Document**: no args
 
 ### Post-Stage Context Extraction
 
@@ -394,8 +392,14 @@ After recording Plan:tasks artifacts and before the Core Loop advances to Build,
 
 **After Deliver completes**:
 
-1. The deliver stage produces a delivery summary and may update GitHub Issue to `stage:done`
+1. The deliver stage produces a delivery summary
 2. Record artifacts: Add `"delivery complete"` to `stages.deliver.artifacts`
+3. Write updated state atomically
+
+**After Document completes**:
+
+1. The document stage produces documentation review artifacts (CHANGELOG updates, docstrings, API docs, code simplification commits)
+2. Record artifacts: Add PR URL and commit SHAs from the document branch merge to `stages.document.artifacts`
 3. Write updated state atomically
 4. **MANDATORY**: You MUST use the Read tool to load `references/error-recovery.md`, then follow the Lifecycle Complete instructions. If the file cannot be read, display an error and STOP.
 
@@ -406,7 +410,7 @@ Display the stage map after each stage transition to show progress. This is refe
 **Algorithm**:
 
 1. Read state from `.aod/run-state.json`
-2. For each stage in sequence (`discover`, `define`, `plan`, `build`, `deliver`), determine its display marker:
+2. For each stage in sequence (`discover`, `define`, `plan`, `build`, `deliver`, `document`), determine its display marker:
    - `status == "completed"` → `[x]`
    - `status == "in_progress"` → `[>]`
    - `status == "pending"` → `[ ]`
@@ -420,7 +424,7 @@ Display the stage map after each stage transition to show progress. This is refe
 
 ```
 Stage Map:
-  {marker} Discover  {marker} Define  {marker} Plan{substage}  {marker} Build  {marker} Deliver
+  {marker} Discover  {marker} Define  {marker} Plan{substage}  {marker} Build  {marker} Deliver  {marker} Document
 ```
 
 **Examples**:
@@ -428,27 +432,25 @@ Stage Map:
 Starting a new lifecycle:
 ```
 Stage Map:
-  [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver
+  [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver  [ ] Document
 ```
 
 After Discover and Define complete, Plan:spec in progress:
 ```
 Stage Map:
-  [x] Discover  [x] Define  [>] Plan (spec)  [ ] Build  [ ] Deliver
+  [x] Discover  [x] Define  [>] Plan (spec)  [ ] Build  [ ] Deliver  [ ] Document
 ```
 
 Mid-lifecycle with Build in progress:
 ```
 Stage Map:
-  [x] Discover  [x] Define  [x] Plan  [>] Build  [ ] Deliver
+  [x] Discover  [x] Define  [x] Plan  [>] Build  [ ] Deliver  [ ] Document
 ```
 
 All stages complete:
 ```
 Stage Map:
-  [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver
-
-Remaining: /aod.document (manual)
+  [x] Discover  [x] Define  [x] Plan  [x] Build  [x] Deliver  [x] Document
 ```
 
 ### Transition Messages
@@ -470,6 +472,7 @@ Display a formatted transition header before each stage begins executing. This i
    | `plan` | `tasks` | 3 | PLAN | sub-stage 3/3: Task Breakdown |
    | `build` | null | 4 | BUILD | — |
    | `deliver` | null | 5 | DELIVER | — |
+   | `document` | null | 6 | DOCUMENT | — |
 
 3. **Format and display**:
 
@@ -511,7 +514,8 @@ After each stage completes successfully (governance gate passed), update the Git
    | plan | project_plan | `stage:plan` (still in Plan) |
    | plan | tasks | `stage:build` |
    | build | — | `stage:deliver` |
-   | deliver | — | `stage:done` |
+   | deliver | — | `stage:document` |
+   | document | — | `stage:done` |
 
    **Note**: Plan substage completions (spec, project_plan) do not change the label — the issue stays at `stage:plan` until all 3 substages complete.
 

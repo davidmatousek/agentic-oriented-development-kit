@@ -60,6 +60,9 @@ make init
 # Verify setup
 make check
 
+# (Optional) Establish product vision and design identity
+# /aod.foundation
+
 # Copy the demo stories from aod-orchestrator
 cp ../aod-orchestrator/docs/guides/HELLO_WORLD_STORIES.md docs/guides/
 

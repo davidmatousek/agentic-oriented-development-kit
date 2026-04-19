@@ -5,7 +5,7 @@
 
 **Related**:
 - [AOD Quickstart](AOD_QUICKSTART.md) -- Full lifecycle reference
-- [Stack Pack Consumer Guide (FastAPI + React)](STACK_PACK_CONSUMER_GUIDE_FASTAPI_REACT.md) -- Example output
+- Stack Pack Consumer Guide -- (Example guide available after running `/aod.kickstart`)
 
 ---
 
@@ -110,7 +110,7 @@ The consumer guide is your project roadmap. Work through it in order:
 
 /aod.discover    # Paste the feature block as the idea
 /aod.define      # Create PRD
-/aod.plan        # Spec → Plan → Tasks (run 3x)
+/aod.plan        # Spec → project-plan → tasks (auto-advances; run up to 3 times)
 /aod.build       # Implement
 /aod.deliver     # Close and retrospect
 ```

@@ -184,7 +184,7 @@ aod_state_validate() {
     local stage
     stage=$(echo "$state" | jq -r '.current_stage // empty')
     case "$stage" in
-        discover|define|plan|build|deliver) ;;
+        discover|define|plan|build|deliver|document) ;;
         *)
             echo "[aod] VALIDATE: Invalid current_stage: $stage" >&2
             errors=$((errors + 1))

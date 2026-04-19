@@ -9,7 +9,7 @@
 
 ## Context
 
-Feature 080 integrates a security scan step (`/security` skill) into `/aod.build` as Step 6, positioned between Final Validation (Step 5) and Code Simplification (Step 7). This is the second default-on quality gate added to the command (the first being `/simplify` via Feature 065, which established ADR-008).
+Feature 080 integrates a security scan step (`/security` skill) into `/aod.build`, positioned between Final Validation and Code Simplification. This is the second default-on quality gate added to the command (the first being `/simplify` via Feature 065, which established ADR-008). Note: Feature 097 later inserted a Design Quality Gate between Final Validation and Security Scan, renumbering downstream steps.
 
 Two architectural questions arise:
 
@@ -39,7 +39,7 @@ This is the **multi-flag opt-out pattern**: each new default-on step added to `/
 
 ### 2. Security-Before-Simplify Step Ordering
 
-The security scan (Step 6) runs **before** code simplification (Step 7).
+The Security Scan step runs **before** the Code Simplification step.
 
 Rationale: scanning code before it is simplified captures issues at their source, in the form the developer wrote them. If simplification ran first and restructured code, the security scan would analyze the simplified form — potentially obscuring original vulnerability patterns or producing findings against reformatted code that is harder to trace back to the developer's intent.
 
@@ -54,8 +54,9 @@ This is a **breaking change to step ordinals** — accepted as the lesser cost c
 For **internal cross-references within `aod.build.md`** (e.g., "Proceed to Step N"), use the step number at time of writing but acknowledge that these will require updating on future insertions.
 
 For **external documentation** (ADRs, patterns, closure summaries), prefer descriptive stage names over ordinal numbers where possible:
-- "Security Scan step" rather than "Step 6"
-- "Code Simplification step" rather than "Step 7"
+- "Security Scan step" rather than "Step 7"
+- "Code Simplification step" rather than "Step 8"
+- "Design Quality Gate step" rather than "Step 6"
 - "Final Validation step" rather than "Step 5"
 
 This reduces the blast radius of future step insertions on external documentation.
@@ -157,7 +158,7 @@ This reduces the blast radius of future step insertions on external documentatio
 ### Negative
 - Two flags to remember instead of one (mitigated by consistent naming pattern)
 - Future step insertions still require step-number updates in some documentation (mitigated by named-identifier recommendation)
-- Step 7 and Step 8 references in documentation became stale at Feature 080 insertion (updated as part of this feature)
+- Step references in documentation became stale at Feature 080 and Feature 097 insertions (updated each time per this ADR)
 
 ### Mitigation
 - `--no-security` and `--no-simplify` documented prominently in `CLAUDE.md` and `.claude/rules/commands.md`
@@ -170,6 +171,23 @@ This reduces the blast radius of future step insertions on external documentatio
 
 - [ADR-008: Opt-out Flag for Default-On Quality Gate Steps in Commands](ADR-008-opt-out-flag-for-default-quality-gates.md) — established the `--no-X` per-step convention that this ADR extends to multiple flags
 - [Pattern: Built-in Skill Invocation from a Command](../03_patterns/README.md#pattern-built-in-skill-invocation-from-a-command) — documents the implementation pattern for wiring built-in skills into commands with opt-out flags
+
+---
+
+## Extension: Opt-In Severity Modifiers
+
+The `--no-X` opt-out pattern removes a step entirely. A complementary pattern now exists: `--require-X` **elevates** a step's severity from advisory (soft gate) to blocking (hard gate), without changing what the step does.
+
+| Flag prefix | Effect | Example |
+|-------------|--------|---------|
+| `--no-X` | Skip step entirely (opt-out) | `--no-tests` disables the test gate |
+| `--require-X` | Elevate step to hard gate (opt-in severity) | `--require-tests` makes test failures block the build |
+
+**First instance**: `--require-tests` on `/aod.build`. By default the Test Execution step is a soft gate (failures are reported but do not halt the build). Passing `--require-tests` promotes it to a hard gate: any test failure causes the build to abort with a non-zero exit.
+
+**Rationale**: The two flag families are complementary, not conflicting. A step can be skipped (`--no-tests`), run as advisory (default), or run as blocking (`--require-tests`). This three-level control keeps the flag surface small while covering the practical range of strictness preferences.
+
+**Convention**: Future severity modifiers must use the `--require-` prefix to maintain discoverability alongside the established `--no-` prefix. Both flag types remain independent and are parsed in Step 0 alongside existing opt-out flags.
 
 ---
 

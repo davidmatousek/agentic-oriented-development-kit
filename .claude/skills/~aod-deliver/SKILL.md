@@ -265,15 +265,275 @@ Run `.aod/scripts/bash/backlog-regenerate.sh` to update the backlog snapshot wit
 
 ---
 
-## Step 9: Generate Delivery Document
+## Step 9: Run E2E Validation Gate
 
-Generate a persistent delivery document from retrospective data collected in Steps 1-8.
+Run automated E2E validation against the feature's acceptance criteria before collecting test evidence. This step is **non-fatal** by default (ADR-006): if the tester agent fails to launch, crashes, or times out, log the error and proceed to Step 10. The E2E validation gate supports two modes:
 
-### 9a: Re-ground on Template
+- **Soft gate** (default): Warn on test failure, let the developer decide whether to proceed or abort
+- **Hard gate** (`--require-tests`): Block delivery if any test fails
+
+The gate decision is made in sub-step 9d based on the `require_tests` flag passed from the command's flag parsing (Step 0).
+
+### 9a: Pre-check — Detect Playwright Configuration
+
+Search the project root for Playwright configuration files:
+
+1. Check for `playwright.config.ts`, `playwright.config.js`, or `playwright.config.mjs` at the project root
+2. If `.aod/stack-active.json` exists, read it and check for stack-specific Playwright paths (the stack pack may define a custom config location)
+3. Check for `playwright` in `package.json` dependencies (if `package.json` exists)
+
+**If no Playwright configuration found**:
+- Display: `"No Playwright configuration found — skipping E2E validation"`
+- Store `e2e_validation.skipped = true` and `e2e_validation.skip_reason = "no_playwright_config"`
+- Store `e2e_validation.status = "skipped"`
+- Proceed directly to Step 10
+
+**If Playwright configuration found**:
+- Store the config file path for use in sub-step 9b
+- Proceed to sub-step 9b
+
+### 9b: Invoke Tester Agent
+
+Launch the tester agent to generate and execute BDD/Gherkin E2E scenarios from the feature's acceptance criteria.
+
+1. **Resolve spec path**: Find `specs/{NNN}-*/spec.md` using the feature number from the current branch
+2. **Launch tester agent** via the Agent tool:
+   ```
+   Agent tool:
+     subagent_type: "tester"
+     prompt: |
+       Generate and execute BDD/Gherkin E2E scenarios for the feature specification.
+
+       Input:
+       - Feature spec: {spec_path}
+       - Output directory: .aod/test-results/
+
+       Instructions:
+       1. Read the feature spec and extract acceptance criteria from all user stories
+       2. Generate Gherkin scenarios (.feature files) from the acceptance criteria
+       3. Execute scenarios via Playwright
+       4. Write test results to .aod/test-results/
+
+       Subagent Return Policy:
+       - Return ONLY: status (pass/fail/error), item count ({passed}/{total}), and results file path (.aod/results/tester.md)
+       - Write detailed findings (failing scenario names, error details, execution logs) to .aod/results/tester.md BEFORE returning
+       - Max return: 15 lines / ~200 tokens
+     timeout: 300000  # 5 minutes
+   ```
+3. **Handle timeout**: If the agent does not return within 5 minutes:
+   - Display: `"E2E validation timed out after 5 minutes ({elapsed}s elapsed)"`
+   - Use AskUserQuestion: "(A) Continue waiting, (B) Abort E2E validation and proceed"
+   - If Abort: store `e2e_validation.status = "error"`, `e2e_validation.error = "timeout"`, proceed to Step 10
+
+4. **Handle agent failure**: If the agent fails to launch or crashes:
+   - Display: `"E2E validation error: {error_message}"`
+   - Store `e2e_validation.status = "error"`, `e2e_validation.error = "{error_message}"`
+   - Proceed to Step 10 (non-fatal per ADR-006)
+
+### 9c: Parse Test Results
+
+Read and parse the tester agent's return value and detailed results.
+
+1. **Parse agent return**: Extract status (`pass`/`fail`/`error`), item count (`{passed}/{total}`), and results file path
+2. **Read detailed results**: If status is `fail`, read `.aod/results/tester.md` to extract:
+   - Failing scenario names
+   - Error messages for each failure
+   - Total, passed, failed, and skipped counts
+3. **Store results** in the `e2e_validation` data structure:
+   - `e2e_validation.status`: `"pass"` | `"fail"` | `"error"` | `"skipped"`
+   - `e2e_validation.total`: Total test count
+   - `e2e_validation.passed`: Passed test count
+   - `e2e_validation.failed`: Failed test count
+   - `e2e_validation.skipped`: Skipped test count
+   - `e2e_validation.failing_scenarios[]`: List of failing scenario names (empty if all pass)
+4. **Display summary**:
+   ```
+   E2E Validation: {status}
+   Tests: {passed}/{total} passed ({failed} failed, {skipped} skipped)
+   ```
+   If any failures, also display:
+   ```
+   Failing scenarios:
+     - {scenario_name_1}
+     - {scenario_name_2}
+   ```
+5. Proceed to sub-step 9d (Gate Decision)
+
+### 9d: Gate Decision
+
+Evaluate test results and determine whether delivery should proceed, based on gate mode and test outcome.
+
+**Inputs**: `e2e_validation.status`, `e2e_validation.failed`, `e2e_validation.failing_scenarios[]`, `require_tests` flag (from command Step 0), `autonomous` flag (from command Step 0).
+
+**Decision paths**:
+
+1. **All tests pass** (`e2e_validation.status == "pass"`):
+   - Display: `"E2E Validation Gate: PASSED — all tests passed"`
+   - Store `e2e_validation.gate_mode = "soft"` or `"hard"` (based on `require_tests` flag)
+   - Store `e2e_validation.gate_result = "pass"`
+   - Proceed to Step 10
+
+2. **Tests fail + Autonomous mode** (`autonomous == true`, regardless of `require_tests`):
+   - Display:
+     ```
+     E2E Validation Gate: WARNING — {failed_count} test(s) failed (autonomous mode override)
+     Failing scenarios:
+       - {scenario_name_1}
+       - {scenario_name_2}
+     Proceeding with delivery (autonomous mode overrides gate).
+     ```
+   - Store `e2e_validation.gate_mode = require_tests ? "hard" : "soft"`
+   - Store `e2e_validation.gate_result = "warn"`
+   - Proceed to Step 10
+
+3. **Tests fail + Soft gate** (`e2e_validation.status == "fail"` and `require_tests == false` and `autonomous == false`):
+   - Display warning:
+     ```
+     E2E Validation Gate: WARNING — {failed_count} test(s) failed
+
+     Failing scenarios:
+       - {scenario_name_1}
+       - {scenario_name_2}
+     ```
+   - Use AskUserQuestion:
+     ```
+     Question: "E2E tests failed. How would you like to proceed?"
+     Header: "E2E Gate"
+     Options:
+       - "Proceed anyway": "Continue delivery despite test failures — failures will be recorded in the delivery document"
+       - "Abort delivery": "Stop delivery to fix test failures — re-run /aod.deliver after fixing"
+     ```
+   - If "Proceed anyway": Store `e2e_validation.gate_result = "warn"`, proceed to Step 10
+   - If "Abort delivery": Store `e2e_validation.gate_result = "block"`, display `"Delivery aborted. Fix failing tests and re-run /aod.deliver."`, halt workflow
+   - Store `e2e_validation.gate_mode = "soft"`
+
+4. **Tests fail + Hard gate** (`e2e_validation.status == "fail"` and `require_tests == true` and `autonomous == false`):
+   - Display error:
+     ```
+     E2E Validation Gate: BLOCKED — {failed_count} test(s) failed (--require-tests enforced)
+
+     Failing scenarios:
+       - {scenario_name_1}
+       - {scenario_name_2}
+
+     Delivery blocked. Fix the failing tests and re-run `/aod.deliver --require-tests`.
+     ```
+   - Store `e2e_validation.gate_mode = "hard"`
+   - Store `e2e_validation.gate_result = "block"`
+   - Halt workflow — do NOT proceed to Step 10
+
+5. **Status is "error" or "skipped"** (from sub-steps 9a-9c):
+   - These statuses bypass the gate entirely — they were already handled in prior sub-steps
+   - Store `e2e_validation.gate_mode = require_tests ? "hard" : "soft"`
+   - Store `e2e_validation.gate_result = "skip"`
+   - Proceed to Step 10
+
+---
+
+## Step 10: Collect Test Evidence
+
+Collect and archive test artifacts for the delivery audit trail. This step is entirely **non-fatal** (ADR-006): if any sub-step fails, log the error and continue to Step 11. The delivery workflow must never be blocked by test evidence collection.
+
+### 10a: Auto-Detect Test Artifacts
+
+Scan these specific locations at the **project root only** (no recursive scanning):
+
+1. `.aod/test-results/` — AOD convention directory
+2. `test-results/` — project root test results
+3. `coverage/` — project root coverage reports
+4. Files matching `junit*.xml`, `test-report.*`, `coverage.*` in the project root
+
+Collect all discovered files into a `detected_files` list with file paths and sizes.
+
+### 10b: Confirm or Prompt
+
+**If files found**: Display discovered files with sizes:
+
+```
+Test artifacts detected:
+  - test-results/junit.xml (12 KB)
+  - coverage/lcov.info (45 KB)
+
+Archive these to specs/{NNN}-*/test-results/? (Y/n/add more)
+```
+
+Use AskUserQuestion with options:
+- "Archive all" — proceed with detected files
+- "Add more" — prompt for additional file paths, then archive all
+- "Skip" — no test evidence archived
+
+**If no files found**: Use AskUserQuestion:
+
+```
+Question: "No test artifacts found in standard locations. What would you like to do?"
+Header: "Test evidence"
+Options:
+  - "Provide paths": "Enter custom file paths to archive"
+  - "Skip": "No test evidence for this feature"
+```
+
+### 10c: File Size Check
+
+Before copying, check file sizes:
+- Warn if any individual file exceeds 10 MB
+- Warn if total size exceeds 50 MB per feature
+- Display warning but do NOT block archival — the developer decides
+
+### 10d: Sensitive Data Warning
+
+Display once before archival:
+```
+Reminder: Review test artifacts for sensitive data (API keys, tokens, PII) before archival.
+```
+
+### 10e: Copy Files to Archive
+
+Copy confirmed files to `specs/{NNN}-*/test-results/`:
+1. Create directory if needed: `mkdir -p specs/{NNN}-*/test-results/`
+2. Copy each file preserving original filenames
+3. If copy fails for any file, log the error and continue with remaining files
+
+### 10f: Extract Summary Metrics (Best-Effort)
+
+Extract metrics from recognized formats:
+
+**JUnit XML**: Parse `<testsuites>` or `<testsuite>` root element attributes using `xmllint --xpath`:
+```bash
+xmllint --xpath "string(/testsuites/@tests)" file.xml 2>/dev/null || \
+xmllint --xpath "string(/testsuite/@tests)" file.xml 2>/dev/null
+```
+Extract: `tests`, `failures`, `errors`, `skipped` attributes.
+
+**LCOV (.info/.lcov)**: Sum `LF:` and `LH:` records:
+```bash
+LF=$(grep "^LF:" file.lcov 2>/dev/null | cut -d: -f2 | paste -sd+ | bc)
+LH=$(grep "^LH:" file.lcov 2>/dev/null | cut -d: -f2 | paste -sd+ | bc)
+```
+Compute coverage: `(LH / LF) * 100`.
+
+**Other formats**: Archive as-is. Summary = "Manual review required".
+
+If parsing fails for any format, use "Manual review required" as the summary.
+
+### 10g: Store Test Evidence Data
+
+Store the following for use in Step 11 (delivery document generation):
+- `test_evidence.files[]`: List of archived files with paths and summaries
+- `test_evidence.metrics`: Aggregate metrics (tests run, passed, failed, coverage %)
+- `test_evidence.skipped`: Boolean indicating if evidence was skipped
+- `test_evidence.notes`: Context string for the Notes field
+
+---
+
+## Step 11: Generate Delivery Document
+
+Generate a persistent delivery document from retrospective data collected in Steps 1-8, E2E validation results from Step 9, and test evidence from Step 10.
+
+### 11a: Re-ground on Template
 
 Re-read `.aod/templates/delivery-template.md` before generating the document (KB Entry 9 re-grounding). This ensures the output structure matches the standardized template exactly.
 
-### 9b: Resolve Specs Directory
+### 11b: Resolve Specs Directory
 
 Resolve the specs directory from the branch name:
 1. Get the feature number from the branch: `git branch --show-current` → extract NNN prefix
@@ -282,11 +542,11 @@ Resolve the specs directory from the branch name:
 
 Store the resolved path as `specs_dir`.
 
-### 9c: Populate Delivery Document
+### 11c: Populate Delivery Document
 
 Using the template structure from `.aod/templates/delivery-template.md`, populate all sections from retrospective data:
 
-1. **Header**: Feature number, name, today's date, branch name, PR number (from git log or context)
+1. **Header**: Feature number, name, today's date, branch name, PR number (from draft PR or git log)
 2. **What Was Delivered**: Read `.aod/spec.md` for completed user stories and `.aod/tasks.md` for major completed tasks. Summarize as 3-7 user-visible outcomes (not implementation details).
 3. **How to See & Test**: Extract verification steps from three sources and merge into numbered steps a developer can follow immediately:
    - **From `.aod/spec.md`**: Read each acceptance scenario's **Then** clause — each maps to one or more verification steps.
@@ -298,22 +558,41 @@ Using the template structure from `.aod/templates/delivery-template.md`, populat
 6. **Lessons Learned**: Table with `lesson_category`, `lesson_text`, and KB entry reference from Step 6
 7. **Feedback Loop**: Count of `next_ideas` and list of each idea with GitHub Issue number
 8. **Source Artifacts**: Paths to spec.md, plan.md, tasks.md, and PRD (from spec.md frontmatter if available)
-9. **Documentation Updates**: Agent table populated from Step 3 of the command (documentation agent results)
-10. **Cleanup**: Checklist items (left unchecked — will be checked during command Steps 7-10)
+9. **Test Evidence**: Populate both subsections of the Test Evidence section:
+   - **E2E Validation Gate**: Read `e2e_validation.status`, `e2e_validation.gate_mode`, `e2e_validation.gate_result`, `e2e_validation.total`, `e2e_validation.passed`, `e2e_validation.failed`, `e2e_validation.skipped`, and `e2e_validation.failing_scenarios[]` from Step 9 output. Populate the E2E Validation Gate table and Failure Details field. If `e2e_validation.status` is `"skipped"`, use "N/A" for counts and "E2E validation skipped" for Failure Details. If `e2e_validation.status` is `"error"`, use "Error" for Status and the error message for Failure Details.
+   - **Archived Artifacts**: Populate from `test_evidence` data collected in Step 10. If `test_evidence.skipped` is true, use "No test artifacts archived for this feature." If metrics were parsed successfully, populate the artifact table and Archived Artifact Metrics (tests run, passed, failed, coverage). If metrics could not be parsed, use "Manual review required" for the summary column.
+10. **Documentation Updates**: Agent table populated from Step 3 of the command (documentation agent results)
+11. **Cleanup**: Checklist items (left unchecked — will be checked during command Steps 7-11)
 
-### 9d: Write Delivery Document
+### 11d: Write Delivery Document
 
 Write the populated document to `{specs_dir}/delivery.md` using the Write tool.
 
-Store the delivery document path in variable `delivery_doc_path` for use in Step 10.
+Store the delivery document path in variable `delivery_doc_path` for use in Step 12.
 
-### 9e: Non-Fatal Fallback Guard
+### 11e: Non-Fatal Fallback Guard
 
-If the file write in Step 9d fails (permissions, disk full, or any error), display the full delivery document content in the terminal as a fallback. The deliver workflow MUST NOT be blocked by a file write failure (FR-009, KB Entry 14).
+If the file write in Step 11d fails (permissions, disk full, or any error), display the full delivery document content in the terminal as a fallback. The deliver workflow MUST NOT be blocked by a file write failure (FR-009, KB Entry 14).
 
 **Missing optional data handling**: If `surprise_log`, `next_ideas`, or `lesson_text` are empty or unavailable, use "None" or "N/A" for those sections rather than leaving them blank or erroring.
 
-### 9f: Display Delivery Document
+### 11f: Mark Draft PR Ready
+
+If a draft PR exists for the current branch, mark it ready for review:
+
+```bash
+# Find draft PR for current branch
+PR_NUMBER=$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')
+
+# Mark ready if found
+if [ -n "$PR_NUMBER" ]; then
+  gh pr ready "$PR_NUMBER"
+fi
+```
+
+If `gh` is unavailable or no draft PR exists, skip silently (graceful degradation). If no draft PR exists, create a regular PR: `gh pr create --title "{NNN}: {Feature Name}" --body "..."`.
+
+### 11g: Display Delivery Document
 
 After writing (or after fallback display if write failed), show the full document content in the terminal so the developer can review it immediately.
 
@@ -328,12 +607,12 @@ Delivery Document: {delivery_doc_path}
 
 ---
 
-## Step 10: Close Issue and Transition to Done
+## Step 12: Close Issue and Transition to Done
 
 After all retrospective steps are complete, metrics posted, and KB entries created:
 
 1. **Transition to `stage:done`**: Run `source .aod/scripts/bash/github-lifecycle.sh && aod_gh_update_stage "$issue_number" "done"` to move the label from `stage:deliver` to `stage:done`. This moves the issue to the Done column on the Projects board.
-2. **Close the GitHub Issue**: Run `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete. See: specs/{NNN}-*/delivery.md"` where `{NNN}-*` is resolved from the `delivery_doc_path` variable set in Step 9d. This cross-references the delivery document from the GitHub Issue.
+2. **Close the GitHub Issue**: Run `gh issue close "$issue_number" --comment "Feature delivered. Retrospective complete. See: specs/{NNN}-*/delivery.md"` where `{NNN}-*` is resolved from the `delivery_doc_path` variable set in Step 11d. This cross-references the delivery document from the GitHub Issue.
 3. **Regenerate BACKLOG.md**: Run `.aod/scripts/bash/backlog-regenerate.sh` to remove the now-done item from the active backlog.
 4. If `gh` is unavailable, skip silently (graceful degradation).
 
@@ -341,7 +620,7 @@ This step MUST be the very last GitHub operation, after all metrics, KB entries,
 
 ---
 
-## Step 11: Prompt for /aod.document
+## Step 13: Prompt for /aod.document
 
 After delivery is complete, prompt the user about the next lifecycle step:
 
@@ -381,6 +660,7 @@ Run `/aod.document` now? (Y/n)
 - [ ] Delivery metrics posted to GitHub Issue as comment
 - [ ] Issue transitioned to `stage:deliver` label (start of retrospective)
 - [ ] BACKLOG.md regenerated
+- [ ] Test evidence collected or skipped (non-fatal, per ADR-006)
 - [ ] Retrospective summary displayed with all metrics
 - [ ] Issue transitioned to `stage:done` label (end of retrospective)
 - [ ] GitHub Issue closed with closing comment

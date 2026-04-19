@@ -43,7 +43,8 @@ When mode is `idea`, the orchestrator creates a fresh orchestration from a raw i
     "define": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null },
     "plan": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": { "spec": { "status": "pending", "artifacts": [] }, "project_plan": { "status": "pending", "artifacts": [] }, "tasks": { "status": "pending", "artifacts": [] } }, "error": null },
     "build": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null },
-    "deliver": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null }
+    "deliver": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null },
+    "document": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null }
   },
   "session_strategy": null,
   "estimated_sessions": null,
@@ -65,7 +66,7 @@ Governance Tier: {tier}
 Starting Stage: Discover
 
 Stage Map:
-  [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver
+  [>] Discover  [ ] Define  [ ] Plan  [ ] Build  [ ] Deliver  [ ] Document
 ```
 
 7. **Proceed to Core Loop**: Fall through to Step 2 (Core State Machine Loop) to begin executing the Discover stage.
@@ -112,6 +113,7 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
    | `stage:plan` | discover, define | plan |
    | `stage:build` | discover, define, plan | build |
    | `stage:deliver` | discover, define, plan, build | deliver |
+   | `stage:document` | discover, define, plan, build, deliver | document |
    | `stage:done` | all | (lifecycle complete) |
    | (no label) | discover | define |
 
@@ -148,7 +150,8 @@ When mode is `issue`, the orchestrator reads an existing GitHub Issue to determi
     "define": { "status": "{completed or pending}", ... },
     "plan": { "status": "{completed or pending}", ..., "substages": { "spec": {...}, "project_plan": {...}, "tasks": {...} } },
     "build": { "status": "pending", ... },
-    "deliver": { "status": "pending", ... }
+    "deliver": { "status": "pending", ... },
+    "document": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [], "governance": null, "substages": null, "error": null }
   },
   "session_strategy": null,
   "estimated_sessions": null,
@@ -313,7 +316,7 @@ When mode is `resume`, the orchestrator reads the persisted state file from disk
 
 5. **Validate schema version**: Check that `version` is `"1.0"`. If not recognized, warn but attempt to continue (forward-compatible).
 
-6. **Check lifecycle-already-complete**: Check if all 5 stages show `status: "completed"` (see `references/error-recovery.md` for Lifecycle Already Complete Detection). If complete, display summary and STOP — do NOT proceed to the Core Loop or restart any stages.
+6. **Check lifecycle-already-complete**: Check if all 6 stages show `status: "completed"` (see `references/error-recovery.md` for Lifecycle Already Complete Detection). If complete, display summary and STOP — do NOT proceed to the Core Loop or restart any stages.
 
 7. **Run artifact consistency validation**: For each stage marked as `completed` in the state, verify its recorded artifacts exist on disk (see [Artifact Consistency Validation](#artifact-consistency-validation)).
 
@@ -525,7 +528,7 @@ When mode is `status`, the orchestrator displays the current orchestration state
 5. **Determine next action**: Based on `current_stage` and its status:
    - If `in_progress`: "Continue {stage_name}" (or "Continue Plan: {substage}" for Plan)
    - If `completed` and next stage exists: "Start {next_stage_name}"
-   - If all completed: "Lifecycle complete — run /aod.deliver"
+   - If all completed: "Lifecycle complete (6/6)"
    - If `failed`: "Retry {stage_name} (resolve blocker first)"
 
 6. **Display status report**:
