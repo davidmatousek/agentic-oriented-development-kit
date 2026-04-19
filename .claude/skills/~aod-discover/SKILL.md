@@ -29,6 +29,24 @@ Check if arguments contain `--seed` flag. If present:
 - Set entry point to **Seed Mode**
 - Seed mode is designed for pre-vetted ideas (e.g., from consumer guides) that don't need scoring or validation
 
+## Critical Constraints
+
+**MUST** use `.aod/scripts/bash/create-issue.sh` for ALL GitHub Issue creation. NEVER call `gh issue create` directly.
+
+**Why**: Direct `gh issue create` bypasses the board sync pipeline, causing issues to silently disappear from the project board. The `create-issue.sh` script delegates to `aod_gh_create_issue()` which includes automatic board placement via `aod_gh_add_to_board()`. See KB Entry #20 for root cause analysis.
+
+**Prohibited pattern** (DO NOT use):
+```bash
+# WRONG — bypasses board sync
+gh issue create --title "..." --label "stage:discover" --body "..."
+```
+
+**Required pattern**:
+```bash
+# CORRECT — includes board sync automatically
+bash .aod/scripts/bash/create-issue.sh --title "Feature title" --body "Markdown body" --stage discover
+```
+
 ## Source of Truth
 
 **GitHub Issues are the sole source of truth for backlog items.** All idea state (ICE scores, status, evidence) is stored in the GitHub Issue body. BACKLOG.md is an auto-generated view regenerated from Issues.
@@ -524,6 +542,7 @@ Next: Run `/aod.define {topic}` to create a PRD, or continue seeding with `/aod.
 
 ## Quality Checklist
 
+- [ ] GitHub Issue created via `create-issue.sh` (NOT `gh issue create` directly) with structured body, `stage:discover` label, and `type:idea` label
 - [ ] Entry point correctly detected (discover/discover --seed/idea/validate)
 - [ ] `--seed` flag: stripped from description, defaults applied, prompts skipped
 - [ ] Idea ID is the GitHub Issue number (`#NNN`), assigned by `create-issue.sh`
@@ -532,7 +551,6 @@ Next: Run `/aod.define {topic}` to create a PRD, or continue seeding with `/aod.
 - [ ] Evidence included in GitHub Issue body and display outputs
 - [ ] ICE score computed correctly (additive I+C+E)
 - [ ] Auto-defer gate applied (< 12 = Deferred, flow stops in full flow)
-- [ ] GitHub Issue created via `create-issue.sh` (NOT `gh issue create` directly) with structured body, `stage:discover` label, and `type:idea` label
 - [ ] Issue added to Projects board with correct Status column (verified via script output)
 - [ ] BACKLOG.md regenerated after Issue creation
 - [ ] Governance tier read from constitution (light/standard/full, default: standard)

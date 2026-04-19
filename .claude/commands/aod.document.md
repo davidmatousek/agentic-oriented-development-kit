@@ -1,5 +1,5 @@
 ---
-description: Human-driven quality review — code simplification, docstrings, CHANGELOG, API docs
+description: Quality review — code simplification, docstrings, CHANGELOG, API docs (supports --autonomous)
 ---
 
 ## User Input
@@ -10,23 +10,40 @@ $ARGUMENTS
 
 Consider user input before proceeding (if not empty).
 
+## Step 0a: Parse --autonomous
+
+1. If `$ARGUMENTS` contains `--autonomous`:
+   - Set `autonomous = true`
+   - Strip `--autonomous` from `$ARGUMENTS` (trim extra whitespace)
+2. If `$ARGUMENTS` does NOT contain `--autonomous`:
+   - Set `autonomous = false`
+
 ## Overview
 
 Post-delivery quality review for the completed feature. This is Stage 6 of the AOD
 lifecycle — the one stage designed for human judgment. Each step presents findings
 interactively and commits only what the human approves.
 
-**Flow**: Validate context → Code simplification → Docs-lint → CHANGELOG → API sync → KB review → Report
+**Flow**: Validate context → Branch → Code simplification → Docs-lint → CHANGELOG → API sync → KB review → PR squash-merge → Report
 
-**IMPORTANT**: Execute ALL steps 0–6 sequentially. Do not stop or wait for further instructions between steps. After completing each step (including user interaction), immediately proceed to the next step until the Step 6 Report is displayed.
+**IMPORTANT**: Execute ALL steps 0–7 sequentially. Do not stop or wait for further instructions between steps. After completing each step (including user interaction), immediately proceed to the next step until the Step 7 Report is displayed.
 
 ## Step 0: Validate Context
 
-1. Get branch: `git branch --show-current` → must match `NNN-*` pattern
-2. Extract feature number NNN from branch name
+1. Get branch: `git branch --show-current`
+2. Determine feature number NNN:
+   - If on a `NNN-*` branch: extract NNN from branch name
+   - If on `main`: extract NNN from user input `$ARGUMENTS`, or detect from most recent `feat(NNN)` or `docs(NNN)` commit on main
+   - If NNN cannot be determined: prompt the user for the feature number
 3. Find tasks: `specs/{NNN}-*/tasks.md` → verify all tasks marked `[X]` (build complete)
 4. If tasks incomplete: warn "Build may not be complete — {incomplete_count} tasks remain" and ask whether to proceed
-5. Display: "Document stage for Feature {NNN} on branch {branch}"
+5. Display: "Document stage for Feature {NNN}"
+
+## Step 0b: Create Document Branch
+
+1. If not already on main: `git checkout main && git pull origin main`
+2. Create branch: `git checkout -b {NNN}-document-stage`
+3. Display: "Working on branch {NNN}-document-stage"
 
 ## Step 1: Code Simplification
 
@@ -52,7 +69,8 @@ Detect changed code files and run /simplify for human review.
 1. Detect modified files: `git diff --name-only`
 2. If no files modified: display "No simplification changes — code looks good", proceed to Step 2
 3. Get diff stats: `git diff --stat`
-4. Present summary via AskUserQuestion:
+4. If `autonomous == true`: auto-accept all simplification changes — stage and commit with `refactor({NNN}): simplify code per /simplify review` → proceed to Step 2
+5. If `autonomous == false`: Present summary via AskUserQuestion:
    ```
    Code Simplification Review:
      Files reviewed: {file_count}
@@ -66,8 +84,8 @@ Detect changed code files and run /simplify for human review.
      (B) Reject all — revert and continue
      (C) Abort
    ```
-5. Accept: stage and commit with `refactor({NNN}): simplify code per /simplify review` → proceed to Step 2
-6. Reject: revert modified files with `git checkout -- {files}` → proceed to Step 2
+   - Accept: stage and commit with `refactor({NNN}): simplify code per /simplify review` → proceed to Step 2
+   - Reject: revert modified files with `git checkout -- {files}` → proceed to Step 2
 
 ## Step 2: Docs-Lint
 
@@ -84,7 +102,8 @@ Analyze changed code for undocumented complex functions and suggest docstrings.
 ### 2b: Present Docstring Suggestions
 
 1. For each flagged function, generate a docstring matching the file's existing style
-2. Present via AskUserQuestion:
+2. If `autonomous == true`: auto-accept all suggested docstrings — apply docstrings, stage, commit with `docs({NNN}): add docstrings per docs-lint` → proceed to Step 3
+3. If `autonomous == false`: Present via AskUserQuestion:
    ```
    Docs-Lint Review:
      Files analyzed: {file_count}
@@ -97,16 +116,16 @@ Analyze changed code for undocumented complex functions and suggest docstrings.
      (B) Skip all
      (C) Review individually
    ```
-3. If accepted: apply docstrings, stage, commit with `docs({NNN}): add docstrings per docs-lint` → proceed to Step 3
-4. If skipped or reviewed individually: apply approved changes (if any), then proceed to Step 3
+   - If accepted: apply docstrings, stage, commit with `docs({NNN}): add docstrings per docs-lint` → proceed to Step 3
+   - If skipped or reviewed individually: apply approved changes (if any), then proceed to Step 3
 
 ## Step 3: CHANGELOG Generation
 
-Generate CHANGELOG entries from commits on the feature branch.
+Generate CHANGELOG entries from the feature's delivery commits on main (not the document branch).
 
 ### 3a: Collect and Categorize Commits
 
-1. Run: `git log --format="%H %s" main..HEAD`
+1. Run: `git log --format="%H %s" main` and filter to commits matching `(NNN)` or the feature name from `specs/{NNN}-*/`
 2. If no commits: display "No commits found", proceed to Step 4
 3. If `CHANGELOG.md` exists: read it and exclude commits whose SHA (first 7 chars) already appear
 4. If all commits already captured: display "CHANGELOG is up to date", proceed to Step 4
@@ -122,7 +141,8 @@ Generate CHANGELOG entries from commits on the feature branch.
 1. Build markdown section: `### Feature {NNN}`
 2. List entries by category with short SHA
 3. Create `CHANGELOG.md` if missing (Keep a Changelog format)
-4. Present via AskUserQuestion:
+4. If `autonomous == true`: auto-accept CHANGELOG entries — insert under `## [Unreleased]`, stage, commit with `docs({NNN}): update CHANGELOG` → proceed to Step 4
+5. If `autonomous == false`: Present via AskUserQuestion:
    ```
    CHANGELOG Preview:
      New entries: {count}
@@ -131,8 +151,8 @@ Generate CHANGELOG entries from commits on the feature branch.
    (A) Accept and commit
    (B) Skip
    ```
-5. If accepted: insert under `## [Unreleased]`, stage, commit with `docs({NNN}): update CHANGELOG` → proceed to Step 4
-6. If skipped: proceed to Step 4
+   - If accepted: insert under `## [Unreleased]`, stage, commit with `docs({NNN}): update CHANGELOG` → proceed to Step 4
+   - If skipped: proceed to Step 4
 
 ## Step 4: API Documentation Sync
 
@@ -153,7 +173,8 @@ Compare code endpoints against OpenAPI spec and flag mismatches.
 2. Parse OpenAPI spec for corresponding definitions
 3. Identify mismatches: new endpoints, changed params, removed endpoints, response type diffs
 4. If no mismatches: display "API docs are in sync", proceed to Step 5
-5. Present via AskUserQuestion:
+5. If `autonomous == true`: auto-accept all mismatches — update spec for each mismatch, stage, commit with `docs({NNN}): sync OpenAPI spec` → proceed to Step 5
+6. If `autonomous == false`: Present via AskUserQuestion:
    ```
    API Sync Review:
      Spec: {spec_path}
@@ -164,8 +185,8 @@ Compare code endpoints against OpenAPI spec and flag mismatches.
    (A) Review each individually
    (B) Skip all
    ```
-6. For each mismatch user approves: update spec, then stage and commit with `docs({NNN}): sync OpenAPI spec` → proceed to Step 5
-7. If skipped: proceed to Step 5
+   - For each mismatch user approves: update spec, then stage and commit with `docs({NNN}): sync OpenAPI spec` → proceed to Step 5
+   - If skipped: proceed to Step 5
 
 ## Step 5: KB Entry Review
 
@@ -173,10 +194,42 @@ Review knowledge base entries captured during build and deliver.
 
 1. Check `docs/INSTITUTIONAL_KNOWLEDGE.md` for recent entries related to Feature {NNN}
 2. If no entries found: display "No KB entries to review", proceed to Step 6
-3. Present each entry for validation: confirm accuracy, improve wording if needed
-4. Commit any KB updates with `docs({NNN}): review KB entries` → proceed to Step 6
+3. If `autonomous == true`: auto-accept KB entries as-is — commit any KB updates with `docs({NNN}): review KB entries` → proceed to Step 6
+4. If `autonomous == false`: Present each entry for validation: confirm accuracy, improve wording if needed
+5. Commit any KB updates with `docs({NNN}): review KB entries`
 
-## Step 6: Report
+## Step 6: PR Squash-Merge
+
+Push the document branch, create a PR, and squash-merge to main.
+
+1. If no commits on the document branch (`git log main..HEAD --oneline` is empty): display "No changes to merge — skipping PR", proceed to Step 7
+2. Push: `git push -u origin {NNN}-document-stage`
+3. Create PR:
+   ```
+   gh pr create --title "docs({NNN}): post-delivery quality review" --body "$(cat <<'EOF'
+   ## Summary
+   Post-delivery documentation review for Feature {NNN}.
+
+   {one-line summary per commit on the branch}
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   EOF
+   )"
+   ```
+4. If `autonomous == true`: proceed directly to squash-merge without confirmation
+5. If `autonomous == false`: display PR URL and ask for confirmation before merging:
+   ```
+   PR created: {pr_url}
+
+   (A) Squash-merge and delete branch
+   (B) Leave PR open for manual review
+   ```
+   - If (B): display "PR left open — skipping merge", proceed to Step 7
+6. Squash-merge: `gh pr merge --squash --delete-branch`
+7. Switch to main: `git checkout main && git pull origin main`
+8. Prune stale remote refs: `git remote prune origin`
+
+## Step 7: Report
 
 Display summary of all documentation activities:
 
@@ -184,7 +237,7 @@ Display summary of all documentation activities:
 DOCUMENT STAGE COMPLETE
 
 Feature: {NNN}
-Branch: {branch}
+PR: #{pr_number} (squash-merged)
 
 Results:
   Code Simplification: {accepted/rejected/skipped/no changes}

@@ -55,6 +55,14 @@ Governance gates are Triad approval checkpoints that operate **between stages**,
 
 ---
 
+## Pre-Lifecycle: Foundation Workshop
+
+Before entering the lifecycle, new projects should run `/aod.foundation` to establish product vision and design identity. This is a one-time setup that populates `product-vision.md` and creates brand files (`brand.md`, `tokens.css`, `anti-patterns.md`) from one of 6 design archetypes.
+
+**Command**: `/aod.foundation` (also supports `--vision` and `--design` flags for partial execution)
+
+---
+
 ## Stage Definitions
 
 ### 1. Discover (Discovery Phase)
@@ -230,7 +238,7 @@ Which gates activate at each stage, per tier.
 /aod.discover --> /aod.define --> /aod.plan --> /aod.build --> /aod.deliver --> /aod.document
 ```
 
-Six commands. `/aod.plan` handles the Plan stage internally across 3 sessions (spec, project-plan, tasks). `/aod.document` runs separately after delivery for human-driven quality review.
+Six commands. `/aod.plan` auto-advances through 3 sequential sub-steps (spec → project-plan → tasks). Run it up to 3 times — each invocation advances to the next sub-step on approval. `/aod.document` runs separately after delivery for human-driven quality review.
 
 ---
 

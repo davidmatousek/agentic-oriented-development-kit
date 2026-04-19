@@ -363,6 +363,70 @@ it('updates user', () => {
 
 ---
 
+## Test Artifact Archiving
+
+### Convention
+
+Test artifacts produced during development are archived alongside feature specifications at delivery time.
+
+**Standard archive location**: `specs/{NNN}-*/test-results/`
+
+This directory is created automatically by the `/aod.deliver` workflow when test artifacts are confirmed for archival.
+
+### Delivery Workflow Integration
+
+When you run `/aod.deliver`, the skill auto-detects test result files in these locations:
+
+1. `.aod/test-results/` — AOD convention directory
+2. `test-results/` — project root
+3. `coverage/` — project root
+4. `junit*.xml`, `test-report.*`, `coverage.*` — project root files
+
+If files are found, you confirm which to archive. If none are found, you can provide custom paths or skip.
+
+### Supported Formats
+
+| Format | Metric Extraction | Notes |
+|--------|-------------------|-------|
+| JUnit XML | Automatic (test counts, failures, errors) | Parsed via `xmllint --xpath` |
+| LCOV (.info/.lcov) | Automatic (line coverage %) | Parsed via `grep`/`bc` |
+| JSON | Manual review | Archived as-is |
+| Plain text | Manual review | Archived as-is |
+| HTML | Manual review | Archived as-is (test reports, coverage reports) |
+| PNG/screenshots | Manual review | Archived as-is (UI test evidence) |
+
+### Size Guidance
+
+- **Individual files**: Keep under 10 MB each
+- **Total per feature**: Keep under 50 MB
+- **Videos**: Do NOT commit video recordings to git — link externally instead (e.g., cloud storage URL in the delivery document)
+- The delivery workflow warns on large files but does not block archival
+
+### Sensitive Data
+
+Review test artifacts for sensitive data before archival:
+- API keys and tokens from test fixtures
+- PII from test data
+- Database credentials from integration test configs
+
+Sanitize or exclude files containing sensitive data. The delivery workflow displays a reminder before archival.
+
+### Example Archive Structure
+
+```
+specs/042-user-auth/
+├── spec.md
+├── plan.md
+├── tasks.md
+├── delivery.md
+└── test-results/
+    ├── junit-results.xml      # Unit test results
+    ├── e2e-results.xml        # E2E test results
+    └── lcov.info              # Coverage report
+```
+
+---
+
 **Template Instructions**: This is guidance, not scaffolding. Customize based on your project's testing needs. Add project-specific patterns as you develop them.
 
 **Maintained By**: Architect + Team Lead

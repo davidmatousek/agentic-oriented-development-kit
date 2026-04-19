@@ -22,7 +22,7 @@ This document provides comprehensive guidance for designing, customizing, and ma
 
 ## 1. Core Principles
 
-All agents in Agentic Oriented Development Kit follow eight core principles. These ensure consistency, maintainability, and optimal performance.
+All agents in Agentic Oriented Development Kit follow eleven core principles. Principles 1-8 are foundational. Principles 9-11 are inspired by the [12-Factor Agents](https://github.com/humanlayer/12-factor-agents) methodology and target production resilience.
 
 ### Principle 1: Conciseness
 
@@ -190,6 +190,79 @@ triad_governance:
 4. Validate all capabilities preserved
 
 **See**: [Section 5: Preservation-First Enhancement](#5-preservation-first-enhancement) for full 11-step process.
+
+### Principle 9: Error Compaction
+
+**Target**: When an agent encounters errors, summarize failure context concisely before retrying or escalating
+
+**Why**: Raw error traces consume excessive context tokens. Agents that blindly append full stack traces degrade their own reasoning quality on subsequent turns. Compact error summaries preserve context budget for productive work. *(Ref: 12-Factor Agents, Factor 9)*
+
+**How to achieve**:
+- Extract the actionable signal: what failed, why, what was tried
+- Discard redundant stack frames and verbose boilerplate
+- Format as a structured summary (cause → attempted fix → outcome)
+- When retrying, pass the compact summary — not the raw error — into context
+
+**Example**:
+```markdown
+# Bad (raw dump in context)
+[48 lines of stack trace pasted verbatim]
+
+# Good (compact summary)
+Error: DB connection timeout after 30s (host: db-prod-1, pool exhausted)
+Attempted: Connection pool increase from 10→25 — still failing
+Root cause: Upstream migration lock held by deploy process
+```
+
+### Principle 10: State Transparency
+
+**Target**: Agents must be explicit about what state they read, produce, and depend on
+
+**Why**: Implicit state creates hidden coupling between agents and makes pause/resume unreliable. When an agent's inputs and outputs are transparent, any agent (or human) can pick up where it left off. *(Ref: 12-Factor Agents, Factors 5 and 12)*
+
+**How to achieve**:
+- Document state dependencies in the agent's **Workflow Steps** section (what files/artifacts are read)
+- Document state outputs (what files/artifacts are written or modified)
+- Prefer `.aod/` artifacts as the single source of truth — not in-memory assumptions
+- Treat each agent invocation as a pure transform: read state → do work → write state
+
+**State contract format**:
+```yaml
+state:
+  reads:
+    - .aod/spec.md        # Feature requirements
+    - .aod/plan.md         # Technical design
+  writes:
+    - .aod/tasks.md        # Generated work items
+    - .aod/results/team-lead.md  # Review output
+```
+
+### Principle 11: Session Resilience
+
+**Target**: Agents should produce durable artifacts at each meaningful step, not just at the end
+
+**Why**: Long-running agent workflows can be interrupted by context limits, network issues, or user pauses. If intermediate progress lives only in the conversation, it's lost. Durable checkpoints enable the `/continue` handoff pattern to work reliably. *(Ref: 12-Factor Agents, Factor 6)*
+
+**How to achieve**:
+- Write artifacts to disk at each workflow phase, not just at completion
+- Use `.aod/results/` or `.aod/` for intermediate outputs
+- Prefer append-safe formats (markdown with clear section boundaries)
+- When resuming, read the last written artifact to determine where to continue — don't rely on conversation history
+
+**Anti-pattern**:
+```markdown
+# Bad: all work in memory, single write at end
+1. Research → (in memory)
+2. Draft spec → (in memory)
+3. Review → (in memory)
+4. Write spec.md ← only durable artifact
+
+# Good: checkpoint at each phase
+1. Research → write specs/NNN/research.md
+2. Draft spec → write .aod/spec.md (draft)
+3. Review → write .aod/results/pm-review.md
+4. Finalize → update .aod/spec.md (approved)
+```
 
 ---
 
@@ -448,7 +521,7 @@ triad_governance:               # Governance participation
 
 ## 4. Quality Checklist
 
-Use this checklist to validate any agent. All 8 criteria must pass.
+Use this checklist to validate any agent. Criteria 1-8 must all pass. Criteria 9-11 are recommended for production-grade agents.
 
 ### Checklist Template
 
@@ -459,7 +532,7 @@ Use this checklist to validate any agent. All 8 criteria must pass.
 **Evaluator**: [name/agent]
 **Date**: [YYYY-MM-DD]
 
-### Criteria (8/8 required to pass)
+### Criteria (8/8 required + 3 recommended)
 
 | # | Criterion | Pass | Notes |
 |---|-----------|------|-------|
@@ -471,10 +544,14 @@ Use this checklist to validate any agent. All 8 criteria must pass.
 | 6 | **Triad Integration**: Governance documented | [ ] | |
 | 7 | **Skill Delegation**: Appropriate delegation | [ ] | Skills used: ___ |
 | 8 | **Preservation**: All capabilities intact | [ ] | Tested: ___ |
+| 9 | **Error Compaction**: Compact error summaries | [ ] | _Recommended_ |
+| 10 | **State Transparency**: I/O state documented | [ ] | _Recommended_ |
+| 11 | **Session Resilience**: Checkpoints at phases | [ ] | _Recommended_ |
 
 ### Result
 
-- [ ] **PASS** (8/8 criteria met)
+- [ ] **PASS** (8/8 required met)
+- [ ] **PASS+** (11/11 met — production-grade)
 - [ ] **FAIL** (Criteria failed: ___)
 
 ### Notes
@@ -887,6 +964,9 @@ Key insights from the agent refactoring effort (Feature 003, 2026-01-31):
 6. Triad: Governance role
 7. Delegation: Skills used
 8. Preservation: Capabilities intact
+9. Error compaction: Compact summaries *(recommended)*
+10. State transparency: I/O documented *(recommended)*
+11. Session resilience: Phase checkpoints *(recommended)*
 
 ### Template Variable Summary
 

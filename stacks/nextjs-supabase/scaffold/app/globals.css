@@ -1,1 +1,142 @@
+/**
+ * Tailwind CSS v4 — CSS-first configuration.
+ *
+ * Tailwind v4 replaces tailwind.config.js with the @theme directive.
+ * All design tokens (colors, fonts, spacing, shadows, radii, motion,
+ * z-index) are defined here as CSS custom properties. No JavaScript
+ * config file is needed.
+ *
+ * Key v4 changes:
+ * - Use @import "tailwindcss" (not @tailwind directives)
+ * - Use @theme for design tokens (not tailwind.config.js)
+ * - Use bg-linear-to-* for gradients (not bg-gradient-to-*)
+ * - Use bg-(--var) for CSS variables (not bg-[--var])
+ *
+ * Stack: Next.js + Supabase (App Router)
+ * Bundler: Next.js built-in (Turbopack / Webpack)
+ */
 @import "tailwindcss";
+
+@theme {
+  /* -------------------------------------------------------------------
+   * 1. COLORS — 3-layer system (base, semantic, component) using oklch
+   * ------------------------------------------------------------------- */
+
+  /* Base palette — raw color scale */
+  --color-base-50:  oklch(97% 0.01 250);
+  --color-base-100: oklch(94% 0.02 250);
+  --color-base-200: oklch(88% 0.03 250);
+  --color-base-300: oklch(80% 0.04 250);
+  --color-base-400: oklch(70% 0.07 250);
+  --color-base-500: oklch(55% 0.12 250);
+  --color-base-600: oklch(45% 0.14 250);
+  --color-base-700: oklch(37% 0.12 250);
+  --color-base-800: oklch(28% 0.09 250);
+  --color-base-900: oklch(21% 0.06 250);
+  --color-base-950: oklch(14% 0.04 250);
+
+  /* Semantic colors — purpose-driven aliases */
+  --color-primary:     oklch(55% 0.20 250);
+  --color-secondary:   oklch(65% 0.10 280);
+  --color-accent:      oklch(70% 0.18 160);
+  --color-muted:       oklch(92% 0.02 250);
+  --color-destructive: oklch(55% 0.22 27);
+
+  /* Component colors — UI surface mapping */
+  --color-background:      oklch(99% 0.005 250);
+  --color-foreground:       oklch(14% 0.04 250);
+  --color-card:             oklch(99% 0.005 250);
+  --color-card-foreground:  oklch(14% 0.04 250);
+  --color-border:           oklch(90% 0.02 250);
+  --color-input:            oklch(90% 0.02 250);
+  --color-ring:             oklch(55% 0.20 250);
+
+  /* -------------------------------------------------------------------
+   * 2. TYPOGRAPHY — families, scale, weights
+   * ------------------------------------------------------------------- */
+
+  /* Font families */
+  --font-sans:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Type scale */
+  --text-xs:      0.75rem;
+  --text-sm:      0.875rem;
+  --text-base:    1rem;
+  --text-lg:      1.125rem;
+  --text-xl:      1.25rem;
+  --text-2xl:     1.5rem;
+  --text-3xl:     1.875rem;
+  --text-4xl:     2.25rem;
+  --text-5xl:     3rem;
+  --text-display: 3.75rem;
+
+  /* Font weights */
+  --font-light:     300;
+  --font-normal:    400;
+  --font-medium:    500;
+  --font-semibold:  600;
+  --font-bold:      700;
+  --font-extrabold: 800;
+
+  /* -------------------------------------------------------------------
+   * 3. SPACING — 8pt grid
+   * ------------------------------------------------------------------- */
+
+  --spacing-1:  4px;
+  --spacing-2:  8px;
+  --spacing-3:  12px;
+  --spacing-4:  16px;
+  --spacing-5:  20px;
+  --spacing-6:  24px;
+  --spacing-8:  32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+  --spacing-24: 96px;
+
+  /* -------------------------------------------------------------------
+   * 4. SHADOWS — 3 named levels
+   * ------------------------------------------------------------------- */
+
+  --shadow-sm: 0 1px 2px 0 oklch(20% 0.02 250 / 0.05);
+  --shadow-md: 0 4px 6px -1px oklch(20% 0.02 250 / 0.07), 0 2px 4px -2px oklch(20% 0.02 250 / 0.05);
+  --shadow-lg: 0 10px 15px -3px oklch(20% 0.02 250 / 0.08), 0 4px 6px -4px oklch(20% 0.02 250 / 0.04);
+
+  /* -------------------------------------------------------------------
+   * 5. BORDER RADIUS
+   * ------------------------------------------------------------------- */
+
+  --radius-sm:   0.25rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-full: 9999px;
+
+  /* -------------------------------------------------------------------
+   * 6. MOTION — durations, easing, stagger
+   * ------------------------------------------------------------------- */
+
+  --duration-fast:   150ms;
+  --duration-normal: 200ms;
+  --duration-slow:   400ms;
+
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:      cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+
+  --stagger-delay: 50ms;
+
+  /* -------------------------------------------------------------------
+   * 7. Z-INDEX — layering scale
+   * ------------------------------------------------------------------- */
+
+  --z-base:     0;
+  --z-dropdown: 10;
+  --z-sticky:   20;
+  --z-overlay:  30;
+  --z-modal:    40;
+  --z-toast:    50;
+}

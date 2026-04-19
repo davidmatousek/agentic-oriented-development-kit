@@ -106,15 +106,15 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 |--------|---------|-------|
 | `.aod/scripts/bash/logging.sh` | Simple logging utility for timestamped log entries; provides `aod_log` function with configurable output path and graceful error handling | Feature 049 |
 | `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads and governance caching | Feature 022, extended Feature 030 |
-| `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions | Pre-022 |
-| `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues | Pre-022 |
+| `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions; Projects board sync (`aod_gh_reconcile_board`, `aod_gh_add_to_board`, `aod_gh_move_on_board`); `AOD_BOARD` env var support and board cache validation | Pre-022, extended Feature 121 |
+| `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues; triggers board reconciliation after BACKLOG.md write (guarded by `aod_gh_check_board`) | Pre-022, extended Feature 121 |
 
 ### CLI Dependencies
 
 | Tool | Required By | Purpose | Install |
 |------|-------------|---------|---------|
 | `jq` | `run-state.sh` | JSON parsing and atomic state manipulation | `brew install jq` (macOS) / `apt-get install jq` (Linux) |
-| `gh` | `github-lifecycle.sh`, `run-state.sh` (optional), `scripts/init.sh` (optional) | GitHub Issue/label management, Projects board creation during init | `brew install gh` / `gh auth login` |
+| `gh` | `github-lifecycle.sh`, `run-state.sh` (optional), `scripts/init.sh` (optional) | GitHub Issue/label management, Projects board sync and reconciliation, board creation during init | `brew install gh` / `gh auth login` |
 
 **Note**: `gh` degrades gracefully -- the orchestrator falls back to artifact-only detection when `gh` is unavailable or unauthenticated. Similarly, `scripts/init.sh` skips GitHub Projects board creation when `gh` is missing, unauthenticated, or lacks the `project` OAuth scope, reporting status in the init summary with remediation guidance.
 
@@ -194,7 +194,7 @@ When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` w
 
 ### Orchestrator Skill Architecture
 
-**Skill file**: `.claude/skills/~aod-run/SKILL.md` (~405 lines, core execution loop)
+**Skill file**: `.claude/skills/~aod-run/SKILL.md` (~620 lines, core execution loop)
 - Architecture: Segmented prompt with on-demand reference loading (Feature 030)
 - Core file contains routing, state machine loop, and stage mapping
 - Reference files loaded via Read tool only when needed:

@@ -66,6 +66,11 @@ This directory documents reusable design patterns for {{PROJECT_NAME}}.
 - [Non-Fatal Observability Wrapper](#pattern-non-fatal-observability-wrapper)
 - [Built-in Skill Invocation from a Command](#pattern-built-in-skill-invocation-from-a-command)
 
+### Design System Patterns (AOD Kit)
+- [Layered Design Context Discovery](#pattern-layered-design-context-discovery)
+- [Brand Identity Override](#pattern-brand-identity-override)
+- [Grep-Based Build Quality Gate](#pattern-grep-based-build-quality-gate)
+
 ### Stack Pack Architecture Patterns (AOD Kit)
 - [Two-Level Architecture (Build-Time / Run-Time)](#pattern-two-level-architecture)
 - [Convention Contract (STACK.md)](#pattern-convention-contract)
@@ -263,7 +268,7 @@ A Navigation table in the core file maps every conditionally-needed section to i
 ```
 # Directory structure
 .claude/skills/~aod-run/
-  SKILL.md                     # Core loop (~405 lines, always loaded)
+  SKILL.md                     # Core loop (~620 lines, always loaded)
   references/
     governance.md              # Loaded at governance gates
     entry-modes.md             # Loaded once per entry mode
@@ -839,20 +844,27 @@ The step text uses the Skill tool (not Bash) to invoke the built-in, since built
 # In .claude/commands/aod.build.md
 
 ## Flags
-- `--no-security`: Skip the security scan step (Step 6)
-- `--no-simplify`: Skip the code simplification step (Step 7)
+- `--no-design-check`: Skip the Design Quality Gate step (Step 6)
+- `--no-security`: Skip the Security Scan step (Step 7)
+- `--no-simplify`: Skip the Code Simplification step (Step 8)
 
 ## Steps
 
 ...
 
-### Step 6: Security Scan (skip if --no-security)
+### Step 6: Design Quality Gate (skip if --no-design-check)
+Run grep-based checks on changed UI files for banned fonts, arbitrary spacing,
+shadow count, and reduced-motion support.
+- If `--no-design-check` flag is present: skip this step, write design-check.md "Skipped" entry
+- Otherwise: Run 4 automated checks on changed CSS/JSX/TSX/HTML files
+
+### Step 7: Security Scan (skip if --no-security)
 Invoke the /security skill to analyze changed code files and manifests for
 OWASP Top 10 vulnerabilities and known CVE patterns.
 - If `--no-security` flag is present: skip this step, write security-scan.md "Skipped" entry
 - Otherwise: Use the Skill tool to invoke `security` on changed files
 
-### Step 7: Code Simplification (skip if --no-simplify)
+### Step 8: Code Simplification (skip if --no-simplify)
 Invoke the /simplify skill to reduce complexity and improve readability of
 any files modified during this build session.
 - If `--no-simplify` flag is present: skip this step entirely, log "Simplification skipped (--no-simplify)"
@@ -861,7 +873,7 @@ any files modified during this build session.
 
 ```markdown
 # In CLAUDE.md commands section
-/aod.build [--no-security] [--no-simplify]  # Execute with auto architect checkpoints; --no-security skips security scan (Step 6); --no-simplify skips code simplification (Step 7)
+/aod.build [--no-security] [--no-design-check] [--no-simplify]  # Execute with auto architect checkpoints; --no-design-check skips Design Quality Gate (Step 6); --no-security skips Security Scan (Step 7); --no-simplify skips Code Simplification (Step 8)
 ```
 
 #### When to Use
@@ -1195,6 +1207,202 @@ stacks/fastapi-react/STACK.md (354 lines):
 #### Related Patterns
 - [Dual-Surface Injection](#pattern-dual-surface-injection) -- mechanism that loads STACK.md into agent context at activation time
 - [Two-Level Architecture](#pattern-two-level-architecture) -- knowledge-system packs use STACK.md to define both build-time and run-time conventions
+
+---
+
+### Pattern: Layered Design Context Discovery
+
+**Added**: Feature 097 (Design Capabilities Enhancement)
+**Rule file**: `.claude/rules/design-context-loader.md`
+
+#### Problem
+
+UI-generating agents need design context (fonts, colors, spacing, aesthetic direction) before writing any visual code. Without a structured discovery process, agents either generate output using banned defaults (Inter font, solid white backgrounds) or load partial context that conflicts with project-specific brand requirements. The challenge is compounded by multiple context sources (brand identity files, archetypes, scaffold tokens, core rules) that may overlap or conflict.
+
+#### Solution
+
+Define a mandatory 5-step discovery sequence that all UI-generating agents execute before writing any HTML, CSS, JSX, TSX, or visual component code. The sequence has a strict precedence order -- when values conflict between sources, higher-precedence sources win:
+
+1. **Brand Identity** (highest): Read `brands/*/brand.md` and `tokens.css`
+2. **Archetype**: Load active archetype from `.claude/design/archetypes/`
+3. **Stack Pack Tokens**: Load scaffold CSS with `@theme` definitions
+4. **Core Rules**: Read `.claude/rules/design-quality.md` and stack-specific supplements
+5. **Aesthetic Philosophy**: Answer 4 questions (visual mood, typeface pairing, color temperature, visual density) before writing code
+
+Core rules (layer 4) always apply as minimum standards regardless of higher-layer overrides. The Aesthetic Philosophy step ensures agents articulate design intent rather than picking defaults.
+
+#### Precedence Table
+
+```
+brand identity  >  archetype  >  scaffold tokens  >  core rules
+(explicit client)  (aesthetic)   (stack baseline)   (minimum standard)
+```
+
+#### Example
+```
+# Agent discovery sequence (before generating any UI code):
+
+# Step 1: Check for brand identity
+Read brands/acme-corp/brand.md       # Mood: professional, Font: IBM Plex Sans
+Read brands/acme-corp/tokens.css     # --color-primary: oklch(0.45 0.15 250)
+Read brands/acme-corp/anti-patterns.md  # No gradients, no rounded corners > 8px
+
+# Step 2: Check for active archetype
+# Brand overrides archetype -- skip conflicting values, use archetype
+# for any undefined properties (e.g., motion style, shadow depth)
+
+# Step 3: Load stack tokens
+Read stacks/nextjs-supabase/scaffold/app/globals.css  # @theme baseline
+
+# Step 4: Load design quality rules (always applies)
+Read .claude/rules/design-quality.md
+
+# Step 5: Document Aesthetic Philosophy as code comment
+/* Aesthetic: professional | IBM Plex Sans + Geist Mono | cool | balanced */
+```
+
+#### When to Use
+- Any task that generates or modifies UI components (HTML, CSS, JSX, TSX)
+- When multiple design context sources exist in the repository
+- Setting up a new project where design direction must be established before code
+
+#### When NOT to Use
+- Backend-only tasks, documentation, CLI tools, configuration files
+- Projects with a single simple CSS file and no brand or archetype requirements
+
+#### Related Patterns
+- [Dual-Surface Injection](#pattern-dual-surface-injection) -- stack pack design supplements are loaded via the same injection mechanism
+- [Convention Contract (STACK.md)](#pattern-convention-contract) -- stack-level design conventions are defined in STACK.md; this pattern governs how they are discovered and prioritized
+- [Built-in Skill Invocation from a Command](#pattern-built-in-skill-invocation-from-a-command) -- the design quality gate in the build pipeline uses the same opt-out flag convention
+
+---
+
+### Pattern: Brand Identity Override
+
+**Added**: Feature 097 (Design Capabilities Enhancement)
+**Example**: `brands/_example/`
+
+#### Problem
+
+Projects need to express a unique visual identity that goes beyond generic design tokens. An archetype provides a starting aesthetic direction, but real-world projects have specific brand colors, forbidden patterns, logo usage rules, and reference imagery that archetypes cannot anticipate. Without a structured brand identity convention, agents either ignore project-specific requirements or require ad-hoc prompting for every UI task.
+
+#### Solution
+
+Define a `brands/{name}/` directory convention with a fixed file structure:
+
+| File | Required | Purpose |
+|------|----------|---------|
+| `brand.md` | Yes | Brand narrative: mood, voice, visual language, do/don't rules |
+| `tokens.css` | Yes | CSS custom properties defining the brand's color, typography, and spacing tokens |
+| `anti-patterns.md` | No | Explicit list of things to avoid (specific colors, patterns, layouts) |
+| `reference/` | No | Directory of reference images, screenshots, or mood board assets |
+
+Brand identity has the highest precedence in the design context discovery sequence. When `brand.md` specifies a font, it overrides the archetype's font. When `tokens.css` defines `--color-primary`, it overrides scaffold defaults.
+
+The `_example` brand ships as a template that adopters copy and customize. The underscore prefix signals it is a template, not an active brand.
+
+#### Example
+```
+brands/
+  _example/          # Template brand (copy to create your own)
+    brand.md         # Brand narrative, mood, typography choices
+    tokens.css       # CSS custom properties: --color-primary, --font-heading, etc.
+    anti-patterns.md # "Never use: gradients, rounded corners > 8px, emoji in headings"
+    reference/       # Logo files, mood board screenshots
+  acme-corp/         # Adopter's actual brand
+    brand.md
+    tokens.css
+
+# Agent behavior when brand exists:
+# 1. Read brand.md -> extract mood, font choices, color direction
+# 2. Read tokens.css -> load exact token values
+# 3. Read anti-patterns.md -> load constraints
+# 4. Apply brand values, falling back to archetype/scaffold for undefined properties
+```
+
+#### When to Use
+- Projects with an established visual brand that agents must respect
+- Multi-brand projects where different products share the same codebase
+- When adopters need a structured way to communicate design requirements to agents
+
+#### When NOT to Use
+- Early-stage projects where brand identity has not been defined (use archetypes instead)
+- Non-visual projects (CLI tools, APIs, backend services)
+- When design tokens are managed entirely by an external design system (e.g., Figma tokens plugin)
+
+#### Related Patterns
+- [Layered Design Context Discovery](#pattern-layered-design-context-discovery) -- brand identity is the highest-precedence layer in the discovery sequence
+- [Convention Contract (STACK.md)](#pattern-convention-contract) -- similar "fixed file structure" approach applied to stack conventions; this pattern applies it to visual brand identity
+
+---
+
+### Pattern: Grep-Based Build Quality Gate
+
+**Added**: Feature 097 (Design Capabilities Enhancement)
+**ADR**: [ADR-011](../02_ADRs/ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md)
+
+#### Problem
+
+Design quality standards (banned fonts, spacing rules, shadow limits) are codified in rule files that agents read at generation time, but agents do not always comply -- they may fall back to defaults under context pressure, or a human developer may edit UI files without loading the design rules. There is no automated detection layer to catch regressions before code reaches a pull request.
+
+#### Solution
+
+Add a detection layer as a numbered step in the `/aod.build` pipeline (Step 6: Design Quality Gate) that runs grep-based checks on UI files changed on the feature branch. The gate uses simple `grep` / `git diff` commands rather than a dedicated linting tool, keeping the dependency footprint at zero.
+
+The gate runs 4 checks:
+
+| Check | Method | Pass Criteria |
+|-------|--------|---------------|
+| Font compliance | Grep for banned font names as primary declarations | Zero occurrences |
+| Spacing compliance | Grep for arbitrary Tailwind values (`[Npx]`, `[Nrem]`) | Zero occurrences |
+| Shadow count | Count distinct `--shadow-*` custom property definitions | 5 or fewer levels |
+| Reduced motion | Grep for `motion-safe:` / `motion-reduce:` / `prefers-reduced-motion` | Present if animations exist |
+
+The gate follows the multi-flag opt-out pattern (ADR-011): it runs by default and can be skipped with `--no-design-check`. It only executes when UI files (`.css`, `.jsx`, `.tsx`, `.html`) are present in the branch diff, avoiding false triggers on backend-only changes.
+
+Results flow to a user decision point: Pass (proceed), Findings (fix / acknowledge / abort).
+
+#### Example
+```
+# In aod.build Step 6:
+
+# Pre-check: any UI files changed?
+git diff --name-only main...HEAD | grep -E '\.(css|jsx|tsx|html)$'
+# No matches -> skip gate, proceed to Step 7
+
+# Check 1: Font compliance
+git diff main...HEAD -- '*.css' '*.jsx' '*.tsx' | grep -iE \
+  'font-family:.*\b(Inter|Roboto|Arial|Open Sans|Lato)\b'
+# Any match -> finding
+
+# Check 2: Spacing compliance
+git diff main...HEAD -- '*.css' '*.jsx' '*.tsx' | grep -E \
+  '\[[0-9]+(px|rem)\]'
+# Any match -> finding
+
+# Check 3: Shadow count
+grep -roh -- '--shadow-[a-z]*' changed_files | sort -u | wc -l
+# > 5 -> finding
+
+# Check 4: Reduced motion
+grep -rl 'transition\|animation\|@keyframes' changed_files | while read f; do
+  grep -l 'motion-safe\|motion-reduce\|prefers-reduced-motion' "$f" || echo "$f: missing"
+done
+```
+
+#### When to Use
+- Build pipelines that need lightweight design quality enforcement without external tooling
+- Projects using the AOD design system (design-quality.md rules, archetypes, brand identity)
+- When a zero-dependency detection layer is preferred over a full CSS linter
+
+#### When NOT to Use
+- Projects using dedicated design linting tools (Stylelint with design token plugins, etc.)
+- Backend-only projects with no UI files
+- When the build pipeline already has a comprehensive CSS/design validation step
+
+#### Related Patterns
+- [Built-in Skill Invocation from a Command](#pattern-built-in-skill-invocation-from-a-command) -- the design quality gate follows the same opt-out flag convention (`--no-design-check`) documented in this pattern
+- [Layered Design Context Discovery](#pattern-layered-design-context-discovery) -- the prevention layer (context loading) complements this detection layer; together they form a two-layer enforcement strategy
 
 ---
 

@@ -37,7 +37,16 @@ All development must use feature branches. Never commit to main directly.
 
 **Always use feature branches**: `git checkout -b NNN-feature-name`
 - Never commit to main directly
-- Create PR for review before merge
 - Link PR to feature spec (`specs/NNN-feature-name/spec.md`)
 - Ensure CI/CD passes before merge
 - Require at least one approval (if team workflow)
+
+### Draft PR Lifecycle
+
+Open a **draft PR early** (at branch creation) and mark it ready at delivery:
+
+1. **Plan stage**: `/aod.plan` creates the branch, pushes it, and opens a draft PR via `gh pr create --draft`
+2. **Build stage**: Wave commits are pushed to the branch incrementally — the draft PR shows progress
+3. **Deliver stage**: `/aod.deliver` marks the PR ready via `gh pr ready` — this signals "ready for review/merge"
+
+**Why draft-first**: Provides remote backup during long builds, gives visibility into in-progress work, and enables early review comments. The squash-merge at delivery still produces a clean `main` history.

@@ -1,14 +1,15 @@
 # Claude Agent Infrastructure
 
-This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 14 automation skills, and 14 slash commands for streamlined feature development.
+This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 24 automation skills, 23 slash commands, and 6 design archetypes for streamlined feature development.
 
 ## Overview
 
-The infrastructure is organized into three main components:
+The infrastructure is organized into four main components:
 
 1. **Agents** (`agents/`) - 13 specialized AI agents for different development roles
-2. **Skills** (`skills/`) - 13 reusable automation capabilities
-3. **Commands** (`commands/`) - 14 slash commands for workflow automation
+2. **Skills** (`skills/`) - 24 reusable automation capabilities
+3. **Commands** (`commands/`) - 23 slash commands for workflow automation
+4. **Design** (`design/`) - 6 design archetypes for brand identity generation
 
 ---
 
@@ -63,11 +64,26 @@ All agents are **templatized** with the following variables for project-specific
 
 Skills are reusable automation capabilities that agents can invoke to perform specialized tasks.
 
+### Lifecycle & Orchestration Skills
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **~aod-plan** *(internal)* | Plan stage orchestrator: chains spec → project-plan → tasks | Invoked automatically — use `/aod.plan` instead |
+| **~aod-run** *(internal)* | Full lifecycle orchestrator: chains all 6 stages | Invoked automatically — use `/aod.run` instead |
+| **~aod-deliver** *(internal)* | Structured delivery retrospective and feature closure | Invoked automatically — use `/aod.deliver` instead |
+| **~aod-status** *(internal)* | Backlog snapshot and lifecycle stage summary | Invoked automatically — use `/aod.status` instead |
+| **aod-orchestrate** | Multi-feature wave execution from blueprint output | After `/aod.blueprint`, executing features in priority waves |
+| **triad** | Triad governance coordination for sign-off workflows | Internal governance helper for PM/Architect/Team-Lead reviews |
+
 ### Product & Planning Skills
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
 | **~aod-define** *(internal)* | PRD content generation (called by `/aod.define`) | Invoked automatically — use `/aod.define` instead |
+| **~aod-discover** *(internal)* | Feature idea capture with ICE scoring and PM validation | Invoked automatically — use `/aod.discover` instead |
+| **~aod-score** *(internal)* | Re-score existing idea's ICE rating | Invoked automatically — use `/aod.score` instead |
+| **~aod-kickstart** *(internal)* | POC kickstart: transforms project idea into sequenced consumer guide | Invoked automatically — use `/aod.kickstart` instead |
+| **~aod-blueprint** *(internal)* | Unified project setup and story generation with deduplication | Invoked automatically — use `/aod.blueprint` instead |
 | **~aod-build** | Create implementation checkpoints for long features | Mid-feature progress tracking, wave completion |
 
 ### Architecture & Validation Skills
@@ -93,17 +109,18 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 | **code-execution-helper** | Execute code for quota checks, API validation | Pre-flight quota checks, resource validation |
 | **git-workflow-helper** | Git workflow automation (commits, PRs, branches) | Creating commits, managing branches, PR creation |
 
-### Stack Management Skills
+### Stack & Design Skills
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
 | **aod-stack** | Manage stack packs (activate, remove, list, scaffold) | Setting up stack-specific conventions, scaffolding projects |
+| **aod-foundation** | Guided post-init workshop (vision + design identity) | After `make init`, establishing product vision and brand identity |
 
 ### Security Skills
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| **security** | SAST/SCA security scan — OWASP Top 10 + CVE patterns, audit artifacts, severity gate | Invoked automatically as Step 6 of `/aod.build`; run standalone via `/security` for ad-hoc scans |
+| **security** | SAST/SCA security scan — OWASP Top 10 + CVE patterns, audit artifacts, severity gate | Invoked automatically as the Security Scan step (Step 7) of `/aod.build`; run standalone via `/security` for ad-hoc scans |
 
 ### Thinking & Analysis Skills
 
@@ -117,6 +134,8 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 
 ## Commands (`commands/`)
 
+> **Commands vs Skills**: Commands (`.claude/commands/`) are user-invocable via `/command-name`. Skills (`.claude/skills/`) provide reusable automation -- some are user-invocable (e.g., `/aod.foundation`, `/aod.stack`, `/security`), while others prefixed with `~` are internal-only (e.g., `~aod-discover`).
+
 ### Triad Commands (Recommended - Automatic Governance)
 
 The **SDLC Triad** ensures Product-Architecture-Engineering alignment with automatic sign-offs:
@@ -126,6 +145,7 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 | `/aod.define <topic>` | Create PRD with PM + Architect + Tech-Lead validation | 3-way (PM, Architect, Tech-Lead) |
 | `/aod.plan` | Plan stage: chains spec → project-plan → tasks | PM → PM+Architect → Triple |
 | `/aod.build` | Execute with architect checkpoints | Architect checkpoints at milestones |
+| `/aod.foundation` | Guided workshop — product vision + design identity | — |
 | `/aod.deliver {NNN}` | Close feature with parallel doc updates | Automatic documentation |
 | `/aod.document` | Code quality review (simplify, docstrings, CHANGELOG) | — |
 
@@ -150,7 +170,9 @@ The **SDLC Triad** ensures Product-Architecture-Engineering alignment with autom
 
 | Command | Purpose | Governance |
 |---------|---------|-----------|
-| `/security` | SAST/SCA scan — OWASP Top 10 + CVE analysis, audit artifacts, severity gate | Invoked as Step 6 of `/aod.build`; opt-out via `--no-security` |
+| `/security` | SAST/SCA scan — OWASP Top 10 + CVE analysis, audit artifacts, severity gate | Invoked as Step 7 of `/aod.build`; opt-out via `--no-security` |
+
+> **Note**: `/security` is implemented as a skill (`.claude/skills/security/`) rather than a command, but is user-invocable as a slash command for standalone ad-hoc scans.
 
 Key outputs: `specs/{NNN}-*/security-scan.md` (human-readable), `.security/scan-log.jsonl`, `.security/vulnerabilities.jsonl`, `.security/reports/*.sarif` (SARIF 2.1.0), `.security/reports/sca-*.cdx.json` (CycloneDX 1.5 SBOM). Blocks on CRITICAL/HIGH findings until acknowledged or fixed.
 
@@ -162,13 +184,26 @@ Key outputs: `specs/{NNN}-*/security-scan.md` (human-readable), `.security/scan-
 | `/aod.analyze` | Cross-artifact consistency check | N/A |
 | `/aod.checklist` | Generate custom task checklist | N/A |
 | `/aod.constitution` | Create/update project constitution | N/A |
+| `/aod.kickstart` | POC kickstart — generate consumer guide with seed features | N/A |
+| `/aod.blueprint` | Unified project setup and story generation from consumer guide | N/A |
+| `/aod.status` | Regenerate BACKLOG.md and show lifecycle stage summary | N/A |
+| `/aod.roadmap` | Scaffold quarterly roadmap from completed PRDs | PM sign-off |
+| `/aod.okrs` | Scaffold OKR document with standard template | PM sign-off |
 
 ### Orchestration Commands
 
 | Command | Purpose | Use Case |
 |---------|---------|----------|
+| `/aod.run` | Full lifecycle orchestrator — chains all 6 stages with governance gates | End-to-end feature development |
+| `/aod.orchestrate` | Multi-feature wave execution from blueprint output | Batch feature execution in priority waves |
 | `/execute` | Execute any task with optimal agent orchestration | General-purpose task execution |
 | `/continue` | Generate session continuation prompt | Long features spanning multiple sessions |
+
+### Maintenance Commands
+
+| Command | Purpose | Governance |
+|---------|---------|-----------|
+| `/aod.sync-upstream` | Sync template files to upstream agentic-oriented-development-kit repo | N/A |
 
 ---
 
@@ -280,36 +315,65 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 │   ├── ux-ui-designer.md
 │   └── security-analyst.md
 │
-├── skills/           → 13 automation capabilities
-│   ├── ~aod-define/
-│   ├── ~aod-discover/
-│   ├── ~aod-score/
+├── skills/           → 24 automation capabilities
+│   ├── ~aod-blueprint/
+│   ├── ~aod-bugfix/
 │   ├── ~aod-build/
+│   ├── ~aod-define/
+│   ├── ~aod-deliver/
+│   ├── ~aod-discover/
+│   ├── ~aod-kickstart/
+│   ├── ~aod-plan/
 │   ├── ~aod-project-plan/
+│   ├── ~aod-run/
+│   ├── ~aod-score/
 │   ├── ~aod-spec/
+│   ├── ~aod-status/
+│   ├── aod-foundation/
 │   ├── aod-lens/
+│   ├── aod-orchestrate/
 │   ├── aod-stack/
+│   ├── code-execution-helper/
+│   ├── git-workflow-helper/
 │   ├── kb-create/
 │   ├── kb-query/
 │   ├── root-cause-analyzer/
-│   ├── code-execution-helper/
-│   └── git-workflow-helper/
+│   ├── security/
+│   └── triad/
 │
-├── commands/         → 14 slash commands
-│   ├── aod.define.md
-│   ├── aod.spec.md
-│   ├── aod.project-plan.md
-│   ├── aod.tasks.md
-│   ├── aod.build.md
-│   ├── aod.deliver.md
-│   ├── aod.clarify.md
+├── design/           → 6 design archetypes
+│   └── archetypes/
+│       ├── boldness.md
+│       ├── playful.md
+│       ├── precision.md
+│       ├── sophistication.md
+│       ├── technical.md
+│       └── warmth.md
+│
+├── commands/         → 23 slash commands
 │   ├── aod.analyze.md
+│   ├── aod.blueprint.md
+│   ├── aod.build.md
 │   ├── aod.checklist.md
+│   ├── aod.clarify.md
 │   ├── aod.constitution.md
+│   ├── aod.define.md
+│   ├── aod.deliver.md
 │   ├── aod.discover.md
+│   ├── aod.document.md
+│   ├── aod.kickstart.md
+│   ├── aod.okrs.md
+│   ├── aod.plan.md
+│   ├── aod.project-plan.md
+│   ├── aod.roadmap.md
+│   ├── aod.run.md
 │   ├── aod.score.md
-│   ├── execute.md
-│   └── continue.md
+│   ├── aod.spec.md
+│   ├── aod.status.md
+│   ├── aod.sync-upstream.md
+│   ├── aod.tasks.md
+│   ├── continue.md
+│   └── execute.md
 │
 └── README.md         → This file
 ```
@@ -338,6 +402,15 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 
 ## Recent Changes
 
+- **2026-03-28**: Feature 100 — Added `/aod.foundation` workshop skill for post-init vision and design identity setup
+  - New skill: `aod-foundation` (two-part guided workshop)
+  - Pre-flight validation added to `/aod.build` for session resumption
+- **2026-03-27**: Feature 097 — Added design quality system
+  - 6 design archetypes in `.claude/design/archetypes/`
+  - Design quality rules (`.claude/rules/design-quality.md`)
+  - Design context loader (`.claude/rules/design-context-loader.md`)
+  - Design quality gate in `/aod.build` pipeline (Step 6, opt-out via `--no-design-check`)
+  - Brand identity system (`brands/` directory structure)
 - **2026-01-31**: Removed unused commands (_triad-init, team-lead.implement, triad.architect-baseline, triad.feasibility)
 - **2025-12-04**: Initial infrastructure setup for agentic-oriented-development-kit template
   - Initial infrastructure: 12 agents, 9 skills, 15 commands

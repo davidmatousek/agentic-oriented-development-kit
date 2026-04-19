@@ -12,14 +12,15 @@
 **Always use feature branches**: `git checkout -b NNN-feature-name`
 - **NNN** = GitHub Issue number, zero-padded to 3 digits
 - Never commit to main directly
-- Create PR for review before merge
+- Draft PR opened at plan stage, marked ready at delivery
 - Branch format: `NNN-descriptive-name` (e.g., `021-feature-name` for Issue #21)
 
 ## Project Structure
 ```
 {{PROJECT_NAME}}/
-├── .claude/           → Agents, skills, commands
+├── .claude/           → Agents, skills, commands, design archetypes
 ├── .aod/              → Active feature workspace (spec.md, plan.md, tasks.md)
+├── brands/            → Brand identity assets (vision + design tokens)
 ├── specs/             → Archived feature artifacts (per-feature history)
 ├── docs/              → Product, architecture, devops docs
 ├── scripts/           → init.sh, check.sh
@@ -39,22 +40,29 @@
 
 ## Commands
 **PDL workflow** (optional, before Triad):
-- `/aod.discover` → `/aod.discover` → `/aod.score` → `/aod.validate`
+- `/aod.discover` → `/aod.score`
+
+**Post-init** (recommended after `make init`):
+- `/aod.foundation` — Guided workshop: product vision + design identity
 
 **Triad workflow**:
-- `/aod.define` → `/aod.plan` → `/aod.build [--no-security]`
+- `/aod.define` → `/aod.plan` → `/aod.build [--no-security] [--no-design-check]`
 - (`/aod.plan` chains: spec → project-plan → tasks automatically)
 
 **Post-delivery**:
 - `/aod.deliver` — Close completed feature
-- `/aod.document` — Human-driven quality review (simplify, docstrings, CHANGELOG, API docs)
+- `/aod.document [--autonomous]` — Quality review: simplify, docstrings, CHANGELOG, API docs (--autonomous for orchestrator-driven runs)
 
 **Supporting commands**:
 - `/aod.clarify` — Resolve spec ambiguities
 - `/aod.analyze` — Cross-artifact consistency check
 - `/aod.checklist` — Generate quality checklist
 - `/aod.constitution` — Manage governance principles
-- `/aod.kickstart` — POC kickstart: generate consumer guide with seed features from a project idea
+- `/aod.kickstart` — POC kickstart: generate consumer guide with seed features
+- `/aod.blueprint` — Multi-feature story generation from consumer guide
+- `/aod.status` — View backlog and lifecycle stage summary
+- `/aod.roadmap` — Scaffold quarterly roadmap from completed PRDs
+- `/aod.okrs` — Scaffold OKR document with standard template
 - `/aod.stack` — Manage stack packs (activate, remove, list, scaffold)
 
 ## SDLC Triad Governance

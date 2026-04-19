@@ -169,15 +169,15 @@ git log @{u}.. --oneline
 
 ### Step 7: Create Pull Request
 
-Use gh CLI to create PR:
+Use gh CLI to create PR. Open as **draft** during plan/build stages; mark ready at delivery.
 
 ```bash
 # Generate PR description from commits
 PR_TITLE="feat(api): User Profile Management"
 PR_BODY=$(git log origin/main..HEAD --format="- %s")
 
-# Create PR
-gh pr create \
+# Create draft PR (default — used at plan stage)
+gh pr create --draft \
   --title "$PR_TITLE" \
   --body "$(cat <<EOF
 ## Summary
@@ -197,9 +197,17 @@ ${PR_BODY}
 EOF
 )"
 
+# Mark PR ready for review (used at deliver stage)
+gh pr ready
+
 # Get PR URL
 gh pr view --web
 ```
+
+**Draft vs Ready**:
+- `/aod.plan` opens a draft PR at branch creation for early visibility
+- `/aod.deliver` marks the PR ready via `gh pr ready` when work is complete
+- If no draft PR exists (e.g., ad-hoc branches), create a regular PR directly
 
 ## Examples
 

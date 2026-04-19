@@ -282,6 +282,10 @@ Source: {.aod/memory/constitution.md | default}
     Gate: {gate description | — (skipped)}
     Artifacts: {expected paths | found paths}
 
+  Stage 6: Document         {EXECUTE | SKIP (reason)}
+    Gate: {gate description | — (skipped)}
+    Artifacts: {expected paths | found paths}
+
 --- Summary ---
   Stages to execute: {N of 7}
   Stages to skip: {N of 7}
@@ -290,7 +294,6 @@ Source: {.aod/memory/constitution.md | default}
 
 NOTE: This is a preview only. No files were created or modified.
 To execute: /aod.run {original args without --dry-run}
-After delivery: /aod.document (human-driven quality review — Stage 6)
 ```
 
 **Mode-specific context** (varies by sub-mode):

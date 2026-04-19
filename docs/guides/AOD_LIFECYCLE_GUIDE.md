@@ -5,7 +5,7 @@
 
 **Related**:
 - [AOD Quickstart](AOD_QUICKSTART.md) -- Quick onboarding guide
-- [AOD Infographic](AOD_INFOGRAPHIC.md) -- Visual workflow at a glance
+- AOD Infographic -- (Infographic coming soon)
 - [SDLC Triad Reference](../AOD_TRIAD.md) -- Governance layer documentation
 - [AOD Lifecycle Reference](AOD_LIFECYCLE.md) -- Stage definitions and governance tiers
 
@@ -92,15 +92,17 @@ evidence                 tasks.md                    + KB entry      CHANGELOG +
 
 ## Stage 3: Plan
 
-**Command**: `/aod.plan` (router — run up to 3 times)
+**Command**: `/aod.plan`
 
-The Plan stage has 3 sequential sub-steps. The `/aod.plan` router auto-detects which sub-step you're on based on artifact state.
+`/aod.plan` auto-advances through 3 sequential sub-steps (spec → project-plan → tasks). Run it up to 3 times — each invocation advances to the next sub-step on approval.
 
 | Sub-step | Direct Command | Output | Sign-off |
 |----------|---------------|--------|----------|
 | Specification | `/aod.spec` | spec.md | PM |
 | Architecture Plan | `/aod.project-plan` | plan.md | PM + Architect |
 | Task Breakdown | `/aod.tasks` | tasks.md + agent-assignments.md | PM + Architect + Team-Lead |
+
+> These sub-commands are invoked automatically by `/aod.plan`. Run them individually only if you need manual control over a specific sub-step.
 
 **Router logic**:
 1. No spec.md → delegates to `/aod.spec`
@@ -132,16 +134,19 @@ The Plan stage has 3 sequential sub-steps. The `/aod.plan` router auto-detects w
 
 ## Stage 4: Build
 
-**Command**: `/aod.build`
+**Command**: `/aod.build` (flags: `--no-security`, `--no-design-check`)
 
 **What happens**:
-1. Execute tasks from approved task breakdown
-2. Architect checkpoints at wave boundaries
-3. Implementation proceeds wave by wave
+1. Pre-flight validation (session resumption safety)
+2. Execute tasks from approved task breakdown
+3. Architect checkpoints at wave boundaries
+4. Design quality gate (validates UI code against brand identity and design rules)
+5. Security scan (OWASP Top 10 + CVE analysis)
+6. Code simplification review
 
 **Output**: Implemented feature on feature branch
 
-**Governance Gate**: Architect checkpoints during execution
+**Governance Gate**: Architect checkpoints, design quality gate, security gate
 
 ---
 
@@ -181,7 +186,7 @@ Each step presents findings interactively — the human accepts, rejects, or ski
 
 **Governance Gate**: Human approval per step (all tiers)
 
-**Note**: Stage 6 is NOT part of `/aod.run`. It runs separately after Deliver because it requires sustained human interaction.
+**Note**: Stage 6 runs separately after delivery -- see [AOD_LIFECYCLE.md](AOD_LIFECYCLE.md) for details.
 
 ---
 
@@ -189,12 +194,15 @@ Each step presents findings interactively — the human accepts, rejects, or ski
 
 | Stage | Command | Output |
 |-------|---------|--------|
+| — | `/aod.foundation` | Product vision + design identity (recommended post-init) |
 | 1. Discover | `/aod.discover <idea>` | GitHub Issue + scored idea |
 | 2. Define | `/aod.define <topic>` | PRD |
 | 3. Plan | `/aod.plan` (router) | spec.md, plan.md, tasks.md |
-| 4. Build | `/aod.build` | Implemented feature |
+| 4. Build | `/aod.build` | Implemented feature (includes design quality gate) |
 | 5. Deliver | `/aod.deliver` | Closed feature + retrospective |
 | 6. Document | `/aod.document` | Simplified code, docstrings, CHANGELOG, API docs |
+
+**Post-init**: `/aod.foundation` is not a lifecycle stage — it's a one-time setup that establishes product vision and design identity before entering the lifecycle.
 
 **Full flow shortcut**: `/aod.discover <idea>` covers the entire Discover stage in one command.
 
@@ -265,12 +273,12 @@ stage:discover → stage:define → stage:plan → stage:build → stage:deliver
 - PRD created with `source.github_issue: 21`
 - GitHub Issue label updated to `stage:define`
 
-### Step 3: Plan (3 sessions)
+### Step 3: Plan (3 sub-steps)
 
 ```bash
-/aod.plan    # Session 1: generates spec.md (PM sign-off)
-/aod.plan    # Session 2: generates plan.md (PM + Architect sign-off)
-/aod.plan    # Session 3: generates tasks.md (Triple sign-off)
+/aod.plan    # Invocation 1: generates spec.md (PM sign-off)
+/aod.plan    # Invocation 2: generates plan.md (PM + Architect sign-off)
+/aod.plan    # Invocation 3: generates tasks.md (Triple sign-off)
 ```
 
 - GitHub Issue label updated to `stage:plan`
@@ -316,7 +324,7 @@ Feature delivered and documented with full traceability from original idea to sh
 |-------|---------|--------|-----------|
 | 1. Discover | `/aod.discover` | Scored idea + evidence | PM validation (tier-dependent) |
 | 2. Define | `/aod.define` | PRD | Triad PRD review |
-| 3. Plan | `/aod.plan` (x3) | spec + plan + tasks | PM, PM+Arch, Triple sign-off |
+| 3. Plan | `/aod.plan` (3 sub-steps) | spec + plan + tasks | PM, PM+Arch, Triple sign-off |
 | 4. Build | `/aod.build` | Implementation | Architect checkpoints |
 | 5. Deliver | `/aod.deliver` | Closed feature + retro | DoD check |
 | 6. Document | `/aod.document` | Simplified code + docs | Human approval per step |

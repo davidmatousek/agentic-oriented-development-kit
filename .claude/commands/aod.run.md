@@ -1,5 +1,5 @@
 ---
-description: Run the full AOD lifecycle orchestrator — chains stages 1-5 (Discover → Define → Plan → Build → Deliver) with session-resilient state and governance gates. Stage 6 (Document) runs separately via /aod.document.
+description: Run the full AOD lifecycle orchestrator — chains all 6 stages (Discover → Define → Plan → Build → Deliver → Document) with session-resilient state and governance gates at every boundary.
 ---
 
 ## User Input
@@ -80,7 +80,7 @@ Read the (possibly stripped) arguments and determine the entry mode:
      /aod.run --dry-run --resume        Preview resume without executing
 
    Lifecycle stages: Discover → Define → Plan (spec → plan → tasks) → Build → Deliver → Document
-   Stages 1-5 are orchestrated by aod.run. Stage 6 (Document) runs via /aod.document.
+   All 6 stages are orchestrated by aod.run. Document runs automatically as Stage 6.
    Governance gates pause at each stage boundary for Triad sign-offs.
    State is persisted to .aod/run-state.json for session resilience.
 

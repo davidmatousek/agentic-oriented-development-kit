@@ -45,6 +45,9 @@ coverage/
 .nyc_output/
 *.lcov
 test-results/
+# Allow archived test evidence in specs (Feature 110)
+!specs/*/test-results/
+!specs/*/test-results/**
 playwright-report/
 playwright/.cache/
 

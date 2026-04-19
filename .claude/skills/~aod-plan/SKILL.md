@@ -17,9 +17,18 @@ With 1M context, all three artifacts and their reviews fit comfortably in a sing
 
 1. Get branch: `git branch --show-current` → extract NNN prefix
 2. If on `main` and a PRD exists (e.g., `docs/product/02_PRD/{NNN}-*.md`), **automatically create the feature branch** (`git checkout -b {NNN}-{kebab-name}`) per git workflow rules. Do NOT ask the user — feature branches are mandatory, not optional.
-3. Derive specs directory: `specs/{NNN}-*/`
-4. If no specs directory found, check `.aod/spec.md` as fallback
-5. If no feature context found: warn and suggest `/aod.define` first
+3. **Open Draft PR**: After creating the branch, push it and open a draft PR so work is visible early:
+   ```bash
+   git commit --allow-empty -m "chore({NNN}): open feature branch"
+   git push -u origin {NNN}-{kebab-name}
+   gh pr create --draft \
+     --title "{NNN}: {Feature Name}" \
+     --body "Draft PR for feature {NNN}. Opened automatically at plan stage."
+   ```
+   If `gh` is unavailable, skip silently (graceful degradation). Store the PR number for later use.
+4. Derive specs directory: `specs/{NNN}-*/`
+5. If no specs directory found, check `.aod/spec.md` as fallback
+6. If no feature context found: warn and suggest `/aod.define` first
 
 ### Step 2: Read Artifact States
 
