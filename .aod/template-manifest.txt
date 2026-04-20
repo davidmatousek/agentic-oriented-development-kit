@@ -240,6 +240,13 @@ ignore|.aod/update-tmp/**
 ignore|.aod/update.lock
 ignore|.aod/run-state.json
 
+# AOD-kit-only contributor content (not in PLSK; lives only in the public
+# agentic-oriented-development-kit release repo). Adopters don't need these —
+# they're for contributors to the upstream repo itself.
+ignore|.github/ISSUE_TEMPLATE/**
+ignore|CODE_OF_CONDUCT.md
+ignore|docs/ARTICLE_SERIES.md
+
 # Stack pack scaffolds are copied only when /aod.stack scaffold runs; they live
 # in the template as seed content but never sync to the adopter via /aod.update.
 ignore|stacks/*/scaffold/**
