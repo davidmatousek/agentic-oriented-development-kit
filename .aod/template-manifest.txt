@@ -118,9 +118,13 @@ owned|docs/AOD_TRIAD.md
 owned|docs/DOCS_TO_UPDATE_AFTER_NEW_FEATURE.md
 owned|docs/INSTITUTIONAL_KNOWLEDGE.md
 owned|docs/PROJECT_DOCS_CHECKLIST.md
-owned|docs/architecture/00_Tech_Stack/**
-owned|docs/architecture/04_deployment_environments/**
-owned|docs/architecture/README.md
+# Architecture subdirs — adopters heavily customize these. Guard list
+# FR-007 already protects docs/architecture/** as user-owned; manifest
+# must align to avoid exit-6 guard violations (e.g., tachi review, 2026-04-19).
+# Template ships these at init via scripts/init.sh; updates are user-managed.
+user|docs/architecture/00_Tech_Stack/**
+user|docs/architecture/04_deployment_environments/**
+user|docs/architecture/README.md
 owned|docs/core_principles/**
 owned|docs/devops/**
 owned|docs/guides/**
