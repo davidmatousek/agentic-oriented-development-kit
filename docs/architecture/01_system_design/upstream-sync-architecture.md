@@ -1,13 +1,17 @@
 # Upstream Sync Architecture
 
 **Owner**: Architect
-**Last Updated**: 2026-03-19
+**Last Updated**: 2026-04-19
 
 ---
 
 ## Overview
 
-The AOD methodology is developed in a private "dogfooding" repo (`product-led-spec-kit`) and published to a public template repo (`agentic-oriented-development-kit`) via a manifest-driven extraction pipeline. Adopters fork/clone the public template and pull improvements back using a safe merge workflow.
+The AOD methodology is developed in a private "dogfooding" repo (`product-led-spec-kit`) and published to a public template repo (`agentic-oriented-development-kit`) via a manifest-driven extraction pipeline. This document covers the **`user → PLSK` direction** (maintainer push).
+
+For the opposite direction (`PLSK → user`, adopter pull), see [downstream-update-architecture.md](downstream-update-architecture.md) (Feature 129).
+
+**Terminology**: `sync-upstream` = `user → PLSK` (maintainer-only, contribute back). `update` = `PLSK → user` (adopter-facing, pull improvements). The two flows share a common library surface at `.aod/scripts/bash/template-*.sh` but have distinct execution flows.
 
 ---
 
@@ -110,48 +114,42 @@ sequenceDiagram
 
 ---
 
-## Pull Flow: Public Template → Adopter
+## Pull Flow: Public Template → Adopter (Feature 129+)
 
-Adopters use `scripts/sync-upstream.sh` to pull improvements from the public template.
+**As of Feature 129 (2026-04-19)**, adopters use the new `/aod.update` flow (or `make update`) to pull improvements. The legacy `sync-upstream.sh merge` path is no longer the adopter entry point — `sync-upstream.sh` is now scoped to the maintainer's `user → PLSK` direction only.
+
+See [downstream-update-architecture.md](downstream-update-architecture.md) for the full adopter-side flow, including:
+- File-ownership manifest (`.aod/template-manifest.txt`, line-delimited, 6 categories)
+- Version pin + supply-chain defenses (`.aod/aod-kit-version`, retag detection, manifest SHA-256)
+- Atomicity contract (staging dir, PID+nonce lock, atomic `mv` transaction)
+- Hardcoded user-owned guard list (FR-007)
+
+**Summary of the adopter pull path**:
 
 ```mermaid
 sequenceDiagram
     participant Adopter as Adopter Project
-    participant Script as sync-upstream.sh
-    participant Upstream as agentic-oriented-development-kit
+    participant Update as scripts/update.sh
+    participant Upstream as PLSK (HTTPS clone --depth=1)
 
-    Adopter->>Script: setup (one-time)
-    Script->>Upstream: git remote add aod-upstream
-
-    Adopter->>Script: check
-    Script->>Upstream: git fetch aod-upstream
-    Script-->>Adopter: Categorized change list<br/>(Skills, Rules, Docs, Scripts, Core)
-
-    Adopter->>Script: merge [--dry-run]
-    Note over Script: Creates backup branch<br/>Protects .aod/memory/
-    Script->>Adopter: Merged changes<br/>(resolve conflicts if any)
-
-    Adopter->>Script: validate
-    Script-->>Adopter: Post-sync integrity checks<br/>(file existence, YAML, placeholders)
+    Adopter->>Update: make update
+    Update->>Upstream: git clone --depth=1 into temp
+    Upstream-->>Update: .aod/update-tmp/<uuid>/upstream/
+    Update->>Update: Parse .aod/template-manifest.txt<br/>Apply precedence<br/>Validate guard list
+    Update->>Adopter: Grouped preview by category<br/>(owned / personalized / user / scaffold / merge / ignore)
+    Adopter->>Update: Confirm (or --yes)
+    Update->>Adopter: Atomic mv (staged → target);<br/>version file mv last
 ```
-
-### Protected During Merge
-
-| Path | Why Protected |
-|------|---------------|
-| `.aod/memory/` | Adopter's governance memory, constitution customizations |
-| Project-specific PRDs | Adopter's product decisions |
-| Custom rules in `.claude/rules/` | Conflict resolution preserves local changes |
 
 ---
 
 ## Trigger Points
 
-| Trigger | Command | What Happens |
-|---------|---------|--------------|
-| Feature delivery | `/aod.deliver` Step 8 | Asks user whether to sync upstream |
-| Ad-hoc sync | `/aod.sync-upstream` | Standalone extract + push/PR |
-| Adopter update | `sync-upstream.sh merge` | Pulls latest template into adopter repo |
+| Trigger | Command | Direction | What Happens |
+|---------|---------|-----------|--------------|
+| Feature delivery | `/aod.deliver` Step 8 | `user → PLSK` | Asks maintainer whether to sync upstream |
+| Ad-hoc push | `/aod.sync-upstream` | `user → PLSK` | Standalone extract + push/PR to public template |
+| Adopter update | `/aod.update` or `make update` | `PLSK → user` | Adopter pulls latest template changes (Feature 129) |
 
 ---
 

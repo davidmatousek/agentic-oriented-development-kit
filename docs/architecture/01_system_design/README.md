@@ -219,3 +219,39 @@ User runs /aod.deliver
 | Target | GitHub Issues API | Issue body content |
 
 No new technologies introduced.
+
+---
+
+### Feature 129: Downstream Template Update Mechanism
+
+**Components**: 8 components spanning a new adopter-facing CLI (`/aod.update`, `make update`), 5 shared bash libraries (`template-*.sh`), a line-delimited file-ownership manifest (`.aod/template-manifest.txt`), version pin + personalization env (`.aod/aod-kit-version`, `.aod/personalization.env`), hardcoded user-owned guard list (FR-007, embedded in `scripts/update.sh`), and PLSK's first CI workflow (`.github/workflows/manifest-coverage.yml`). All file-based — markdown commands, bash scripts, YAML workflow, line-delimited manifest. No application code.
+
+**Data Flow**: Nine-phase atomic transaction within `scripts/update.sh`: (1) Preflight acquires `.aod/update.lock` via PID+nonce+timestamp PRIMARY on macOS (flock opportunistic on Linux) and verifies same-filesystem staging via device number (`stat -f %d` BSD / `-c %d` GNU — NOT `%T` which is filesystem type name); (2) Fetch upstream via HTTPS `git clone --depth=1` into `.aod/update-tmp/<uuid>/upstream/`; (3) Fetch fresh manifest + SHA-256 hash; flag `user → owned` transitions against recorded `manifest_sha256`; (4) Plan operations by resolving precedence (`ignore > user-owned guard > user > scaffold > merge > personalized > owned`); (5) Validate (path traversal, symlinks, guard list); (6) Stage processed files with placeholder re-substitution (bash `${str//pattern/replacement}` for `personalized` category — NOT `sed`); (7) Render grouped preview; confirm or `--yes`; (8) Atomic `mv` loop for staged files; version file `mv` LAST as transaction commit; (9) Cleanup staging on success, preserve on failure for inspection.
+
+**Tech Stack**: Bash 3.2 (all scripts verified — no `declare -A`, no `readarray`, no `globstar`; CI runs in `bash:3.2` Docker container to catch regressions), POSIX utilities (`mv`, `stat`, `find`, `mktemp`), Git ≥ 2.30 (HTTPS fetch, tag resolution, SHA computation), GitHub Actions (first PLSK workflow; `actions/checkout` SHA-pinned, `permissions: contents: read`, concurrency cancel-in-progress), Markdown (command files, docs). Applies ADR-001 (atomic state persistence) at transaction granularity.
+
+**Component Map**:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `/aod.update` CLI | `scripts/update.sh`, `.claude/commands/aod.update.md`, `Makefile` `update` target | Adopter-facing entry point. 9-phase atomic transaction: preflight → fetch → manifest load → plan → validate → stage → preview → apply → cleanup. Supports `--dry-run`, `--yes`, `--json`, `--edge`, `--force-retag`, `--upstream-url=<url>`. |
+| Template Helpers — Manifest | `.aod/scripts/bash/template-manifest.sh` | Line-delimited parser + category lookup + glob match + precedence resolution (`while read` + `case`). NEW code (different categorization model than `sync-upstream.sh`'s `file_category()`). |
+| Template Helpers — Validate | `.aod/scripts/bash/template-validate.sh` | Path sanitization (`..`, `~`, absolute reject), symlink rejection, residual placeholder scan. Leak-scan factored from `sync-upstream.sh:812-839`; other assertions new. |
+| Template Helpers — JSON | `.aod/scripts/bash/template-json.sh` | JSON output helpers, `schema_version: 1.0`. Clean factor-out from `sync-upstream.sh:54-72`. |
+| Template Helpers — Git | `.aod/scripts/bash/template-git.sh` | HTTPS upstream fetch (standalone `git clone --depth=1` into temp), diff computation, retag detection, fs-device helper (`aod_template_fs_device`). NEW code (sync-upstream uses `git remote add` + `git merge`, not fetch-to-temp). |
+| Template Helpers — Substitute | `.aod/scripts/bash/template-substitute.sh` | 12-placeholder canonical list (single source of truth, refactored from `init.sh:117-161`) + bash `${str//pattern/replacement}` literal-replace + `.aod/personalization.env` loader. |
+| File-Ownership Manifest | `.aod/template-manifest.txt` | Line-delimited (NOT YAML — bash 3.2 compatibility). Format: `<category>|<path-or-glob>`. Categories: `owned`, `personalized`, `user`, `scaffold`, `merge`, `ignore`. Fetched fresh each run (FR-013); SHA-256 hash recorded for drift detection. |
+| Version Pin | `.aod/aod-kit-version` | KV format (bash-sourceable). 5 fields: `version`, `sha`, `updated_at`, `upstream_url`, `manifest_sha256`. Written atomically as LAST step of transaction (ADR-001 pattern at transaction scale). |
+| Personalization Env | `.aod/personalization.env` | KV format. Created by `init.sh`, read by `/aod.update`. 12 canonical placeholders. `RATIFICATION_DATE` + `CURRENT_DATE` are init-only snapshots (never recomputed). Values with newlines or `|` rejected at load. |
+| Hardcoded Guard List (FR-007) | Embedded `readonly USER_OWNED_GUARD` array in `scripts/update.sh` (NOT a shared lib — tamper resistance) | Anchored-to-root globs: `docs/product/**`, `docs/architecture/**`, `brands/**`, `.aod/memory/**`, `specs/**`, `roadmap.md`, `okrs.md`, `CHANGELOG.md`. Overrides manifest. Two-layer check (plan + validate). |
+| CI Workflow | `.github/workflows/manifest-coverage.yml` + `scripts/check-manifest-coverage.sh` | PLSK's first CI workflow. Validator runs in `bash:3.2` Docker container to catch bash-4+ regressions (ubuntu-latest ships bash 5.x). `actions/checkout` SHA-pinned, explicit `permissions: contents: read`, concurrency group with `cancel-in-progress`. Pre-commit hook variant documented in CONTRIBUTING.md. |
+
+**Key architectural decisions**:
+- **Line-delimited manifest over YAML**: bash 3.2 compatibility; avoids `yq` dependency.
+- **Same-filesystem pre-flight via device number**: `stat -f %d` (BSD) / `stat -c %d` (GNU). **NOT `%T`** (returns filesystem type name, false-passes two distinct APFS volumes or NFS mounts).
+- **PID+nonce+timestamp PRIMARY on macOS** (not fallback): `flock(1)` is not shipped on macOS by default. `flock` is used opportunistically as a fast-path when available.
+- **Bash parameter expansion for substitution** (not `sed`): `sed` interprets `&` and `\1` in RHS even with non-default delimiters; bash `${str//pattern/replacement}` is truly literal.
+- **Three independent supply-chain defenses**: commit SHA pinning, retag detection, manifest SHA-256 tracking.
+- **Two-layer guard enforcement**: hardcoded array in `scripts/update.sh` + `template-validate.sh::assert_safe_path` check. Both must pass.
+
+See [downstream-update-architecture.md](downstream-update-architecture.md) for topology diagrams and [upstream-sync-architecture.md](upstream-sync-architecture.md) for the opposite-direction flow (`user → PLSK` via `/aod.sync-upstream`).

@@ -1,6 +1,6 @@
 # Agentic-Oriented-Development-Kit - Common Commands
 
-.PHONY: help init check spec plan tasks analyze review-spec review-plan
+.PHONY: help init check update spec plan tasks analyze review-spec review-plan
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -10,6 +10,9 @@ init: ## Initialize project (first-time setup)
 
 check: ## Verify setup and prerequisites
 	@./scripts/check.sh
+
+update: ## Apply upstream template updates (PLSK → user); pass flags via ARGS='...'
+	@./scripts/update.sh $(ARGS)
 
 # Triad Workflow shortcuts
 spec: ## Run /triad.specify

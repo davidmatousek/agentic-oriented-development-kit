@@ -53,6 +53,12 @@
 - `/aod.deliver` — Close completed feature
 - `/aod.document [--autonomous]` — Quality review: simplify, docstrings, CHANGELOG, API docs (--autonomous for orchestrator-driven runs)
 
+**Downstream Updates** (adopter-side template sync):
+- `/aod.update` — Apply upstream PLSK template updates to your project. Direction: `PLSK → user`. See `docs/guides/DOWNSTREAM_UPDATE.md`.
+- `/aod.sync-upstream` — Push local template improvements back to the public PLSK repo. Direction: `user → PLSK`.
+
+**Terminology**: `sync-upstream` = `user → PLSK` (contribute back). `update` = `PLSK → user` (pull updates). These are opposite-direction commands — do not confuse them.
+
 **Supporting commands**:
 - `/aod.clarify` — Resolve spec ambiguities
 - `/aod.analyze` — Cross-artifact consistency check

@@ -1,0 +1,245 @@
+# =============================================================================
+# AOD-kit Template Manifest
+# =============================================================================
+#
+# Feature 129 (downstream template update mechanism) — PLSK source of truth.
+#
+# Purpose:
+#   Categorize every git-tracked file in this repo by ownership. Drives
+#   /aod.update decisions (overwrite, preserve, re-substitute, or ignore)
+#   and the CI coverage check at .github/workflows/manifest-coverage.yml.
+#
+# Line format:
+#   <category>|<path-or-glob>
+#
+#   Blank lines and lines starting with `#` (optionally preceded by
+#   whitespace) are skipped. Separator is a literal `|` (pipe). No spaces
+#   around the separator. No trailing whitespace.
+#
+# Valid categories (6):
+#   owned         Template content. Overwritten verbatim from upstream on
+#                 /aod.update. Adopters MUST NOT hand-edit these files.
+#   personalized  Template content with {{PLACEHOLDER}} tokens. Overwritten
+#                 from upstream and then re-substituted from
+#                 .aod/personalization.env. Adopters MUST NOT hand-edit.
+#   user          Adopter-owned. Never touched by /aod.update (hidden from
+#                 preview entirely). Counts toward coverage.
+#   scaffold      Template provides a starter; adopter may add to it. P0:
+#                 listed for coverage only; runtime copy-if-missing deferred
+#                 to PRD 129b.
+#   merge         Both sides edit; /aod.update previews a diff and warns
+#                 (P0: warn-and-skip; 3-way merge deferred to PRD 129b).
+#   ignore        Never updated and excluded from the coverage check's
+#                 "must be covered" rule. Used for transient runtime state,
+#                 build artifacts, and third-party directories we DO track
+#                 in git but never sync.
+#
+# Precedence (highest wins, applied per matching file):
+#   ignore > guard > user > scaffold > merge > personalized > owned
+#
+#   The `guard` rank is reserved for the hardcoded user-owned guard list
+#   (FR-007); it does not appear in this file. Manifest entries never write
+#   through guards.
+#
+# Anchored whole-path glob semantics:
+#   `**` matches any sequence of characters, including `/`.
+#   `*`  matches any sequence WITHIN a single path segment (no `/`).
+#   Patterns are anchored: `CLAUDE.md` matches only the repo-root file, NOT
+#   `docs/CLAUDE.md`. Use `**/CLAUDE.md` for the recursive form.
+#
+# No-code-from-upstream policy (FR-012):
+#   Only `owned` and `personalized` categories receive content from
+#   upstream. `user`, `scaffold`, `merge`, and `ignore` are never written
+#   by /aod.update in P0 (scaffold/merge runtime behavior is deferred to
+#   PRD 129b).
+#
+# References:
+#   - specs/129-downstream-template-update/contracts/manifest-schema.md
+#   - specs/129-downstream-template-update/plan.md §C4 (guard list), §C6 (CI)
+#   - docs/guides/DOWNSTREAM_UPDATE.md (adopter walkthrough; P1)
+#
+# Maintainer workflow:
+#   1. Run `scripts/check-manifest-coverage.sh` locally before committing
+#      any new tracked file. Exit 0 = coverage complete.
+#   2. The CI workflow (manifest-coverage.yml) runs the same check on every
+#      push + PR to main using a bash:3.2 Docker container to enforce the
+#      bash 3.2 compatibility constraint on the validator itself.
+#   3. Optional pre-commit hook documented in CONTRIBUTING.md.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# owned — template content, overwritten verbatim on /aod.update
+# -----------------------------------------------------------------------------
+# Order: glob patterns first (broad coverage), then specific file overrides.
+
+# .claude/ — agents, commands, skills, design archetypes, hooks, libraries
+owned|.claude/INFRASTRUCTURE_SETUP_SUMMARY.md
+owned|.claude/README.md
+owned|.claude/agents/**
+owned|.claude/commands/**
+owned|.claude/design/**
+owned|.claude/hooks/**
+owned|.claude/lib/**
+owned|.claude/skills/**
+
+# .claude/config and MCP are template-owned JSON
+owned|.claude/config/feature-flags.json
+owned|.claude/mcp-config.json
+owned|.claude/settings.json
+
+# .claude/rules/ — most rules are template-owned, personalized subset listed below
+owned|.claude/rules/context-loading.md
+owned|.claude/rules/deployment.md
+owned|.claude/rules/design-context-loader.md
+owned|.claude/rules/design-quality.md
+owned|.claude/rules/git-workflow.md
+
+# .aod/ — template scripts and reusable templates
+owned|.aod/scripts/bash/**
+owned|.aod/templates/**
+
+# Template-owned manifest (this file itself)
+owned|.aod/template-manifest.txt
+
+# Template-owned top-level scripts
+owned|scripts/check.sh
+owned|scripts/check-manifest-coverage.sh
+owned|scripts/extract.sh
+owned|scripts/init.sh
+owned|scripts/sync-upstream.sh
+owned|scripts/update.sh
+
+# CI workflows (template-owned; first workflow introduced by feature 129)
+owned|.github/workflows/**
+
+# docs/ — curated architecture and methodology that adopters inherit verbatim
+owned|docs/AOD_TRIAD.md
+owned|docs/DOCS_TO_UPDATE_AFTER_NEW_FEATURE.md
+owned|docs/INSTITUTIONAL_KNOWLEDGE.md
+owned|docs/PROJECT_DOCS_CHECKLIST.md
+owned|docs/architecture/00_Tech_Stack/**
+owned|docs/architecture/04_deployment_environments/**
+owned|docs/architecture/README.md
+owned|docs/core_principles/**
+owned|docs/devops/**
+owned|docs/guides/**
+owned|docs/standards/**
+owned|docs/testing/**
+
+# stacks/ — per-pack content EXCEPT scaffold/ subdirs (those are ignored)
+owned|stacks/README.md
+owned|stacks/*/STACK.md
+owned|stacks/*/DOMAINS.md
+owned|stacks/*/defaults.env
+owned|stacks/*/agents/**
+owned|stacks/*/rules/**
+owned|stacks/*/skills/**
+
+# Test infrastructure (template-owned; adopters inherit the BATS suite)
+owned|tests/logging-test.sh
+owned|tests/unit/**
+owned|tests/integration/**
+owned|tests/fixtures/**
+owned|tests/stress/**
+
+# Top-level template-owned project files (LICENSE, CONTRIBUTING)
+owned|LICENSE
+owned|CONTRIBUTING.md
+owned|MIGRATION.md
+
+# Gitattributes is template-owned
+owned|.gitattributes
+
+# -----------------------------------------------------------------------------
+# personalized — template content with {{PLACEHOLDER}} tokens; re-substituted
+# -----------------------------------------------------------------------------
+
+personalized|CLAUDE.md
+personalized|.claude/rules/commands.md
+personalized|.claude/rules/governance.md
+personalized|.claude/rules/scope.md
+
+# -----------------------------------------------------------------------------
+# user — adopter-owned; never touched by /aod.update
+# -----------------------------------------------------------------------------
+# These paths are where the adopter's OWN product, architecture, brand, and
+# feature history live. The hardcoded guard list (FR-007) covers the same
+# set defensively.
+
+# Product discovery and roadmap artifacts
+user|docs/product/**
+user|CHANGELOG.md
+
+# Architecture decisions live with the adopter; the template only ships the
+# index structure via `docs/architecture/README.md` (owned, above).
+user|docs/architecture/01_system_design/**
+user|docs/architecture/02_ADRs/**
+user|docs/architecture/03_patterns/**
+user|docs/architecture/FEATURE-049-CLOSURE-SUMMARY.md
+user|docs/architecture/FEATURE-062-CLOSURE-SUMMARY.md
+user|docs/architecture/FEATURE-065-CLOSURE-SUMMARY.md
+
+# Per-agent journals and research notes
+user|docs/agents/**
+user|docs/research/**
+user|docs/planning/**
+
+# Brand assets
+user|brands/**
+
+# Adopter's memory (constitution, institutional knowledge entries)
+user|.aod/memory/**
+
+# Feature history
+user|specs/**
+
+# Ephemeral session artifacts that happen to be tracked (closures are historic
+# feature summaries; handoff is cross-session context; archive is old run-state
+# snapshots — all adopter-owned)
+user|.aod/archive/**
+user|.aod/closures/**
+user|.aod/handoff/**
+user|.aod/results/.gitkeep
+
+# Active feature workspace files — the adopter's in-flight work
+user|.aod/spec.md
+user|.aod/plan.md
+user|.aod/tasks.md
+
+# Security scanner output — per-repo artifacts
+user|.security/**
+
+# -----------------------------------------------------------------------------
+# scaffold — starter files; adopter may add to them
+# -----------------------------------------------------------------------------
+# P0: listed for coverage only; runtime copy-if-missing deferred to PRD 129b.
+
+scaffold|.env.example
+scaffold|.extractignore
+scaffold|.gitignore
+
+# -----------------------------------------------------------------------------
+# merge — both sides edit; /aod.update previews diff and warns (P0: skip)
+# -----------------------------------------------------------------------------
+
+merge|Makefile
+merge|README.md
+
+# -----------------------------------------------------------------------------
+# ignore — never updated, excluded from coverage requirement (but still here
+#          for documentation / future use). Runtime state, build artifacts,
+#          third-party scaffolds copied on demand.
+# -----------------------------------------------------------------------------
+
+ignore|.git/**
+ignore|node_modules/**
+ignore|*.log
+ignore|.aod/logs/**
+ignore|.aod/update-tmp/**
+ignore|.aod/update.lock
+ignore|.aod/run-state.json
+
+# Stack pack scaffolds are copied only when /aod.stack scaffold runs; they live
+# in the template as seed content but never sync to the adopter via /aod.update.
+ignore|stacks/*/scaffold/**

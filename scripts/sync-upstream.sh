@@ -54,16 +54,56 @@ done
 # ============================================================================
 # JSON OUTPUT HELPERS
 # ============================================================================
+# Factored into .aod/scripts/bash/template-json.sh (feature 129, T011).
+# Local functions below are thin wrappers delegating to the factored helpers
+# so behavior is preserved byte-for-byte relative to the pre-factor baseline.
+
+# Resolve template-*.sh library locations with fallback strategies so this
+# block works both when sync-upstream.sh is executed normally AND when it is
+# sliced by the BATS test harness (which sources a temp copy and loses the
+# original SCRIPT_DIR). Strategy: try REPO_ROOT first; fall back to
+# `git rev-parse --show-toplevel` from the caller's CWD.
+_aod_template_lib_dir=""
+if [[ -d "$REPO_ROOT/.aod/scripts/bash" ]]; then
+    _aod_template_lib_dir="$REPO_ROOT/.aod/scripts/bash"
+else
+    _aod_git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if [[ -n "$_aod_git_root" ]] && [[ -d "$_aod_git_root/.aod/scripts/bash" ]]; then
+        _aod_template_lib_dir="$_aod_git_root/.aod/scripts/bash"
+    fi
+    unset _aod_git_root
+fi
+
+# shellcheck source=../.aod/scripts/bash/template-json.sh
+if [[ -n "$_aod_template_lib_dir" ]] && [[ -f "$_aod_template_lib_dir/template-json.sh" ]]; then
+    source "$_aod_template_lib_dir/template-json.sh"
+fi
+
+# shellcheck source=../.aod/scripts/bash/template-validate.sh
+if [[ -n "$_aod_template_lib_dir" ]] && [[ -f "$_aod_template_lib_dir/template-validate.sh" ]]; then
+    source "$_aod_template_lib_dir/template-validate.sh"
+fi
+unset _aod_template_lib_dir
 
 # Escape special characters for JSON string values
 # Handles: backslashes, double quotes, tabs
 # Note: Newlines in file paths are documented as unsupported (spec limitation)
+# Delegates to aod_template_json_escape (T011 factor-out). When the library
+# could not be located (e.g., sliced-script test harness with a tmp REPO_ROOT),
+# the inline fallback preserves the exact pre-factor behavior.
+if ! declare -f aod_template_json_escape >/dev/null 2>&1; then
+    aod_template_json_escape() {
+        printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g'
+    }
+fi
+
 json_escape() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g'
+    aod_template_json_escape "$1"
 }
 
 # Output JSON to stdout when JSON_OUTPUT is enabled
 # Usage: json_output '{"key": "value"}'
+# Retained as a thin wrapper (gating behavior is caller-side and not factored).
 json_output() {
     local json="$1"
     if $JSON_OUTPUT; then
@@ -115,7 +155,12 @@ show_help() {
     cat <<'HELPEOF'
 Usage: sync-upstream.sh <subcommand> [options]
 
-Sync upstream AOD template changes into your project.
+Push local template improvements back to the public PLSK repo.
+Direction: user → PLSK.
+
+This is the opposite direction of scripts/update.sh (PLSK → user), which
+applies upstream template updates to your adopter project. Use /aod.update
+(or `make update`) for that direction.
 
 Subcommands:
   setup      Configure the upstream remote (one-time)
@@ -149,6 +194,9 @@ Examples:
 
 Documentation:
   See docs/guides/UPSTREAM_SYNC.md for the full step-by-step guide.
+  For the opposite direction (PLSK → user), see:
+    - /aod.update slash command
+    - docs/guides/DOWNSTREAM_UPDATE.md
 HELPEOF
 }
 
@@ -810,6 +858,10 @@ $check_json"
     if ! $JSON_OUTPUT; then echo ""; fi
 
     # --- Check 3: Placeholder leak detection ---
+    # T012 (feature 129): uses factored aod_template_scan_residual_placeholders
+    # when available; falls back to the original inline scan when the library
+    # was not sourced (e.g., sliced-script test harness). The output format and
+    # per-file handling are preserved to keep the baseline BATS suite green.
     if ! $JSON_OUTPUT; then echo -e "${BLUE}3. Placeholder leak detection${NC}"; fi
     local placeholder_found=false
     local scan_files=("CLAUDE.md" ".aod/memory/constitution.md" "Makefile" "scripts/init.sh")
@@ -818,8 +870,21 @@ $check_json"
         if [[ ! -f "$fullpath" ]]; then
             continue
         fi
-        local matches
-        matches=$(grep -n '{{[A-Z_]*}}' "$fullpath" 2>/dev/null || true)
+        local matches=""
+        if declare -f aod_template_scan_residual_placeholders >/dev/null 2>&1; then
+            # Factored helper emits "<file>:<line>:<match>"; strip the leading
+            # "<file>:" prefix to recover the original "<line>:<match>" shape
+            # that the legacy output formatting expects.
+            local raw
+            raw=$(aod_template_scan_residual_placeholders "$fullpath" 2>/dev/null || true)
+            if [[ -n "$raw" ]]; then
+                matches=$(printf '%s\n' "$raw" | sed "s|^${fullpath}:||")
+            fi
+        else
+            # Fallback: original inline scan (preserves exact behavior when
+            # the factored helper is unavailable).
+            matches=$(grep -n '{{[A-Z_]*}}' "$fullpath" 2>/dev/null || true)
+        fi
         if [[ -n "$matches" ]]; then
             placeholder_found=true
             if ! $JSON_OUTPUT; then

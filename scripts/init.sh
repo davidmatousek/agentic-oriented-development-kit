@@ -242,6 +242,114 @@ if [ -f "$CONSTITUTION" ]; then
   echo -e "${GREEN}✓ Constitution template instructions removed${NC}"
 fi
 
+# ── Version pin: write .aod/aod-kit-version BEFORE self-delete ──────
+# Per feature 129 (T025): record the template's version + SHA + upstream URL
+# + manifest hash + UTC timestamp, so /aod.update has a known anchor point.
+# ORDER IS LOAD-BEARING — this must run before the rm -f below. If the
+# self-delete ran first and this write failed, the adopter would be stuck
+# without init.sh and without a valid pin.
+echo -e "${YELLOW}🔄 Writing version pin (.aod/aod-kit-version)...${NC}"
+
+# Ensure .aod/ exists (it should already, but defensive)
+mkdir -p .aod
+
+# Source template-git.sh for aod_template_write_version_file
+if [ -f ".aod/scripts/bash/template-git.sh" ]; then
+  # shellcheck disable=SC1091
+  source .aod/scripts/bash/template-git.sh
+else
+  echo -e "${RED}ERROR: .aod/scripts/bash/template-git.sh not found — cannot write version pin${NC}" >&2
+  exit 1
+fi
+
+# Gather the 5 fields from the template's current git state
+VERSION_TAG="$(git describe --tags --exact-match 2>/dev/null || echo '')"
+VERSION_SHA="$(git rev-parse HEAD 2>/dev/null || echo '')"
+VERSION_UPDATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+# upstream_url: use origin URL (git remote get-url origin). Rewrite SSH →
+# HTTPS if needed, since the version-schema contract requires https://.
+VERSION_UPSTREAM_URL="$(git remote get-url origin 2>/dev/null || echo '')"
+case "$VERSION_UPSTREAM_URL" in
+  'git@github.com:'*)
+    # git@github.com:foo/bar.git → https://github.com/foo/bar.git
+    VERSION_UPSTREAM_URL="https://github.com/${VERSION_UPSTREAM_URL#git@github.com:}"
+    ;;
+  'ssh://git@github.com/'*)
+    VERSION_UPSTREAM_URL="https://github.com/${VERSION_UPSTREAM_URL#ssh://git@github.com/}"
+    ;;
+esac
+# Final fallback if git had no origin configured at all
+if [ -z "$VERSION_UPSTREAM_URL" ]; then
+  VERSION_UPSTREAM_URL="https://github.com/davidmatousek/agentic-oriented-development-kit.git"
+fi
+
+# manifest_sha256: compute if .aod/template-manifest.txt exists (T076 creates
+# it); otherwise write the all-zeros sentinel that update.sh will reject and
+# force a re-init via the 129b bootstrap.
+VERSION_MANIFEST_SHA=""
+if [ -f ".aod/template-manifest.txt" ]; then
+  if command -v shasum >/dev/null 2>&1; then
+    VERSION_MANIFEST_SHA="$(shasum -a 256 .aod/template-manifest.txt | cut -d' ' -f1)"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    VERSION_MANIFEST_SHA="$(sha256sum .aod/template-manifest.txt | cut -d' ' -f1)"
+  fi
+fi
+if [ -z "$VERSION_MANIFEST_SHA" ]; then
+  # Sentinel: 64 zeros. update.sh treats this as "manifest absent — rerun init".
+  VERSION_MANIFEST_SHA="0000000000000000000000000000000000000000000000000000000000000000"
+  echo -e "${YELLOW}⚠  .aod/template-manifest.txt missing — using all-zeros sentinel for manifest_sha256 (T076 will populate on next template update).${NC}" >&2
+fi
+
+if [ -z "$VERSION_SHA" ]; then
+  echo -e "${RED}ERROR: could not determine git HEAD SHA (is this a git checkout?)${NC}" >&2
+  exit 1
+fi
+
+if aod_template_write_version_file ".aod/aod-kit-version" \
+    "$VERSION_TAG" "$VERSION_SHA" "$VERSION_UPDATED_AT" \
+    "$VERSION_UPSTREAM_URL" "$VERSION_MANIFEST_SHA"; then
+  echo -e "${GREEN}✓ Version pin written (.aod/aod-kit-version)${NC}"
+else
+  echo -e "${RED}ERROR: failed to write .aod/aod-kit-version${NC}" >&2
+  exit 1
+fi
+
+# ── Personalization env: write .aod/personalization.env BEFORE self-delete ──
+# Per feature 129 (T046, plan §C5): capture the 12 canonical placeholder
+# values as an init-time snapshot. /aod.update reads this file on every run
+# and uses bash parameter expansion (NOT sed) to re-substitute placeholders
+# into personalized-category files.
+#
+# RATIFICATION_DATE and CURRENT_DATE are captured HERE — init-time snapshots
+# that /aod.update MUST NEVER recompute. If the adopter ever deletes these
+# keys later, /aod.update halts with exit 8 (see tests/integration/
+# init-only-snapshot.bats).
+#
+# ORDER IS LOAD-BEARING — this runs AFTER the version-pin write above and
+# BEFORE the `rm -f scripts/init.sh` self-delete below. Both files must
+# exist when /aod.update first runs.
+echo -e "${YELLOW}🔄 Writing personalization snapshot (.aod/personalization.env)...${NC}"
+
+# Source template-substitute.sh for aod_template_init_personalization.
+if [ -f ".aod/scripts/bash/template-substitute.sh" ]; then
+  # shellcheck disable=SC1091
+  source .aod/scripts/bash/template-substitute.sh
+else
+  echo -e "${RED}ERROR: .aod/scripts/bash/template-substitute.sh not found — cannot write personalization.env${NC}" >&2
+  exit 1
+fi
+
+# The caller-scope vars PROJECT_NAME, PROJECT_DESCRIPTION, ..., CLOUD_PROVIDER
+# have been set by the prompts above. RATIFICATION_DATE and CURRENT_DATE were
+# captured at line 86-87 via `date +%Y-%m-%d`. The helper validates all 12
+# values present + newline-free, then writes atomically (.tmp → mv).
+if aod_template_init_personalization ".aod/personalization.env"; then
+  echo -e "${GREEN}✓ Personalization snapshot written (.aod/personalization.env)${NC}"
+else
+  echo -e "${RED}ERROR: failed to write .aod/personalization.env${NC}" >&2
+  exit 1
+fi
+
 # Remove this init script (one-time use)
 rm -f scripts/init.sh
 

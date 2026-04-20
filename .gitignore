@@ -123,6 +123,13 @@ prisma/dev.db*
 # Stack Packs runtime state (per-developer, not versioned)
 .claude/rules/stack/
 .aod/stack-active.json
+# Feature 129 (downstream template update mechanism) — adopter-side state
+# Lock file is already covered by .aod/*.lock above (.aod/update.lock)
+# Transient staging directory for in-flight updates
+.aod/update-tmp/
+# Personalization values — adopters may remove this line for reproducible installs
+# (committing personalization.env locks substitution values into git history).
+.aod/personalization.env
 
 # ============================================================================
 # Product-led specific

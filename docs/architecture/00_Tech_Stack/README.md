@@ -97,9 +97,11 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 ### Shell Scripts
 
 **Bash 3.2** (macOS default `/bin/bash`)
-- All `.aod/scripts/bash/*.sh` files must be Bash 3.2 compatible
+- All `.aod/scripts/bash/*.sh` files AND `scripts/*.sh` files must be Bash 3.2 compatible
 - Why: macOS ships Bash 3.2.57 due to GPLv3 licensing; portability is mandatory
-- Constraints: No associative arrays, no `${var^^}`, no `readarray`/`mapfile`
+- Constraints: No associative arrays (`declare -A`), no case modification (`${var^^}`), no `readarray`/`mapfile`, no `globstar` (`shopt -s globstar`), no `&>` / `|&`
+- **Permitted**: Parameter expansion `${str//pattern/replacement}` (bash 3.2 supports this — used for placeholder literal-replace in Feature 129)
+- **CI enforcement** (Feature 129): `scripts/check-manifest-coverage.sh` runs in a `bash:3.2` Docker container in the `.github/workflows/manifest-coverage.yml` workflow — catches bash-4+ regressions in the validator itself even though GitHub's `ubuntu-latest` runner ships bash 5.x.
 
 **Key scripts**:
 | Script | Purpose | Added |
@@ -108,6 +110,18 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 | `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads and governance caching | Feature 022, extended Feature 030 |
 | `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions; Projects board sync (`aod_gh_reconcile_board`, `aod_gh_add_to_board`, `aod_gh_move_on_board`); `AOD_BOARD` env var support and board cache validation | Pre-022, extended Feature 121 |
 | `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues; triggers board reconciliation after BACKLOG.md write (guarded by `aod_gh_check_board`) | Pre-022, extended Feature 121 |
+| `.aod/scripts/bash/template-manifest.sh` | Line-delimited manifest parser + category lookup + glob match + precedence resolution (`while read` + `case`, bash 3.2); shared by `/aod.update` and future `/aod.sync-upstream` refactors | Feature 129 |
+| `.aod/scripts/bash/template-validate.sh` | Path sanitization (`..`, `~`, absolute-path reject), symlink rejection, residual placeholder scan; assertion helpers used by both update and sync flows | Feature 129 |
+| `.aod/scripts/bash/template-json.sh` | JSON output helpers, `schema_version: 1.0` (clean factor-out from `sync-upstream.sh:54-72`) | Feature 129 |
+| `.aod/scripts/bash/template-git.sh` | HTTPS upstream fetch (standalone `git clone --depth=1`), diff computation, retag detection, same-filesystem device-number helper (`stat -f %d` on BSD / `stat -c %d` on GNU) | Feature 129 |
+| `.aod/scripts/bash/template-substitute.sh` | 12-placeholder canonical list (single source of truth, refactored from `init.sh:117-161`) + bash parameter-expansion literal-replace + `.aod/personalization.env` loader | Feature 129 |
+
+**Maintainer-facing CLI entry points** (not libraries — executed directly):
+| Script | Purpose | Added |
+|--------|---------|-------|
+| `scripts/update.sh` | Adopter-facing CLI — `make update` / `/aod.update` entry point. Reads manifest, fetches upstream, stages, applies atomically. Embeds hardcoded user-owned guard list (FR-007) for tamper resistance | Feature 129 |
+| `scripts/check-manifest-coverage.sh` | Bash 3.2 validator — iterates `git ls-files`, asserts each file is categorized in the manifest. Runs in CI (Docker `bash:3.2` to catch bash-4+ regressions in the validator itself) and optionally as a pre-commit hook | Feature 129 |
+| `scripts/sync-upstream.sh` | Maintainer-facing CLI — `user → PLSK` direction (push). Refactored in Feature 129 to source shared `template-*.sh` libraries | Pre-129, refactored Feature 129 |
 
 ### CLI Dependencies
 
@@ -120,16 +134,55 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 
 ### Template Variables
 
-`scripts/init.sh` performs `sed` substitution on user-facing template files during `make init`. The following placeholders are replaced at init time:
+Substitution logic is centralized in `.aod/scripts/bash/template-substitute.sh` (Feature 129 — single source of truth, canonicalized from `init.sh:117-161`). Both `scripts/init.sh` (first install) and `scripts/update.sh` (subsequent updates) source the same library and apply the same 12 canonical placeholders.
 
-| Placeholder | Replaced With | Scope |
-|-------------|---------------|-------|
-| `{{PROJECT_NAME}}` | Adopter's project name (entered at `make init` prompt) | 12 template files (Feature 061) |
-| `{{CURRENT_DATE}}` | Current date at init time | Select files |
+**Canonical placeholders** (12 — defined in `template-substitute.sh::CANONICAL_PLACEHOLDERS`):
+
+| Placeholder | Replaced With | Mutability |
+|-------------|---------------|------------|
+| `{{PROJECT_NAME}}` | Adopter's project name (init prompt) | Immutable after init |
+| `{{PROJECT_DESCRIPTION}}` | Short project description (init prompt) | Immutable |
+| `{{GITHUB_ORG}}` | GitHub org or user (init prompt) | Immutable |
+| `{{GITHUB_REPO}}` | Repo name (init prompt) | Immutable |
+| `{{AI_AGENT}}` | Primary AI agent (init prompt, default `claude`) | Immutable |
+| `{{TECH_STACK}}` | Primary tech stack label (init prompt) | Immutable |
+| `{{TECH_STACK_DATABASE}}` | Database tech (init prompt) | Immutable |
+| `{{TECH_STACK_VECTOR}}` | Vector store (init prompt) | Immutable |
+| `{{TECH_STACK_AUTH}}` | Auth tech (init prompt) | Immutable |
+| `{{RATIFICATION_DATE}}` | Constitution ratification date (init-time snapshot) | **Init-only — never recomputed by `/aod.update`** |
+| `{{CURRENT_DATE}}` | Initial install date (init-time snapshot) | **Init-only — never recomputed by `/aod.update`** |
+| `{{CLOUD_PROVIDER}}` | Cloud provider (init prompt, default "Not yet defined") | Editable by adopter |
+
+**Substitution strategy** (Feature 129 architectural decision): **bash parameter expansion** `${str//pattern/replacement}` — truly literal, bash 3.2 compatible. `sed`-based substitution was REJECTED because `sed` interprets `&` (matched pattern) and `\1` (backreferences) in the RHS even with non-default delimiters — a `PROJECT_NAME="Cats & Dogs"` would break. Bash parameter expansion has no regex interpretation on the replacement side.
 
 **`{{PROJECT_NAME}}` is a first-class template variable** (Feature 061). All user-facing template files in `.claude/`, `docs/`, `CLAUDE.md`, and `README.md` use this placeholder rather than hardcoding "Agentic Oriented Development Kit". After `make init`, adopters see their own project name throughout.
 
-When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` wherever the project name should appear and confirm the file is included in the `scripts/init.sh` substitution loop. See [ADR-009](../02_ADRs/ADR-009-template-variable-expansion-scope.md) and the [Template Variable Expansion pattern](../03_patterns/README.md#pattern-template-variable-expansion).
+When adding a new user-facing template file to the kit, use `{{PROJECT_NAME}}` wherever the project name should appear and confirm the file is included in the manifest (`.aod/template-manifest.txt`). Files that carry placeholders MUST be categorized as `personalized` so `/aod.update` re-applies the substitutions on every update.
+
+See [ADR-009](../02_ADRs/ADR-009-template-variable-expansion-scope.md), the [Template Variable Expansion pattern](../03_patterns/README.md#pattern-template-variable-expansion), and [downstream-update-architecture.md](../01_system_design/downstream-update-architecture.md) for the full update flow.
+
+---
+
+### Template Manifest & Version Pin (Feature 129)
+
+**File**: `.aod/template-manifest.txt` (PLSK-side; fetched fresh by adopter on each `make update`).
+
+**Format**: Line-delimited plain text — `<category>|<path-or-glob>` per line. Parser uses `while read` + `case` (bash 3.2 compatible). Comments (`#`) and blank lines ignored.
+
+**Categories** (6): `owned`, `personalized`, `user`, `scaffold`, `merge`, `ignore`. Precedence (highest wins): `ignore > (hardcoded user-owned guard list, FR-007) > user > scaffold > merge > personalized > owned`.
+
+**File**: `.aod/aod-kit-version` (adopter-side). Bash-sourceable KV written atomically via temp + `mv` (ADR-001 pattern). 5 required fields: `version`, `sha`, `updated_at`, `upstream_url`, `manifest_sha256`.
+
+**File**: `.aod/personalization.env` (adopter-side). Bash-sourceable KV created by `init.sh`, read by `/aod.update` on every run. Values must not contain newlines or `|` (rejected at load).
+
+**Supply-chain defenses** (three independent mechanisms, all introduced by Feature 129):
+1. **Commit SHA pinning** — every install/update records exact upstream SHA.
+2. **Retag detection** — if a tag now points to a different SHA than recorded, halt unless `--force-retag`.
+3. **Manifest SHA-256 tracking** — fetched fresh each run; `user → owned` transitions flagged in preview.
+
+**CI enforcement**: `.github/workflows/manifest-coverage.yml` (PLSK's first CI workflow) runs `scripts/check-manifest-coverage.sh` in a `bash:3.2` Docker container on every push/PR. `actions/checkout` SHA-pinned (not `@v4`), `permissions: contents: read`, concurrency group with `cancel-in-progress`.
+
+See [downstream-update-architecture.md](../01_system_design/downstream-update-architecture.md) for the full topology and atomicity contract.
 
 ---
 
