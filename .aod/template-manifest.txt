@@ -147,8 +147,10 @@ owned|tests/integration/**
 owned|tests/fixtures/**
 owned|tests/stress/**
 
-# Top-level template-owned project files (LICENSE, CONTRIBUTING)
-owned|LICENSE
+# Top-level template-owned project files (CONTRIBUTING, MIGRATION).
+# LICENSE is adopter-owned — categorized under `user|` below. License choice
+# is a legal decision the adopter makes; /aod.update must never touch it
+# after bootstrap.
 owned|CONTRIBUTING.md
 owned|MIGRATION.md
 
@@ -170,6 +172,12 @@ personalized|.claude/rules/scope.md
 # These paths are where the adopter's OWN product, architecture, brand, and
 # feature history live. The hardcoded guard list (FR-007) covers the same
 # set defensively.
+
+# Top-level adopter-owned files. LICENSE is a legal artifact — `init.sh`
+# seeds an MIT default during bootstrap, but adopters may swap it for any
+# license (Apache 2.0, GPL, proprietary) and /aod.update must leave their
+# choice intact.
+user|LICENSE
 
 # Product discovery and roadmap artifacts
 user|docs/product/**
