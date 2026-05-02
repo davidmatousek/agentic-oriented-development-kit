@@ -88,12 +88,10 @@ owned|.claude/config/feature-flags.json
 owned|.claude/mcp-config.json
 owned|.claude/settings.json
 
-# .claude/rules/ — most rules are template-owned, personalized subset listed below
-owned|.claude/rules/context-loading.md
-owned|.claude/rules/deployment.md
-owned|.claude/rules/design-context-loader.md
-owned|.claude/rules/design-quality.md
-owned|.claude/rules/git-workflow.md
+# .claude/rules/ — most rules carry a `<!-- Rule file for {{PROJECT_NAME}} -->`
+# header comment, so they're categorized `personalized|` below to keep the
+# adopter's substituted project name on every /aod.update. `scope.md` is
+# adopter-owned (`user|` below) — it's the per-project scope statement.
 
 # .aod/ — template scripts and reusable templates
 owned|.aod/scripts/bash/**
@@ -147,11 +145,11 @@ owned|tests/integration/**
 owned|tests/fixtures/**
 owned|tests/stress/**
 
-# Top-level template-owned project files (CONTRIBUTING, MIGRATION).
-# LICENSE is adopter-owned — categorized under `user|` below. License choice
-# is a legal decision the adopter makes; /aod.update must never touch it
-# after bootstrap.
-owned|CONTRIBUTING.md
+# Top-level template-owned project files (MIGRATION). LICENSE and
+# CONTRIBUTING.md are adopter-owned — categorized under `user|` below.
+# CONTRIBUTING.md upstream is AOD-Kit-specific (BATS install, manifest
+# coverage CI, bash 3.2 compat); adopters bring their own contribution
+# guidelines for their project, so /aod.update must never overwrite it.
 owned|MIGRATION.md
 
 # Gitattributes is template-owned
@@ -160,11 +158,17 @@ owned|.gitattributes
 # -----------------------------------------------------------------------------
 # personalized — template content with {{PLACEHOLDER}} tokens; re-substituted
 # -----------------------------------------------------------------------------
+# CLAUDE.md is `merge|` below (agent-context document — both sides edit).
+# scope.md is `user|` below (per-project scope statement; adopter rewrites
+# at bootstrap and owns thereafter).
 
-personalized|CLAUDE.md
 personalized|.claude/rules/commands.md
+personalized|.claude/rules/context-loading.md
+personalized|.claude/rules/deployment.md
+personalized|.claude/rules/design-context-loader.md
+personalized|.claude/rules/design-quality.md
+personalized|.claude/rules/git-workflow.md
 personalized|.claude/rules/governance.md
-personalized|.claude/rules/scope.md
 
 # -----------------------------------------------------------------------------
 # user — adopter-owned; never touched by /aod.update
@@ -176,8 +180,17 @@ personalized|.claude/rules/scope.md
 # Top-level adopter-owned files. LICENSE is a legal artifact — `init.sh`
 # seeds an MIT default during bootstrap, but adopters may swap it for any
 # license (Apache 2.0, GPL, proprietary) and /aod.update must leave their
-# choice intact.
+# choice intact. CONTRIBUTING.md upstream is AOD-Kit-specific (BATS,
+# manifest coverage); adopters bring their own contribution guide.
 user|LICENSE
+user|CONTRIBUTING.md
+
+# Per-project scope statement. Template ships `<!-- Rule file for
+# {{PROJECT_NAME}} -->` plus generic AOD self-description; adopter rewrites
+# at bootstrap with their own "What this is / What this isn't". Loaded
+# into agent context via CLAUDE.md @-syntax — re-syncing from upstream
+# would inject AOD-Kit-self-description into the adopter's project doc.
+user|.claude/rules/scope.md
 
 # Product discovery and roadmap artifacts
 user|docs/product/**
@@ -235,6 +248,11 @@ scaffold|.gitignore
 # merge — both sides edit; /aod.update previews diff and warns (P0: skip)
 # -----------------------------------------------------------------------------
 
+# CLAUDE.md is the agent-context document. Both upstream and adopters edit
+# it (adopters add project-specific agent guidance, anti-bloat rules,
+# downstream-only command refs). `merge|` warns and skips on /aod.update;
+# adopters merge upstream improvements manually.
+merge|CLAUDE.md
 merge|Makefile
 merge|README.md
 
