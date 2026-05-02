@@ -21,8 +21,8 @@ Technology choices and justifications
 ### 01_system_design/
 High-level system design and component diagrams
 - `README.md` - System architecture overview (auto-scaffolded from plan.md by `/aod.project-plan` after Architect sign-off)
-- `upstream-sync-architecture.md` - Repo topology and sync flow between private, public template, and adopter projects (`user → PLSK` direction)
-- `downstream-update-architecture.md` - Adopter-side update flow: manifest model, atomicity contract, concurrency model (`PLSK → user` direction, Feature 129)
+- `upstream-sync-architecture.md` - Maintainer-side `user → PLSK` extraction pipeline: directory allow-list, five-layer defense, classification snapshot CI gate (Feature 128)
+- `downstream-update-architecture.md` - Adopter-side update flow: manifest model, atomicity contract, concurrency model (Feature 129)
 - Component interaction diagrams
 - Data flow diagrams
 
@@ -38,6 +38,8 @@ Significant technical decisions with context and trade-offs
 - `ADR-009-template-variable-expansion-scope.md` - Expanding `{{PROJECT_NAME}}` placeholder to all user-facing template files (Feature 061)
 - `ADR-010-minimal-return-architecture.md` - Minimal return architecture for subagent→main token efficiency (Feature 073)
 - `ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md` - Multi-flag opt-out pattern and step insertion convention for `/aod.build` (Feature 080)
+- `ADR-012-stack-pack-test-contract.md` - Declarative test contract with stable exit-code taxonomy in stack packs (Feature 130)
+- `ADR-013-delivery-verification-first.md` - Hard-default delivery gate, deterministic scope guard, three-channel halt protocol, additive exit codes 10/11/12 (Feature 139)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

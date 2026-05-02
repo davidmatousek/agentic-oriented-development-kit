@@ -1,0 +1,134 @@
+/**
+ * Brand Token Overrides -- {{BRAND_NAME}}
+ *
+ * These CSS custom properties override the default @theme tokens
+ * from the active stack pack scaffold. Import this file after
+ * your scaffold's globals.css / app.css.
+ *
+ * Usage:
+ *   @import "../../brands/{{brand-name}}/tokens.css";
+ *
+ * Precedence (highest to lowest):
+ *   1. Brand tokens (this file)
+ *   2. Personality archetype tokens (if active)
+ *   3. Stack pack scaffold defaults (globals.css / app.css)
+ *
+ * How to customize:
+ *   1. Copy this entire _example/ directory to brands/{brand-name}/
+ *   2. Replace placeholder values with actual brand colors, fonts, etc.
+ *   3. Remove any overrides you do not need -- omitted tokens fall
+ *      back to the scaffold or archetype defaults.
+ *   4. Import this file in your project's main CSS entry point.
+ */
+
+/* ============================================================
+ * COLOR TOKENS
+ * ============================================================
+ * Replace hex/oklch values with the brand's actual palette.
+ * Use oklch() for perceptually uniform color mixing and
+ * consistent lightness across hues.
+ * ============================================================ */
+
+:root {
+  /* --- Primary --- */
+  --color-primary:       #1a365d;  /* Main brand color -- buttons, links, headers */
+  --color-primary-light: #2a4a7f;  /* Hover states, lighter accents */
+  --color-primary-dark:  #0f2240;  /* Active/pressed states, emphasis */
+
+  /* --- Secondary / Accent --- */
+  --color-secondary:     #2d6a4f;  /* Secondary actions, success indicators */
+  --color-accent:        #c05621;  /* Highlights, badges, attention-drawing elements */
+
+  /* --- Muted / Subtle --- */
+  --color-muted:         #f7fafc;  /* Subtle backgrounds, card surfaces */
+  --color-muted-foreground: #718096; /* Muted text, placeholders, captions */
+
+  /* --- Destructive --- */
+  --color-destructive:   #c53030;  /* Delete buttons, error states */
+  --color-destructive-foreground: #ffffff;
+
+  /* --- Backgrounds & Foregrounds --- */
+  --color-background:    #ffffff;  /* Page background */
+  --color-foreground:    #1a202c;  /* Default text color */
+  --color-card:          #ffffff;  /* Card/panel background */
+  --color-card-foreground: #1a202c;
+
+  /* --- Borders & Inputs --- */
+  --color-border:        #e2e8f0;  /* Default border color */
+  --color-input:         #e2e8f0;  /* Input field borders */
+  --color-ring:          #1a365d;  /* Focus ring color (matches primary) */
+
+
+  /* ============================================================
+   * TYPOGRAPHY TOKENS
+   * ============================================================
+   * Replace font family names with the brand's actual typefaces.
+   * Ensure fonts are loaded via @font-face, Google Fonts, or
+   * a font hosting service before referencing them here.
+   * ============================================================ */
+
+  /* --- Font Families --- */
+  --font-sans:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+
+  /* ============================================================
+   * BORDER RADIUS TOKENS
+   * ============================================================
+   * Adjust to match the brand's corner style.
+   * Smaller values = sharper, more precise.
+   * Larger values = softer, more approachable.
+   * ============================================================ */
+
+  --radius-sm:  4px;   /* Small elements: badges, tags, chips */
+  --radius-md:  8px;   /* Medium elements: cards, inputs, buttons */
+  --radius-lg:  12px;  /* Large elements: modals, panels, sections */
+  --radius-full: 9999px; /* Pills, avatars, fully rounded elements */
+
+
+  /* ============================================================
+   * SHADOW TOKENS
+   * ============================================================
+   * Adjust shadow depth to match the brand's visual weight.
+   * Minimal shadows = flat, modern aesthetic.
+   * Deeper shadows = elevated, layered feel.
+   * ============================================================ */
+
+  --shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md:  0 4px 6px rgba(15, 23, 42, 0.07);
+  --shadow-lg:  0 10px 15px rgba(15, 23, 42, 0.10);
+
+
+  /* ============================================================
+   * SPACING OVERRIDES (optional)
+   * ============================================================
+   * Only override if the brand requires non-standard spacing.
+   * The default 8pt grid (8px base unit) is recommended.
+   * Uncomment and adjust if needed.
+   * ============================================================ */
+
+  /* --spacing-unit: 8px; */
+  /* --spacing-xs:   4px; */
+  /* --spacing-sm:   8px; */
+  /* --spacing-md:  16px; */
+  /* --spacing-lg:  24px; */
+  /* --spacing-xl:  32px; */
+  /* --spacing-2xl: 48px; */
+
+
+  /* ============================================================
+   * MOTION / ANIMATION OVERRIDES (optional)
+   * ============================================================
+   * Adjust timing to match the brand's interaction feel.
+   * Shorter durations = snappy, precise.
+   * Longer durations = gentle, deliberate.
+   * ============================================================ */
+
+  /* --duration-fast:   100ms; */
+  /* --duration-normal: 200ms; */
+  /* --duration-slow:   400ms; */
+  /* --easing-default:  cubic-bezier(0.4, 0, 0.2, 1); */
+  /* --easing-in:       cubic-bezier(0.4, 0, 1, 1); */
+  /* --easing-out:      cubic-bezier(0, 0, 0.2, 1); */
+}

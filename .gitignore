@@ -118,6 +118,13 @@ prisma/dev.db*
 .aod/run-state.json
 .aod/run-state.json.tmp
 .aod/run-state.json.corrupt.*
+# Feature 139 (delivery verification) — ephemeral per-invocation state
+# Halt records + crash sentinels (.aod/state/*.json) are per-run artifacts
+# Lockfiles (.aod/locks/*.lock) guard concurrent invocations
+# Audit log (.aod/audit/*.jsonl) is append-only and INTENTIONALLY tracked
+.aod/state/*.json
+.aod/state/*.json.tmp
+.aod/locks/*.lock
 # Log files (keep logs local, not in version control)
 .aod/logs/
 # Stack Packs runtime state (per-developer, not versioned)

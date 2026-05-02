@@ -82,22 +82,14 @@ Use Triad commands for governance, quality gates, and multi-agent collaboration.
 ### Maintenance Commands
 
 ```bash
-/aod.sync-upstream       # Push template improvements back to the public PLSK repo (user → PLSK)
-/aod.update              # Apply upstream PLSK template updates to this adopter project (PLSK → user)
+/aod.update              # Apply upstream template updates to this adopter project
 ```
 
-**When to Use `/aod.sync-upstream`** (direction: `user → PLSK`):
-- Ad-hoc fixes, refactors, or direct commits to main that bypass `/aod.deliver`
-- Any time template content changes and needs to be propagated upstream
-- Standalone alternative to Step 8 of `/aod.deliver`
-
-**When to Use `/aod.update`** (direction: `PLSK → user`):
-- After a new PLSK release is published upstream
+**When to Use `/aod.update`**:
+- After a new upstream template release is published
 - Periodic pulls (monthly) to stay current with template improvements
 - Equivalent `make update` form is also available
 - See `docs/guides/DOWNSTREAM_UPDATE.md` for the full adopter walkthrough
-
-**Terminology**: `sync-upstream` and `update` are opposite-direction commands. Use the spaced arrow form `user → PLSK` and `PLSK → user` consistently when documenting either.
 
 ---
 

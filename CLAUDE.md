@@ -54,10 +54,7 @@
 - `/aod.document [--autonomous]` — Quality review: simplify, docstrings, CHANGELOG, API docs (--autonomous for orchestrator-driven runs)
 
 **Downstream Updates** (adopter-side template sync):
-- `/aod.update` — Apply upstream PLSK template updates to your project. Direction: `PLSK → user`. See `docs/guides/DOWNSTREAM_UPDATE.md`.
-- `/aod.sync-upstream` — Push local template improvements back to the public PLSK repo. Direction: `user → PLSK`.
-
-**Terminology**: `sync-upstream` = `user → PLSK` (contribute back). `update` = `PLSK → user` (pull updates). These are opposite-direction commands — do not confuse them.
+- `/aod.update` — Apply upstream template updates to your project. See `docs/guides/DOWNSTREAM_UPDATE.md`.
 
 **Supporting commands**:
 - `/aod.clarify` — Resolve spec ambiguities
@@ -111,7 +108,4 @@ When invoked as a subagent (via Agent tool), return ONLY:
 - Review `agent-assignments.md` for workload distribution
 
 ## Recent Changes
-- **v2.0.0**: Anthropic Claude Code v2.1.16 Integration
-  - Parallel Triad reviews, context forking, version detection
-  - See `docs/devops/MIGRATION.md` for upgrade guide
-- **v1.1.0**: Modular rules system
+See [CHANGELOG.md](CHANGELOG.md) for the full release history.

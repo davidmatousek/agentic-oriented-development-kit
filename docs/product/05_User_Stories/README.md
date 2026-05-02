@@ -193,3 +193,15 @@ Each PRD should include relevant user stories:
 
 - **US-124-1** (P1): Populated Retro Issue Body - Retrospective ideas captured during `/aod.deliver` produce GitHub Issues with structured body content (heading, ICE Score placeholders, Evidence, Metadata) instead of empty bodies
 - **US-124-2** (P2): Command and Skill Definition Alignment - The `/aod.deliver` command definition includes `--body "$BODY"` in its `create-issue.sh` invocation, matching the skill definition to prevent the documented template from being silently ignored
+
+### Feature 158: Anti-Rationalization Tables for AOD Command/Skill Files
+
+**PRD**: [158-anti-rationalization-tables](../02_PRD/158-anti-rationalization-tables-2026-04-29.md)
+**Delivered**: 2026-05-01 | **PR**: #159 (squash 75004cd) | **Tasks**: 37/37 complete | **Stories**: 3/3 passing
+**Retro**: [retro.md](../../../specs/158-anti-rationalization-tables/retro.md)
+
+- **US-158-1** (P1): Behavioral Resistance via Common Rationalizations - 80 Rationalization rows authored across 18 AOD files (per-file 3-6, FR-001 bounds 2-8); agents now have a named rebuttal table to cite when refusing to skip steps
+- **US-158-2** (P1): Reviewer Audit via Red Flags - 103 Red Flag bullets authored across 18 AOD files (per-file 4-7, FR-002 bound ≥3); reviewers can audit "Agent ..." pattern bullets to spot drift in agent self-reports
+- **US-158-3** (P2): Forward-CI Contract via POSIX-Portable Verification - 4 verification audits (T027-T030) use POSIX BRE + portable awk (no PCRE, no `-P`, no `-z`); BSD/GNU/BusyBox compatible per AD-003 / SC-003; all 4 audits zero-output across 18 files
+
+**Stories source of truth**: GitHub Issue #158 — see retro.md for FR-binding, citation accuracy, and voice consistency attestations.

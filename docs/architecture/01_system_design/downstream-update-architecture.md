@@ -8,11 +8,7 @@
 
 ## Overview
 
-Adopters of the AOD methodology pull upstream template improvements via `/aod.update` (or `make update`). This flow is the **downstream counterpart** to `/aod.sync-upstream` (which pushes local template improvements back to the public PLSK repo). The two commands share a common library surface but have distinct execution flows.
-
-**Direction arrows** (used consistently in all adopter docs):
-- `user → PLSK` = `/aod.sync-upstream` (contribute back)
-- `PLSK → user` = `/aod.update` (pull updates)
+Adopters of the AOD methodology pull upstream template improvements via `/aod.update` (or `make update`). The flow fetches the latest template, computes a categorized diff, previews what will change, and applies the approved set of changes atomically.
 
 ---
 
@@ -20,7 +16,7 @@ Adopters of the AOD methodology pull upstream template improvements via `/aod.up
 
 ```mermaid
 graph TB
-    subgraph UPSTREAM["PLSK (Public Template)"]
+    subgraph UPSTREAM["Upstream (Public Template)"]
         direction TB
         MANIFEST[".aod/template-manifest.txt<br/>Line-delimited ownership map"]
         FILES["Template files<br/>with {{PLACEHOLDERS}}"]
@@ -61,7 +57,7 @@ graph TB
 
 ---
 
-## Pull Flow: PLSK → Adopter
+## Pull Flow: Upstream → Adopter
 
 Triggered by `make update` or `/aod.update`. Nine sub-phases matching the FR-005 atomicity sequence:
 
@@ -70,7 +66,7 @@ sequenceDiagram
     participant Adopter as Adopter Project
     participant Script as scripts/update.sh
     participant Libs as .aod/scripts/bash/template-*.sh
-    participant Upstream as PLSK (HTTPS)
+    participant Upstream as Upstream (HTTPS)
 
     Adopter->>Script: make update
     Script->>Script: 1. Preflight (parse args, acquire lock)
@@ -233,7 +229,7 @@ Feature 129 establishes three independent supply-chain defenses:
 
 ## CI Enforcement — `.github/workflows/manifest-coverage.yml`
 
-PLSK's **first** CI workflow. Catches forgotten manifest categorization before merge.
+The upstream template's **first** CI workflow. Catches forgotten manifest categorization before merge.
 
 **Design choices** (retag-defense philosophy applied):
 - `actions/checkout` pinned to a specific SHA (not `@v4`) — documented with comment
@@ -259,8 +255,6 @@ Five bash 3.2 function libraries (all **sourced**, not executed — [Function Li
 
 **Key architectural decision**: Placeholder substitution uses bash `${str//pattern/replacement}` parameter expansion (truly literal, bash 3.2 compatible) — NOT `sed`. Rationale: `sed` interprets `&` and `\1` in the RHS even with non-default delimiters, which would break `PROJECT_NAME="Cats & Dogs"`. Bash parameter expansion has no regex interpretation on the replacement side.
 
-**Factor-out boundary with `sync-upstream.sh`**: narrower than initially scoped. Only `template-json.sh` is a clean factor-out; `template-validate.sh` is mixed (leak-scan factored; other assertions new); `template-manifest.sh` and `template-git.sh` are new code (sync-upstream uses different categorization model and git-remote-merge flow rather than fetch-to-temp).
-
 ---
 
 ## Key Design Decisions
@@ -278,11 +272,9 @@ Five bash 3.2 function libraries (all **sourced**, not executed — [Function Li
 
 ## Related
 
-- [Upstream Sync Architecture](upstream-sync-architecture.md) — opposite-direction flow
 - [ADR-001 Atomic State Persistence](../02_ADRs/ADR-001-atomic-state-persistence.md) — atomicity pattern reused at transaction granularity
 - [ADR-009 Template Variable Expansion Scope](../02_ADRs/ADR-009-template-variable-expansion-scope.md) — placeholder canonicalization
 - [Function Library Sourcing pattern](../03_patterns/README.md#pattern-function-library-sourcing) — how `template-*.sh` libraries are loaded
 - [Atomic File Write pattern](../03_patterns/README.md#pattern-atomic-file-write) — applied at the transaction level for the version pin commit
 - [DOWNSTREAM_UPDATE.md](../../guides/DOWNSTREAM_UPDATE.md) — adopter walkthrough
-- [UPSTREAM_SYNC.md](../../guides/UPSTREAM_SYNC.md) — maintainer walkthrough (opposite direction)
 - Feature spec: `specs/129-downstream-template-update/spec.md` (FR-001 through FR-013)
