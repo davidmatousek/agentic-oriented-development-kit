@@ -159,15 +159,14 @@ owned|.gitattributes
 # personalized — template content with {{PLACEHOLDER}} tokens; re-substituted
 # -----------------------------------------------------------------------------
 # CLAUDE.md is `merge|` below (agent-context document — both sides edit).
-# scope.md is `user|` below (per-project scope statement; adopter rewrites
-# at bootstrap and owns thereafter).
+# scope.md, git-workflow.md, commands.md are `user|` below (adopter-owned
+# operational rule files — adopters extend with release procedures, downstream-
+# only commands, incident learnings; /aod.update must leave them intact).
 
-personalized|.claude/rules/commands.md
 personalized|.claude/rules/context-loading.md
 personalized|.claude/rules/deployment.md
 personalized|.claude/rules/design-context-loader.md
 personalized|.claude/rules/design-quality.md
-personalized|.claude/rules/git-workflow.md
 personalized|.claude/rules/governance.md
 
 # -----------------------------------------------------------------------------
@@ -191,6 +190,18 @@ user|CONTRIBUTING.md
 # into agent context via CLAUDE.md @-syntax — re-syncing from upstream
 # would inject AOD-Kit-self-description into the adopter's project doc.
 user|.claude/rules/scope.md
+
+# Operational rule files adopters extend in-context: release-procedure
+# enforcement (e.g., release-please Conventional Commit PR titles, F-212-
+# style incident references) lives in git-workflow.md; downstream-only
+# command documentation (e.g., /aod.sync-upstream) lives in commands.md.
+# Both are loaded into agent context via CLAUDE.md @-syntax. `personalized|`
+# overwrote adopter additions on every /aod.update; `merge|` would emit
+# false-positive "modified" warnings every run because upstream retains
+# raw {{PROJECT_NAME}} placeholders. `user|` matches the LICENSE precedent
+# (#163) and the report's USER_OWNED_GUARD workaround.
+user|.claude/rules/git-workflow.md
+user|.claude/rules/commands.md
 
 # Product discovery and roadmap artifacts
 user|docs/product/**
