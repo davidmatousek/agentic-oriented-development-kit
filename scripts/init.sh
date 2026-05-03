@@ -113,6 +113,15 @@ fi
 echo ""
 echo -e "${YELLOW}🔄 Replacing template variables...${NC}"
 
+# Bootstrap: replace upstream marketing README with the templated scaffold
+# so replace_in_files (below) substitutes tokens in the right file.
+# Note: make init is one-shot per project — re-running overwrites root README.
+if [ -f ".aod/scaffold/README.md" ]; then
+  cp .aod/scaffold/README.md README.md
+else
+  echo -e "${YELLOW}⚠ .aod/scaffold/README.md missing — using existing root README. Sync may be incomplete.${NC}" >&2
+fi
+
 # Function to replace in files (cross-platform)
 replace_in_files() {
   if [[ "$OSTYPE" == "darwin"* ]]; then

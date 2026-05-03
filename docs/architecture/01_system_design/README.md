@@ -728,3 +728,62 @@ See [specs/158-anti-rationalization-tables/plan.md](../../../specs/158-anti-rati
 **R-001 likelihood validation**: Plan upgraded R-001 (citation drift base rate) from Medium → High. Build confirmed: 3 cited-gate drift instances surfaced during the bundle (1 D-001 cell that shifted line numbers, 1 cross-file Rationalization duplicate, 4 banned-phrase escapes). All 3 caught + corrected by the layered defense (AD-007 spot-check + Audit 5 per-file pre-commit grep + bundle-level grep audits). The High base rate is now validated empirically and should be the assumed default for any future text-content bundle of similar scale.
 
 **Behavioral primer pattern** documented for reuse: see [03_patterns/README.md `Anti-Rationalization Tables — Behavioral Primer for Agent-Loaded Files`](../03_patterns/README.md#pattern-anti-rationalization-tables-behavioral-primer).
+
+### Feature 169: split-readme-marketing-and-scaffold
+
+**Plan**: [specs/169-split-readme-into/plan.md](../../../specs/169-split-readme-into/plan.md) | **Status**: APPROVED_WITH_CONCERNS (PM + Arch)
+
+#### Components
+
+```
++-----------------------------+         +-------------------------------------+
+| Root README.md (user|)      |         | .aod/scaffold/README.md (owned|)    |
+| Hand-authored marketing.    |         | Token-bearing scaffold.             |
+| No {{...}} tokens.          |         | Verbatim copy of pre-change root.   |
+| Maintainer edits manually.  |         | Refreshed verbatim by /aod.update.  |
++-----------------------------+         +-------------------------------------+
+            |                                            |
+            v                                            v
+   GitHub landing page                         Used by init.sh
+   (visible to public)                         (one-shot bootstrap)
+```
+
+| File | Role | Manifest |
+|------|------|----------|
+| `README.md` | Hand-authored marketing landing page | `user|` (silent skip on `/aod.update`) |
+| `.aod/scaffold/README.md` | Token-bearing bootstrap template | `owned|` (verbatim refresh) |
+| `scripts/init.sh` | Adds guarded scaffold-copy block before `replace_in_files` | (script) |
+| `scripts/extract.sh` | `MANIFEST_DIRS` extended with `.aod/scaffold` | (script) |
+| `docs/guides/DOWNSTREAM_UPDATE.md` | New "README Lifecycle" section | (docs) |
+
+#### Data Flow
+
+```
+   Maintainer edits     |  Adopter clones    |  Adopter runs           |  Adopter runs
+   root README.md       |  AOD Kit           |  make init              |  /aod.update
+        |               |        |           |        |                |        |
+        v               |        v           |        v                |        v
+   /aod.sync-upstream   |   GitHub renders   |   init.sh checks        |   update.sh reads
+        |               |   marketing copy   |   .aod/scaffold/        |   manifest:
+        v               |   (no tokens)      |   README.md exists      |   - root README user|
+   extract.sh --sync    |                    |        |                |     -> silent skip
+        |               |                    |        v                |   - scaffold owned|
+        v               |                    |   cp scaffold root      |     -> verbatim refresh
+   ../agentic-oriented- |                    |        |                |
+   development-kit/     |                    |        v                |
+   README.md            |                    |   replace_in_files      |
+   .aod/scaffold/       |                    |   substitutes tokens    |
+   README.md            |                    |        |                |
+                        |                    |        v                |
+                        |                    |   root README           |
+                        |                    |   contains adopter      |
+                        |                    |   project name          |
+```
+
+#### Tech Stack
+
+- **Bash 3.2** (init.sh, extract.sh — macOS/Linux compatible)
+- **Markdown** (README files, DOWNSTREAM_UPDATE.md)
+- **Manifest DSL** (`.aod/template-manifest.txt` format: `{category}|{path}` per line)
+- **bats-core** v1.x (regression test for post-init substitution)
+- **No new dependencies** — all tools already in AOD Kit toolchain.

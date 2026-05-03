@@ -1,401 +1,141 @@
+<!--
+  Aesthetic Philosophy (T006, Feature 169):
+  - Visual mood: professional, technical, opinionated — matches AOD's governance-first positioning
+  - Typeface: GitHub-rendered markdown (no custom fonts on landing page); badges use shields.io defaults
+  - Color temperature: cool/neutral — governance + methodology, not playful or warm-corporate
+  - Visual density: medium-balanced — enough detail to convey depth, no wall-of-text
+-->
+
 <div align="center">
 
-# {{PROJECT_NAME}}
+# AOD Kit
 
-**A governance-first development template with SDLC Triad collaboration**
+**A governance-first development template with SDLC Triad collaboration for AI-assisted development**
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](CHANGELOG.md)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-v2.1.16+-purple.svg)](https://claude.ai/claude-code)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[Getting Started](#-quick-start) •
-[Commands](#-commands) •
-[How It Works](#-how-it-works) •
-[Documentation](#-documentation) •
-[Contributing](#-contributing)
+[Quick Start](#quick-start) •
+[What is AOD?](#what-is-aod) •
+[Capabilities](#capabilities) •
+[Documentation](#documentation) •
+[Contributing](#contributing)
 
 </div>
 
 ---
 
-## Why {{PROJECT_NAME}}?
+## What is AOD?
 
-Building software with AI agents? **Governance matters.** {{PROJECT_NAME}} ensures your AI-assisted development follows proper product management principles with clear sign-offs at every stage.
+AOD Kit is an open-source project template that brings **product-led governance** to AI agent-assisted development. In a world where coding agents can generate entire features in minutes, the bottleneck shifts from "can we build it?" to "should we build it, and are we building it right?" AOD provides the governance layer — a Product Manager / Architect / Team-Lead Triad — that ensures AI-assisted development follows proper product thinking, architectural review, and quality gates.
 
-| Challenge | Solution |
-|-----------|----------|
-| AI agents making unauthorized decisions | **Triple sign-off** gates (PM → Architect → Team-Lead) |
-| Specs drifting from product vision | **PM approval** required before any implementation |
-| Technical debt from ungoverned changes | **Architect checkpoints** at every milestone |
-| Unclear ownership and accountability | **SDLC Triad** with defined veto authority |
+AOD is **methodology, not application code**. You bring your own stack; AOD gives you a proven workflow that works with any AI coding agent and any technology choice.
+
+> **Why governance now?** Speed without direction is just velocity. AOD turns AI agents from unsupervised code generators into collaborative team members with built-in review checkpoints, sign-offs, and Definition-of-Done gates.
 
 ---
 
-## ✨ Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 🎯 AOD Governance
-- PM-driven product vision and alignment
-- Dual sign-off (PM + Architect) before implementation
-- Feature specs linked to PRDs and OKRs
-
-</td>
-<td width="50%">
-
-### 🔺 SDLC Triad Framework
-- **PM**: Defines What & Why
-- **Architect**: Defines How
-- **Team-Lead**: Defines When & Who
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### ⚡ Parallel Reviews (v2.0)
-- Context forking for simultaneous reviews
-- Triple sign-off executes in parallel
-- Automatic result merging by severity
-
-</td>
-<td width="50%">
-
-### 🛠️ Modular Rules System
-- Concise CLAUDE.md (~80 lines)
-- Topic-specific rule files in `.claude/rules/`
-- Zero merge conflicts
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 📦 Stack Packs
-- Pre-configured convention contracts for your technology stack
-- Persona supplements turn every agent into a stack specialist
-- Project scaffolding from `git clone` to running code
-- Security patterns enforced by default (OWASP-mapped)
-- Use `/aod.stack use nextjs-supabase` to activate
-
-</td>
-<td width="50%">
-
-### 🎨 Design System
-- `/aod.foundation` workshop for brand identity setup
-- 6 design archetypes (boldness, playful, precision, etc.)
-- Semantic CSS tokens generated from archetypes
-- Design quality gate in build pipeline
-- Brand-aware UI code generation
-
-</td>
-</tr>
-</table>
-
----
-
-## 🚀 Quick Start
-
-### Installation
-
-Navigate to your projects directory (e.g., `~/Projects/` or `~/code/`) — the clone command will create a new subfolder here:
+## Quick Start
 
 ```bash
 # Clone the template
 git clone https://github.com/davidmatousek/agentic-oriented-development-kit.git my-project
 cd my-project
 
-# Run interactive setup
+# Bootstrap your project (one-shot — substitutes project name, stack, dates)
 make init
-```
 
-> **Note**: `PROJECT_NAME` and `PROJECT_DESCRIPTION` values must not contain `/`, `&`, or `\`. These characters conflict with the `sed` substitution delimiter and will cause initialization to fail or produce corrupted files. Use safe alternatives (e.g., "My Project" instead of "My/Project").
-
-The init script will prompt for your project details and configure everything automatically.
-
-<details>
-<summary><b>📋 Manual Setup</b></summary>
-
-If you prefer manual configuration:
-
-```bash
-# From your projects directory (e.g., ~/Projects/)
-git clone https://github.com/davidmatousek/agentic-oriented-development-kit.git my-project
-cd my-project
-
-# Edit constitution with your project details
-# Replace all {{PLACEHOLDER}} variables in:
-vim .aod/memory/constitution.md
-```
-
-**Required variables:**
-| Variable | Example |
-|----------|---------|
-| `{{PROJECT_NAME}}` | my-saas-platform |
-| `{{PROJECT_DESCRIPTION}}` | AI-powered analytics dashboard |
-| `{{TECH_STACK_DATABASE}}` | PostgreSQL |
-| `{{RATIFICATION_DATE}}` | 2026-01-31 |
-
-> **Tip**: If using a stack pack, its `defaults.env` provides all technology defaults. Only manual setup requires editing these variables.
-
-</details>
-
-### Verify Installation
-
-```bash
-make check
-```
-
-### Your First Feature
-
-Open Claude Code (CLI or VS Code extension) in your project directory:
-
-```bash
-# CLI
-claude
-
-# Or open the project folder in VS Code and use the Claude Code extension
-```
-
-If you activated a stack pack, install dependencies first:
-
-```bash
-npm install
-```
-
-> **Note:** If `npm` is not found, you may need to install Node.js (`brew install node` on macOS) or ensure your shell PATH includes it (e.g., `export PATH="/opt/homebrew/bin:$PATH"` for Homebrew).
-
-Then establish your product identity and start building:
-
-```
-# 1. Guided workshop — product vision + design identity (recommended)
+# Set up product vision and design identity (recommended)
 /aod.foundation
-
-# 2. Create your first PRD
-/aod.define user-authentication
-
-# 3. Plan — chains spec → project-plan → tasks with governance gates
-/aod.plan
-
-# 4. Build — execute with architect checkpoints
-/aod.build
 ```
 
----
+After `make init`, the README, CLAUDE.md, and other templated files are personalized to your project. From there, run `/aod.define` to draft your first PRD with Triad governance.
 
-## 🔄 Staying Current
-
-Keep your adopter project in sync with upstream PLSK template improvements.
-
-```bash
-make update --dry-run    # Preview pending upstream changes (no writes)
-make update              # Interactive apply with confirmation prompt
-make update --yes        # Non-interactive apply (for automation)
-```
-
-`/aod.update` (direction: `PLSK → user`) pulls the latest upstream template changes into your project. It protects user-owned files (product docs, architecture, brands, specs, constitution) via a hardcoded guard list — even a malicious upstream manifest cannot overwrite them. Personalized files (e.g., `.claude/rules/scope.md`) are re-substituted with your `.aod/personalization.env` values, so placeholders never leak.
-
-**When to run**: after a new PLSK release, or periodically (monthly is typical). Full guide with flags, exit codes, and FAQ in [`docs/guides/DOWNSTREAM_UPDATE.md`](docs/guides/DOWNSTREAM_UPDATE.md).
-
-**Opposite direction**: `/aod.sync-upstream` (`user → PLSK`) pushes your local template improvements back to the public PLSK repo — for maintainers contributing to the template itself.
+**Prerequisites**: [Claude Code](https://claude.ai/claude-code) v2.1.16+ and `git`. Other AI agent tools work too (the methodology is agent-agnostic), but built-in slash commands are tuned for Claude Code.
 
 ---
 
-## 📖 Commands
+## Capabilities
 
-### Triad Commands (Recommended)
-
-Full governance with automatic sign-offs at each stage.
-
-| Command | Description | Sign-offs |
-|---------|-------------|-----------|
-| `/aod.foundation` | Guided workshop — product vision + design identity | — |
-| `/aod.define <topic>` | Create PRD with Triad validation | Triad review |
-| `/aod.plan` | Plan stage: chains spec → project-plan → tasks | PM → PM+Architect → Triple |
-| `/aod.build` | Execute with checkpoints + design quality gate | Architect gates |
-| `/aod.deliver` | Close with doc updates | — |
-| `/aod.document` | Code quality review (simplify, docstrings, CHANGELOG) | — |
-| `/aod.clarify` | Resolve spec ambiguities | — |
-| `/aod.analyze` | Cross-artifact consistency check | — |
-| `/aod.run` | Full lifecycle orchestrator (stages 1-5) | All governance gates |
-| `/aod.stack` | Manage stack packs (`use`, `remove`, `list`, `scaffold`) | — |
-
-> **Full command reference**: See [`.claude/rules/commands.md`](.claude/rules/commands.md) for all commands including utility, orchestration, and stack pack commands.
+| Capability | What it does |
+|---|---|
+| **SDLC Triad governance** | PM, Architect, and Team-Lead sign-offs at every phase gate (spec, plan, tasks). Triple sign-off is the minimum governance floor. |
+| **Six-stage AOD lifecycle** | Discover → Define → Plan → Build → Deliver → Document. Each stage has its own commands, skills, and quality gates. |
+| **Product Discovery Lifecycle (PDL)** | Structured idea capture, ICE scoring, PM validation, and user story generation — from raw idea to backlog-ready in one flow. |
+| **Stack Packs** | Drop-in technology conventions for Next.js + Supabase, FastAPI + React, and more. Activate one with `/aod.stack use <pack>`. |
+| **Modular rules system** | `.claude/rules/` contains commit-friendly governance, design-quality, deployment, and context-loading rules — easy to customize per project. |
+| **Local-first workflows** | All artifacts live in `.aod/` and `specs/` as markdown files in your repo. Cloud-optional. |
+| **Three governance tiers** | Light (solo / prototypes), Standard (team projects, default), Full (regulated industries). Choose what fits your project. |
 
 ---
 
-## 🔄 How It Works
+## Documentation
 
-```mermaid
-flowchart LR
-    subgraph "Define"
-        A["/aod.define"] --> B{Triad Review}
-    end
-
-    subgraph "Plan"
-        B --> C["/aod.plan"]
-        C --> D["spec → project-plan → tasks"]
-        D --> E{Governance Gates}
-    end
-
-    subgraph "Build"
-        E --> F["/aod.build"]
-        F --> G[Architect Checkpoints]
-    end
-
-    G --> H["/aod.deliver"]
-    H --> I["/aod.document"]
-```
-
-### Sign-off Requirements
-
-| Artifact | Required Approvals | Purpose |
-|----------|-------------------|---------|
-| `spec.md` | PM | Product alignment |
-| `plan.md` | PM + Architect | Technical soundness |
-| `tasks.md` | PM + Architect + Team-Lead | Execution readiness |
-
-### Veto Authority
-
-| Scenario | Who Can Veto | Grounds |
-|----------|-------------|---------|
-| PRD infrastructure claims | Architect | Contradicts baseline |
-| PRD technical approach | Architect | Technically infeasible |
-| PRD timeline estimate | Team-Lead | Ignores capacity |
-| spec.md alignment | PM | Misaligned with vision |
-| plan.md architecture | Architect | Violates principles |
-| tasks.md timeline | Team-Lead | Unrealistic breakdown |
+- **[The AOD Triad](docs/AOD_TRIAD.md)** — How PM, Architect, and Team-Lead collaborate at every gate.
+- **[Standards](docs/standards/README.md)** — Definition of Done, naming conventions, git workflow.
+- **[Core Principles](docs/core_principles/README.md)** — Thinking lenses (5 Whys, Pre-Mortem, First Principles, etc.) for systematic analysis.
+- **[Adopter Guides](docs/guides/README.md)** — Downstream update walkthrough, Triad collaboration guide, kickstarter for new projects.
+- **[Architecture](docs/architecture/README.md)** — System design, ADRs, deployment environments.
+- **[Product Documentation](docs/product/README.md)** — Vision, PRDs, roadmap, OKRs, user stories.
+- **[Constitution](.aod/memory/constitution.md)** — Core governance principles (XI universal rules) and tier configuration.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-{{PROJECT_NAME}}/
-├── .claude/
-│   ├── agents/           # 13 specialized agents
-│   ├── skills/           # Automation capabilities
-│   ├── commands/         # Triad commands
-│   ├── design/           # Design archetypes (6 visual personalities)
-│   └── rules/            # Modular governance rules
-│       ├── governance.md
-│       ├── design-quality.md
-│       ├── git-workflow.md
-│       ├── deployment.md
-│       └── ...
-├── .aod/                    # Active feature workspace
-│   ├── spec.md           # Feature specification
-│   ├── plan.md           # Technical design
-│   ├── tasks.md          # Task breakdown
-│   └── memory/
-│       └── constitution.md  # ← CUSTOMIZE THIS
-├── docs/
-│   ├── product/          # Vision, PRDs, roadmaps
-│   ├── architecture/     # System design, ADRs
-│   ├── devops/           # Deployment guides
-│   └── core_principles/  # Methodologies
-├── specs/                # Archived feature artifacts (spec, plan, tasks per feature)
-├── brands/               # Brand identity assets (vision + design tokens)
-│   └── _example/         # Template for brand setup
-├── stacks/               # Stack packs (conventions, personas, scaffold)
-│   ├── nextjs-supabase/  # Full pack: Next.js + Supabase + Prisma
-│   ├── fastapi-react/    # Full pack: FastAPI + React + Supabase
-│   ├── fastapi-react-local/ # Full pack: FastAPI + React (local SQLite)
-│   ├── knowledge-system/ # Domain pack: Knowledge/curriculum management
-│   └── swiftui-cloudkit/ # Skeleton pack: SwiftUI + CloudKit
-├── CLAUDE.md             # AI agent context
-└── CHANGELOG.md          # Version history
+your-project/
+├── .aod/              # Active feature workspace + scripts + templates
+│   ├── memory/        # Constitution and project memory
+│   ├── scripts/bash/  # Lifecycle automation (state, GitHub sync, etc.)
+│   ├── scaffold/      # Bootstrap-only artifacts (token-bearing seeds)
+│   └── templates/     # spec.md / plan.md / tasks.md templates
+├── .claude/           # Agents, skills, commands, design archetypes
+│   ├── agents/        # Triad + specialized agent personas
+│   ├── skills/        # Reusable automation capabilities
+│   ├── commands/      # Slash commands (/aod.define, /aod.plan, etc.)
+│   └── rules/         # Modular governance rules
+├── docs/              # Product, architecture, devops, standards docs
+├── specs/             # Per-feature artifacts (spec.md, plan.md, tasks.md, research.md)
+├── stacks/            # Optional stack packs (Next.js+Supabase, FastAPI+React, etc.)
+├── scripts/           # init.sh, check.sh, extract.sh, sync-upstream.sh
+└── CLAUDE.md          # AI agent context (auto-loaded by Claude Code)
 ```
 
----
-
-## 🏛️ Core Principles
-
-<details>
-<summary><b>View all 11 governance principles</b></summary>
-
-1. **General-Purpose Architecture** — Domain-agnostic, works with any workflow
-2. **API-First Design** — API contracts before UI/MCP implementation
-3. **Backward Compatibility** — 100% local `.aod/` file support
-4. **Concurrency & Data Integrity** — ACID guarantees, task locking
-5. **Privacy & Data Isolation** — Per-user/org isolation, encryption at rest
-6. **Testing Excellence** — Mandatory test coverage (80% minimum)
-7. **Definition of Done** — 3-step validation (Deployed, Tested, User Validated)
-8. **Observability & Root Cause Analysis** — Five Whys methodology
-9. **Git Workflow** — Feature branches only, never commit to main
-10. **Product-AOD Alignment** — PM + Architect dual sign-off
-11. **SDLC Triad Collaboration** — PM + Architect + Tech-Lead workflow
-
-> **Note:** These principles are universal. Customize only the System Architecture Constraints section in the constitution.
-
-</details>
+You bring your own `src/` (or `backend/`, `frontend/`, etc.). AOD lives alongside your code, not inside it.
 
 ---
 
-## 📚 Documentation
+## How AOD Works
 
-| Document | Purpose |
-|----------|---------|
-| [Constitution](.aod/memory/constitution.md) | Governance principles (customize this) |
-| [CHANGELOG](CHANGELOG.md) | Version history |
-| [MIGRATION](MIGRATION.md) | Upgrade guide |
-| [Triad Workflow](docs/AOD_TRIAD.md) | Collaboration guide |
+AOD organizes a feature's life around six stages, each with its own governance gates:
 
----
+1. **Discover** — Capture an idea, score it (ICE), validate with the PM. (`/aod.discover`)
+2. **Define** — Draft a PRD with Triad review. (`/aod.define`)
+3. **Plan** — Generate spec → plan → tasks with PM, Architect, and Team-Lead sign-offs. (`/aod.plan`)
+4. **Build** — Execute waves of tasks in parallel with Architect checkpoints. (`/aod.build`)
+5. **Deliver** — Validate against Definition of Done and run the retrospective. (`/aod.deliver`)
+6. **Document** — Code simplification, CHANGELOG, docstrings, API docs. (`/aod.document`)
 
-## 🌐 Public Template
-
-The public version of this template is available at **[agentic-oriented-development-kit](https://github.com/davidmatousek/agentic-oriented-development-kit)** — a clean, genericized extraction suitable for any project.
-
-To sync changes from this private repo to the public template, run:
-
-```bash
-scripts/extract.sh --sync
-```
+The full lifecycle can be chained with `/aod.run` — autonomous mode runs through every stage with the same governance gates as interactive mode, halting only on circuit breakers or BLOCKED verdicts.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-### To This Template
+AOD is open source under the [MIT License](LICENSE). Contributions, bug reports, and feature ideas are welcome.
 
-```bash
-# Fork and clone
-git clone https://github.com/YOUR_USERNAME/agentic-oriented-development-kit.git
-cd agentic-oriented-development-kit
-
-# Create feature branch
-git checkout -b feature/your-improvement
-
-# Make changes and submit PR
-```
-
-### To the Public Template
-
-Improvements benefiting all users should go to [agentic-oriented-development-kit](https://github.com/davidmatousek/agentic-oriented-development-kit).
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-## 💬 Support
-
-- **Issues**: [GitHub Issues](https://github.com/davidmatousek/agentic-oriented-development-kit/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/davidmatousek/agentic-oriented-development-kit/discussions)
-- **Template Repository**: [agentic-oriented-development-kit](https://github.com/davidmatousek/agentic-oriented-development-kit)
+- **Issues**: [github.com/davidmatousek/agentic-oriented-development-kit/issues](https://github.com/davidmatousek/agentic-oriented-development-kit/issues)
+- **Discussions**: [github.com/davidmatousek/agentic-oriented-development-kit/discussions](https://github.com/davidmatousek/agentic-oriented-development-kit/discussions)
+- **Contributing guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
 <div align="center">
 
-**[⬆ Back to Top](#agentic-oriented-development-kit)**
+Built with the AOD Triad — PM ✓ Architect ✓ Team-Lead ✓
 
-Made with the SDLC Triad: PM + Architect + Team-Lead
+[Open an issue](https://github.com/davidmatousek/agentic-oriented-development-kit/issues) · [Read the Triad guide](docs/AOD_TRIAD.md) · [Run `make init`](#quick-start)
 
 </div>
