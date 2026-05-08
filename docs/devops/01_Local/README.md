@@ -16,7 +16,7 @@
 - **VS Code**: Recommended IDE
 - **Postman/Insomnia**: API testing
 - **jq**: JSON processor, required by `.aod/scripts/bash/run-state.sh` for the Full Lifecycle Orchestrator (`brew install jq` on macOS, `apt-get install jq` on Linux)
-- **GitHub CLI (`gh`)**: Used by `make init` to auto-create a GitHub Projects board for backlog tracking. Requires the `project` OAuth scope (`gh auth refresh -s project`). If not installed or not authenticated, init continues without creating the board. Install via `brew install gh` on macOS or see [cli.github.com](https://cli.github.com)
+- **GitHub CLI (`gh`)**: Used by `make init` to auto-create a GitHub Projects board for backlog tracking and to bootstrap the 7 lifecycle stage labels (`stage:discover`, `stage:define`, `stage:plan`, `stage:build`, `stage:deliver`, `stage:document`, `stage:done`) on the repository. Both bootstraps are idempotent — re-running `make init` produces no duplicate-label or duplicate-board errors. Requires the `project` OAuth scope (`gh auth refresh -s project`). If not installed or not authenticated, init continues without creating the board or labels. Install via `brew install gh` on macOS or see [cli.github.com](https://cli.github.com)
 - **BATS** (`bats-core`): Bash test framework used by the shell test suite introduced in feature 129. Install via `brew install bats-core` (macOS), `apt-get install bats` (Linux), or as a git submodule (`git submodule add https://github.com/bats-core/bats-core.git tests/vendor/bats-core`). Only required if you will run or contribute to the bash test suite. See `CONTRIBUTING.md` for the authoritative setup guide.
 
 ### make init Personalization
@@ -107,7 +107,7 @@ FORCE_RETAG=             # bypass the upstream retag tripwire (logs a WARN)
 
 The `AOD_LOG_FILE` variable controls where the logging utility writes its output. If not specified, it defaults to `.aod/logs/aod.log`. You can override this to write logs to a different location.
 
-The `AOD_BOARD` variable pins the GitHub Projects board number for issue-board sync. When set, `github-lifecycle.sh` skips title-based board discovery and targets this board directly. If not specified, the script discovers the board by matching the title pattern `{repo-name}-backlog` or `AOD Backlog`.
+The `AOD_BOARD` variable pins the GitHub Projects board number for issue-board sync. When set, `github-lifecycle.sh` skips title-based board discovery and targets this board directly. If not specified, the script discovers the board by matching the title pattern `{repo-name}-backlog`; if no matching board exists, one is created automatically.
 
 **Update-script variables** (feature 129 — downstream template update mechanism):
 

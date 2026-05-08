@@ -215,6 +215,7 @@ if command -v gh >/dev/null 2>&1; then
     if echo "$auth_output" | grep -q "project"; then
       # All prereqs met — attempt board creation in isolated subshell
       board_output=$(bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board' 2>&1) || true
+      labels_output=$(bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_labels' 2>&1) || true
       if [ -f ".aod/memory/github-project.json" ]; then
         # Cache file exists — board was created or already existed
         if echo "$board_output" | grep -q "Reusing"; then
@@ -368,10 +369,10 @@ echo ""
 # Board status
 case "$BOARD_STATUS" in
   created)
-    echo -e "  ${GREEN}✓${NC} GitHub Projects board: Created (AOD Backlog)"
+    echo -e "  ${GREEN}✓${NC} GitHub Projects board + 7 stage labels: Created"
     ;;
   already_exists)
-    echo -e "  ${GREEN}✓${NC} GitHub Projects board: Already configured"
+    echo -e "  ${GREEN}✓${NC} GitHub Projects board + 7 stage labels: Already configured"
     ;;
   skipped_no_gh)
     echo -e "  ${YELLOW}⚠${NC} GitHub Projects board: Skipped (gh CLI not found)"

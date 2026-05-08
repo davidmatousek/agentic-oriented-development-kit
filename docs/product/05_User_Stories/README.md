@@ -205,3 +205,14 @@ Each PRD should include relevant user stories:
 - **US-158-3** (P2): Forward-CI Contract via POSIX-Portable Verification - 4 verification audits (T027-T030) use POSIX BRE + portable awk (no PCRE, no `-P`, no `-z`); BSD/GNU/BusyBox compatible per AD-003 / SC-003; all 4 audits zero-output across 18 files
 
 **Stories source of truth**: GitHub Issue #158 — see retro.md for FR-binding, citation accuracy, and voice consistency attestations.
+
+### Feature 172: Adopter-Bootstrap GitHub Fix
+
+**PRD**: [172-adopter-bootstrap-github-fix](../02_PRD/172-adopter-bootstrap-github-fix-2026-05-04.md)
+**Delivered**: 2026-05-04 | **PR**: #173 | **Tasks**: 14/14 complete | **Stories**: 3/3 passing
+
+- **US-172-1** (P1): Fresh adopter bootstrap succeeds end-to-end - As a developer cloning the AOD Kit into a new GitHub repository, run `make init` and immediately create Issues with correct stage and type labels applied — no manual intervention, no missing-label errors, no misleading "gh unavailable?" warnings on the success path. Defensive label setup recovers if labels are later deleted.
+- **US-172-2** (P1): New project gets its own dedicated board, never reuses a legacy board - As a developer who has previously used the AOD Kit on another project, bootstrap a new project and have its Issues land on a new `{repo-name}-backlog` board scoped to that repository — never silently routed onto a legacy "AOD Backlog" project on the same account.
+- **US-172-3** (P2): Real `gh` errors surface to the adopter when Issue creation fails - As a developer with a misconfigured `gh` CLI (expired auth, missing scope, rate limit, transient network), see the actual `gh` stderr text prefixed with kit context — not a generic "gh unavailable?" warning that misdirects debugging effort.
+
+**Stories source of truth**: GitHub Issue #172 — manual fresh-repo verification (T014) PASSED 6/6 post-fix; BATS regression suite at `tests/integration/172-adopter-bootstrap-github-fix.bats`.

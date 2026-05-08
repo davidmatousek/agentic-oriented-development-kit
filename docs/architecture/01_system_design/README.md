@@ -787,3 +787,112 @@ See [specs/158-anti-rationalization-tables/plan.md](../../../specs/158-anti-rati
 - **Manifest DSL** (`.aod/template-manifest.txt` format: `{category}|{path}` per line)
 - **bats-core** v1.x (regression test for post-init substitution)
 - **No new dependencies** — all tools already in AOD Kit toolchain.
+
+---
+
+### Feature 172: Adopter-Bootstrap GitHub Fix
+
+*Source: [specs/172-adopter-bootstrap-fix/plan.md](../../../specs/172-adopter-bootstrap-fix/plan.md) — approved 2026-05-04 (PM APPROVED, Architect APPROVED_WITH_CONCERNS, all 4 architect concerns addressed in-plan)*
+
+#### Components
+
+##### `aod_gh_setup_labels()` (NEW — `.aod/scripts/bash/github-lifecycle.sh:284–309`)
+
+- **Purpose**: Idempotently create the 7 `stage:*` labels on the current repository.
+- **D-1**: Public/exported helper, callable from `init.sh` via `bash -c 'source <lib> && aod_gh_setup_labels'` subshell pattern (F062 precedent).
+- **D-2**: No arguments. Reads from the existing `AOD_STAGE_LABELS` array (line 40 of `github-lifecycle.sh`) — single source of truth, not duplicated inside the function body.
+- **Behavior**: For each label in `AOD_STAGE_LABELS`, run `gh label create "$label" --color 1d76db --force --repo "$AOD_REPO"`. The `--force` flag makes this idempotent (refreshes color, no error if label already exists).
+- **Precondition guard**: Begins with `if ! aod_gh_check_available; then return 0; fi` — graceful degradation when `gh` is missing/unauthenticated.
+- **Error handling**: mktemp-per-iteration stderr capture (`label_stderr=$(mktemp 2>/dev/null || echo "/tmp/aod-label-stderr-$$")`); on per-label failure, emit `[aod] gh error: <captured stderr>` and continue to the next label (a single bad label does not block the rest). Returns 0 always.
+
+##### `aod_gh_create_issue()` (MODIFIED — `.aod/scripts/bash/github-lifecycle.sh:906`)
+
+- Defensive label-existence gate (D-3, refined post-T014): `gh label list --repo "$AOD_REPO" --json name -q '.[] | select(.name == "stage:${stage}") | .name'` — checks the **specific stage label this issue needs** rather than any generic `^stage:` prefix. Handles partial-deletion correctly per FR-003 (e.g., if `stage:plan` is deleted but `stage:done` remains, an issue requesting `stage:plan` still triggers full label restore via `aod_gh_setup_labels`). Avoids 7×N redundant API writes on the happy path; the prior generic `^stage:` check would have missed partial deletions until the last label was removed.
+- Stop swallowing `gh issue create` stderr (lines 988–989, 1003–1004): mktemp-based stderr capture, emitted with `[aod] gh error:` prefix on failure.
+- Symmetric stderr surfacing for the `gh label create "type:${issue_type}"` call (line 942) is intentionally deferred — rare failure mode, out of scope for AC-4 per architect concern #4.
+- Function signature unchanged.
+
+##### `aod_gh_setup_board()` (MODIFIED — `.aod/scripts/bash/github-lifecycle.sh:313–411`)
+
+- Removed greedy `select(.title == "AOD Backlog")` jq fallback (AC-5). Discovery is now strictly title-pinned to `{repo-name}-backlog` via `select(.title == $title)` with `$title = repo_title` (line 380).
+- Added explicit `gh project create` path when `{repo-name}-backlog` does not exist on the current owner.
+- Added D-5 migration warning at line 230–232 of `aod_gh_validate_cache`: emits one-line warning when cached `board_title == "AOD Backlog"` but discovered repo expects `{repo-name}-backlog` — guides adopters to set `AOD_BOARD=N` for explicit pinning rather than silently re-routing.
+
+##### `create-issue.sh:76–77` (MODIFIED — `.aod/scripts/bash/create-issue.sh`)
+
+- Replaced the misleading "gh unavailable?" warning with explicit `command -v gh` check that fires only when `gh` is genuinely absent from `PATH`: `[aod] gh not found on PATH. Skipping issue creation.`
+- Other failures (auth, rate-limit, network, label issues) rely on `aod_gh_create_issue`'s mktemp-based stderr surfacing rather than echoing a misleading umbrella message.
+
+##### `scripts/init.sh:217–218` (MODIFIED)
+
+- Inserted `aod_gh_setup_labels` invocation immediately after the existing `aod_gh_setup_board` subshell call: `labels_output=$(bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_labels' 2>&1) || true`.
+- Both bootstrap subshells use the F062 source-and-call subshell pattern with `2>&1 || true` for graceful degradation (init never aborts on optional GitHub-bootstrap failure).
+- BOARD_STATUS reporting (lines 369–390 of `init.sh`) extended to cover both board + labels in remediation guidance: when bootstrap fails the user sees `bash -c 'source .aod/scripts/bash/github-lifecycle.sh && aod_gh_setup_board'` as the recovery command (labels recover lazily via the defensive gate inside `aod_gh_create_issue`).
+
+##### `tests/integration/172-adopter-bootstrap-github-fix.bats` (NEW — D-6)
+
+- 4 BATS tests, ~80 LOC. Pattern: F132 rc-capture + F134 fixture isolation.
+- Coverage: AC-1 (labels at bootstrap), AC-2 (issue creation), AC-3 (defensive setup), AC-5 (no greedy fallback).
+
+#### Data Flow
+
+##### Fresh-repo bootstrap
+
+```
+make init
+   ↓
+scripts/init.sh
+   ├→ existing GitHub-bootstrap section (line 208–236)
+   │     ├→ subshell: bash -c 'source github-lifecycle.sh && aod_gh_setup_board'
+   │     │     └→ creates {repo-name}-backlog if missing
+   │     └→ NEW subshell: bash -c 'source github-lifecycle.sh && aod_gh_setup_labels'
+   │           └→ for each label in AOD_STAGE_LABELS:
+   │                 gh label create "$name" --color 1d76db --force --repo <repo>
+   └→ Result: 7 stage labels exist + dedicated board exists
+```
+
+##### Issue creation on fresh or partially-corrupted repo
+
+```
+/aod.discover --seed (or any issue-creating flow)
+   ↓
+.aod/scripts/bash/create-issue.sh
+   ├→ if ! command -v gh; then emit "[aod] gh not found on PATH"; exit 0
+   └→ source github-lifecycle.sh && aod_gh_create_issue ...
+         ├→ stage-specific existence gate (D-3, refined post-T014):
+         │     gh label list --repo "$AOD_REPO" --json name \
+         │        -q '.[] | select(.name == "stage:${stage}") | .name'
+         │     └→ if missing: aod_gh_setup_labels (full restore — handles partial deletion)
+         ├→ gh label create "type:$type" --force  (existing path, stderr deferred)
+         └→ gh issue create --label ... 2>$(mktemp)
+               ├→ on success: emit issue number
+               └→ on failure: emit "[aod] gh error: $captured_stderr" >&2
+```
+
+##### Board discovery on existing-adopter machine
+
+```
+any kit operation that touches board state
+   ↓
+aod_gh_setup_board()
+   ├→ aod_gh_validate_cache (line 145–234)
+   │     └→ NEW: if cached_title == "AOD Backlog" and != "{repo-name}-backlog":
+   │            emit one-line migration warning (D-5), continue
+   ├→ try {repo-name}-backlog by name (existing)
+   │     └→ if found: reuse (FR-006 — no warning)
+   └→ if not found:
+         (was: greedy "AOD Backlog" select — REMOVED, AC-5)
+         create {repo-name}-backlog (NEW — replaces removed fallback)
+```
+
+#### Tech Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Shell | bash ≥ 3.2 | macOS default; cross-platform without external installs (KB Entry 6) |
+| GitHub interaction | `gh` CLI ≥ 2.40 | Existing kit dependency; `--force` semantics for idempotent label create are stable on this floor |
+| JSON parsing | `jq` | Existing kit dependency; already in use for board discovery |
+| Tests | BATS | Existing kit pattern (F132, F134); fixture isolation via `$BATS_TEST_TMPDIR` |
+| Lifecycle integration | Existing `github-lifecycle.sh` library | Subshell-source pattern from F062 |
+
+**No new dependencies. No new ADR required** (affected files are `owned`-category in `.aod/template-manifest.txt`).
