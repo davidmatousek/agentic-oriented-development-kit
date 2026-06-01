@@ -268,6 +268,8 @@ Invoke team-lead agent to create `agent-assignments.md`.
 | `ux-ui-designer` | UI/UX design, wireframes |
 | `orchestrator` | Multi-agent coordination, wave execution |
 
+> **Roster count**: 12 = the *assignable* roster above (team-lead is the **assigner**, never assigned to itself); 13 = total agent defs — all 13 carry a `model:` tier (see `.claude/agents/_README.md` → Model Tiering). Both counts are correct; they describe different sets.
+
 **Common fallback mappings** (when no specialist fits):
 - Markdown/documentation writing → `senior-backend-engineer`
 - File creation or editing (non-code) → `senior-backend-engineer`
@@ -281,6 +283,67 @@ Invoke team-lead agent to create `agent-assignments.md`.
 - Time estimates per wave
 
 Save to `specs/{NNN}-*/agent-assignments.md`
+
+## Step 6.5: PLAN-Exit Gate — /aod.analyze Cross-Artifact Check
+
+Before advancing to the Step 7 completion summary, run `/aod.analyze` as a mandatory PLAN-exit gate.
+
+### Invocation
+
+Run `/aod.analyze` with no extra arguments (it reads spec/plan/tasks from the active feature directory automatically).
+
+### Parse Result
+
+Scan the final output of `/aod.analyze` for a line matching this exact pattern (emitted by analyze Step 9):
+
+```
+ANALYZE_STATUS: <clean|non-clean> (CRITICAL=<n> HIGH=<n> MEDIUM=<n> LOW=<n>)
+```
+
+**Determination rules (apply in order)**:
+
+1. **Error / no output**: If `/aod.analyze` errors or produces no parseable `ANALYZE_STATUS:` line → treat as **non-clean** (fail-safe; never silently pass).
+2. **`non-clean` status token**: Token reads `non-clean` → **non-clean**.
+3. **CRITICAL or HIGH count ≥ 1**: Even if token reads `clean`, if any `CRITICAL=<n>` or `HIGH=<n>` value is ≥ 1 → **non-clean** (defense-in-depth).
+4. **Otherwise**: **clean** — proceed to Step 7.
+
+### On NON-CLEAN: Route to Human (CHANGES_REQUESTED handling)
+
+A non-clean result MUST NOT hard-block, auto-veto, or silently proceed. Route through the CHANGES_REQUESTED handling defined in `.claude/skills/~aod-run/references/governance.md` lines 151-227:
+
+1. **Display rejection information** (governance.md §"Display rejection information"):
+
+```
+GOVERNANCE GATE — CHANGES REQUESTED
+====================================
+Stage: Plan (tasks)
+Reviewer: /aod.analyze (cross-artifact gate)
+Artifact: {tasks_path}
+
+/aod.analyze found non-clean cross-artifact issues.
+
+Findings requiring attention:
+  CRITICAL: <n>  HIGH: <n>  MEDIUM: <n>  LOW: <n>
+
+Review the /aod.analyze report above and decide how to proceed.
+```
+
+2. **Offer human decision** via AskUserQuestion (PM is the PRIMARY GATE — the human decides):
+   - **"Address now"** — Fix the flagged issues in spec/plan/tasks, then re-run `/aod.tasks` (which will re-run this gate). Do NOT auto-apply fixes.
+   - **"Proceed anyway"** — Accept the non-clean result, acknowledge the risk, and continue to Step 7. Record the override in a note appended to the tasks.md YAML frontmatter under `analyze_gate_override: true`.
+   - **"Pause"** — Stop here; the user will resume manually after fixing.
+
+3. **If `autonomous == true`**: Auto-select "Address now". Display: `"Auto-selected: Address now (autonomous mode)"`. Do NOT prompt. Do NOT auto-apply analyze fixes — re-invoke `/aod.tasks --revision` so the human addresses issues in the next session.
+
+### On CLEAN: Proceed
+
+Display a single status line and continue:
+
+```
+/aod.analyze: clean — CRITICAL=0 HIGH=0. Advancing to completion summary.
+```
+
+Then continue to Step 7.
 
 ## Step 7: Report Completion
 

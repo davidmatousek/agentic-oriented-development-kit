@@ -355,6 +355,8 @@ Checking governance approval status requires reading full artifact files (spec.m
 #### Solution
 Cache governance verdicts (status, date, summary) in the state file under a `governance_cache` object, keyed by artifact and reviewer. On subsequent governance checks, read the cached verdict (~11 tokens) instead of re-reading the artifact (~500 tokens). Invalidate the cache when an artifact is regenerated after a CHANGES_REQUESTED verdict.
 
+**Freshness check (Feature 178)**: explicit invalidation on regeneration is not enough — an artifact can be edited *without* a re-review, and a same-second edit-then-cache can otherwise serve a verdict that never saw the edit. A cached verdict is therefore valid only while it is strictly newer than the artifact it covers. `aod_state_cache_is_fresh <artifact_path> <cache_timestamp_iso>` enforces this by comparing the artifact's mtime against the cache timestamp. The boundary is **fail-safe toward re-review**: `artifact_mtime >= cache_timestamp` ⇒ **stale** (re-review), strictly older ⇒ fresh. The `>=` (not `>`) closes the same-second edit window — an edit and its cache write in the same wall-clock second invalidates. Any error (missing artifact, unparseable timestamp, `stat` failure) returns "stale" so an unverifiable verdict is never served.
+
 #### Example
 ```bash
 # From .aod/scripts/bash/run-state.sh
@@ -364,6 +366,11 @@ aod_state_cache_governance "spec" "pm" "APPROVED" "PM approved spec"
 
 # Check cache before reading artifact (returns "APPROVED|2026-02-11|summary" or "null")
 aod_state_get_governance_cache "spec" "pm"
+
+# Confirm the cache is still fresh vs. the artifact's mtime before trusting it
+#   rc 0 = FRESH (use cache) · 1 = STALE (re-review) · 2 = error -> treat as STALE
+# Portable: BSD `stat -f %m` / GNU `stat -c %Y`; bash-3.2-safe under `set -euo pipefail`
+aod_state_cache_is_fresh ".aod/spec.md" "2026-02-11T14:30:00Z"
 
 # Invalidate cache when artifact is regenerated
 aod_state_clear_governance_cache "spec"

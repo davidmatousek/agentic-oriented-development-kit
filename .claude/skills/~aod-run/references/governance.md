@@ -44,9 +44,16 @@ After each stage skill returns, detect the governance gate result by reading the
       # Linux:
       stat -c %Y "{artifact_path}"
       ```
-      Compare artifact mtime (Unix epoch) against cache timestamp (ISO 8601 → epoch conversion):
-      - If artifact mtime > cache timestamp: Cache is stale — invalidate by proceeding to step 3
-      - If artifact mtime ≤ cache timestamp: Cache is valid — use cached verdict (skip to step 4)
+      Compare artifact mtime (Unix epoch) against cache timestamp (ISO 8601 → epoch conversion).
+      The authoritative implementation of this rule is `aod_state_cache_is_fresh <artifact_path> <cache_ts>`
+      in `.aod/scripts/bash/run-state.sh` (returns 0 = FRESH / 1 = STALE / 2 = error → treat as STALE):
+      - If artifact mtime ≥ cache timestamp: Cache is stale — invalidate by proceeding to step 3
+      - If artifact mtime < cache timestamp: Cache is valid — use cached verdict (skip to step 4)
+
+      The `≥` boundary is deliberate: a same-second edit-then-cache (mtime == cache timestamp) is treated
+      as STALE so an edit can never ship under a verdict that never saw it. This may cost an occasional
+      benign extra re-review at the exact same-second boundary — the safe direction (never serves an
+      unverified verdict).
 
    d. **Use cached verdict**: If cache is valid, extract status from cached result (first pipe-delimited field).
       This avoids reading the full artifact frontmatter, saving 4-7K tokens per check.

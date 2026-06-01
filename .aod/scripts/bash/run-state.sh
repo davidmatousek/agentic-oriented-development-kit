@@ -492,3 +492,72 @@ aod_state_clear_governance_cache() {
     aod_state_write "$state"
 }
 
+# Decide whether a cached governance verdict is still fresh for an artifact.
+# Authoritative implementation of the governance.md freshness rule (FR-001):
+# a verdict cached at-or-before the artifact's last modification CANNOT be
+# trusted — a same-second (or later) edit may never have been seen by the
+# reviewer. The corrected boundary is `artifact_mtime >= cache_ts => STALE`
+# (the prior `<=`/`>` prose treated a same-second edit as fresh, letting an
+# unreviewed change ship under an APPROVED that never saw it).
+#
+# Args: $1 = artifact path
+#       $2 = cache timestamp, ISO 8601 (e.g. 2026-05-31T14:30:00Z)
+# Returns: 0 = FRESH  (artifact_mtime <  cache_ts; cached verdict valid)
+#          1 = STALE  (artifact_mtime >= cache_ts; same-second-or-newer => re-review)
+#          2 = error  (missing artifact / unparseable timestamp) — caller treats as STALE
+#
+# Bash 3.2 and `set -euo pipefail` safe: every external call carries an explicit
+# `|| return 2`; no bare command may abort a sourcing caller. GNU/BSD flavor is
+# DETECTED via `--version` before a flag is chosen (no `stat -c || stat -f`
+# try-fallback, which could mask a real error as a flavor miss).
+aod_state_cache_is_fresh() {
+    local artifact_path="$1"
+    local cache_ts="$2"
+
+    # Fail-safe: an empty timestamp or absent artifact can never validate a cache.
+    [[ -n "$cache_ts" ]] || return 2
+    [[ -e "$artifact_path" ]] || return 2
+
+    # Validate ISO-8601 shape AND field ranges before trusting date(1): BSD
+    # `date -j` NORMALIZES out-of-range fields (month 13 rolls into next year)
+    # instead of failing, which would silently mis-compare. Anchored,
+    # range-constrained ERE; no `{n}` intervals (bash 3.2 / BSD regex safe).
+    local iso_re='^[0-9][0-9][0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[T ]([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z?$'
+    [[ "$cache_ts" =~ $iso_re ]] || return 2
+
+    # 1. artifact mtime -> epoch. Detect GNU vs BSD via `stat --version`
+    #    (GNU exits 0; BSD has no --version and exits non-zero) BEFORE the flag.
+    local artifact_epoch
+    if stat --version >/dev/null 2>&1; then
+        artifact_epoch=$(stat -c %Y "$artifact_path" 2>/dev/null) || return 2  # GNU
+    else
+        artifact_epoch=$(stat -f %m "$artifact_path" 2>/dev/null) || return 2  # BSD
+    fi
+
+    # 2. cache timestamp ISO 8601 -> epoch. Reuse the run-state.sh date idiom
+    #    (detect GNU vs BSD via `date --version`, then parse with that flavor),
+    #    but force UTC: the cache timestamp is a UTC wall-clock ('...Z') and at
+    #    second precision a host-local parse would skew the compare by the local
+    #    offset (e.g. -4h), wrongly ruling same-second/newer edits FRESH. The
+    #    day-granularity aod_state_is_stale idiom can ignore this; a freshness
+    #    compare cannot.
+    local cache_epoch
+    if date --version >/dev/null 2>&1; then
+        cache_epoch=$(TZ=UTC date -d "$cache_ts" +%s 2>/dev/null) || return 2    # GNU
+    else
+        local cleaned
+        cleaned=$(echo "$cache_ts" | tr 'T' ' ' | tr -d 'Z')                     # BSD
+        cache_epoch=$(TZ=UTC date -j -f "%Y-%m-%d %H:%M:%S" "$cleaned" +%s 2>/dev/null) || return 2
+    fi
+
+    # 3. Fail-safe against any non-numeric conversion slipping through.
+    case "$artifact_epoch" in ''|*[!0-9]*) return 2 ;; esac
+    case "$cache_epoch"    in ''|*[!0-9]*) return 2 ;; esac
+
+    # 4. Corrected boundary: artifact_mtime >= cache_ts => STALE (same-second or newer).
+    if [ "$artifact_epoch" -ge "$cache_epoch" ]; then
+        return 1
+    fi
+    return 0
+}
+

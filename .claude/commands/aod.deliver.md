@@ -213,7 +213,11 @@ Cleanup: branch deleted, tasks verified
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+> **Trailer must stay generic.** Do NOT pin a model name or version into the trailer above — this command ships to adopters via `extract.sh`; a pinned trailer mis-attributes their commits and re-introduces attribution drift.
+
 Then `git push origin main`.
+
+> **Post-merge exception**: `aod.deliver` runs AFTER the squash-merge to main, so this direct `git push origin main` of the closed-feature docs is the one legitimate direct-to-main push in the workflow. Documentation only — recorded here as an exception; no automated check performs or verifies it.
 
 ## Step 10: Close GitHub Issue
 
@@ -245,6 +249,7 @@ After the GitHub Issue is closed with `stage:done`, export validated user storie
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
+   > **Trailer must stay generic** — same rule as Step 9: do NOT pin a model name or version into this export-commit trailer (ships to adopters via `extract.sh`).
 
 ## Step 12: Verify Delivery Document
 
