@@ -896,3 +896,53 @@ aod_gh_setup_board()
 | Lifecycle integration | Existing `github-lifecycle.sh` library | Subshell-source pattern from F062 |
 
 **No new dependencies. No new ADR required** (affected files are `owned`-category in `.aod/template-manifest.txt`).
+
+---
+
+### Feature 180: governance-dod-efficiency-deepening
+
+Self-modifying governance hardening (BLP-01 F-2) — 10 fixes across define/plan/tasks/deliver/document. No app runtime; the "system" is the AOD governance machinery.
+
+#### Components
+- **Presence-gate helper** (`run-state.sh::aod_state_signoff_present`, net-new) — pure Bash 3.2, 0/1/2 fail-closed contract (mirrors `aod_state_cache_is_fresh`); consumed by `/aod.deliver` to block close on absent role-tagged `APPROVED` + DoD acknowledgment. Presence only — the DoD quality verdict stays human.
+- **DoD canonical chain** — `constitution.md VII` (canonical bar) → `DEFINITION_OF_DONE.md` (procedure, step 2 rewritten to match VII.2) → `tasks-template.md` (seeded 3-step block) → Deliver gate (reads it).
+- **Cache-clear call graph** — `governance.md` rejection handlers (CHANGES_REQUESTED ✓ already; BLOCKED-resubmit ✗→fixed) → `aod_state_clear_governance_cache` → `run-state.json.governance_cache[$art]` (`del` whole artifact node = all roles). Standalone `--revision` backstopped by mtime-staleness.
+- **Rubric-preload** — `triad/{pm,architect,teamlead}-review.md` (source of truth) → producer self-check (structural/feasibility axes only; veto excluded).
+- **Audit machinery** (reused) — `deliver-flag-parse.sh` / `audit-log.sh` → `.aod/audit/deliver-opt-outs.jsonl` (FR-015 present-but-malformed `stack-active.json`).
+
+#### Data Flow
+`/aod.tasks` fills `tasks-template.md` (now carrying the DoD) → `tasks.md`. `/aod.deliver` close gate calls `aod_state_signoff_present(spec, plan, tasks)` → 0 proceed / 1 block / 2 fail-closed → human DoD verdict. Any content-changing revision (CHANGES_REQUESTED, BLOCKED-resubmit, or `--revision`) invalidates `governance_cache[$art]` → next gate re-reviews all roles.
+
+#### Tech Stack
+| Layer | Choice | Rationale |
+|---|---|---|
+| Shell | bash ≥ 3.2 | macOS default; gate helpers + audit line (KB Entry 6) |
+| State | `run-state.json` via `jq` | Existing F-1 cache surface; FR-018 changes call-sites not shape |
+| Audit | append-only JSONL | Existing `--no-tests` machinery reused (FR-015) |
+| Tests | bash regression (F-1 pattern), Sonnet-floored | Gate-grade; ≥7 tests |
+
+**New ADR**: canonical-DoD source-of-truth (constitution VII canonical; `DEFINITION_OF_DONE.md` step 2 rewritten to match). No new runtime dependency.
+
+---
+
+### Feature 182: deliver-skill-decomposition (BLP-01 F-3)
+
+**Delivered**: 2026-06-02 (PR #183, squash commit `244d0e8`)
+
+**Tech Stack**: Bash 3.2 (`run-state.sh` gate library, sourced — not executed) · Markdown skills (`~aod-deliver/SKILL.md` + new `references/*.md`) · two-framework test corpus (`bats` + raw `.test.sh`). No new dependencies, languages, or services.
+
+**Components** (delivered state):
+
+| Component | File | Change |
+|-----------|------|--------|
+| Close gate | `run-state.sh::aod_state_signoff_present` | FR-020: deleted 3 of 9 role-check blocks (spec→arch, spec→TL, plan→TL) → per-artifact required roles. Helper, fail-closed guards, `status:.*APPROVED` substring match, `<!-- DOD-ACK -->` grep, and 0/1/2 taxonomy all preserved. |
+| Deliver diagnostic | `~aod-deliver/SKILL.md` (Exit-1 block) | FR-020: patched over-strict all-three prose → per-artifact required roles |
+| Deliver core | `~aod-deliver/SKILL.md` (1,574 → **1,183 ln**) | FR-019: offloaded leaf sections — **391 ln (~25%) moved**, meeting SC-004's ≥300-line target. Landed at 1,183 (above the ~1,150 plan aim) because the Step-9 internals correctly stayed inline — per SC-004 a size figure must not force the stretch offload |
+| References (new) | `~aod-deliver/references/*.md` (5 files) | FR-019: on-demand L3 lazy-load (mirrors `~aod-run`) — `delivery-lock.md`, `deliver-flags.md`, `render-tables.md`, `edge-cases.md`, `close-and-document.md` |
+
+**Data Flow**:
+- **Gate contract**: `(spec, plan, tasks)` → exit `0` present / `1` missing-required / `2` fail-closed; each role read scoped to its role-tagged block (no blanket grep). Per-artifact required roles: spec→PM; plan→PM+Arch; tasks→PM+Arch+TL + `<!-- DOD-ACK -->`.
+- **`e2e_validation.*` payload**: written across Step 9 (9a.5/9c.5/9d) → read by the **always-run** Step 11c.1 render; the FR-019 handoff risk (offload an E2E sub-step only if state-isolated — the intra-Step-9 internals stayed **inline**, only leaf sections moved).
+- **Reference lazy-load**: MANDATORY-Read trigger · fail-closed-on-missing · re-read-after-large-output. Loads only when a step is reached (happy path loads none).
+
+See [plan.md](../../../specs/182-deliver-skill-decomposition/plan.md) + [data-model.md](../../../specs/182-deliver-skill-decomposition/data-model.md) (handoff manifests §4). FR-020 refines FR-011/ADR-015 §109 — no new ADR. FR-019 is a second application of the [On-Demand Reference File Segmentation](../03_patterns/README.md#pattern-on-demand-reference-file-segmentation) pattern (ADR-002) — no new pattern.

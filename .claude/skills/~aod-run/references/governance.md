@@ -191,6 +191,7 @@ The reviewer has requested changes before this stage can be approved.
    - **"Address now"**:
      1. Increment `intervention_count` in state (user is manually intervening)
      2. **Clear governance cache** for the artifact being re-invoked: `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_clear_governance_cache "{artifact}"'`. This ensures fresh reviews are required after changes.
+        > **Note (FR-018)**: `aod_state_clear_governance_cache` runs `del(.governance_cache[$art])`, which deletes the **entire artifact node** — so it already clears **all roles** (PM, Architect, Team-Lead) for that artifact in a single call. There is nothing to "extend to all roles" (this corrects the PRD's framing); the gap FR-018 closes is the **bypass paths** that never reach this clear (the BLOCKED "Resolve and re-submit" handler and the standalone `--revision` handlers), not the clear's per-role scope.
      3. Write updated state atomically
      4. **Write revision context** to `.aod/revision-context.md` before re-invocation:
         ```markdown
@@ -390,13 +391,14 @@ from being approved. This is a hard block, not a request for changes.
 
    - **"Resolve and re-submit"**:
      1. Increment `intervention_count`
-     2. Write updated state
-     3. **Write revision context** to `.aod/revision-context.md` (same format as Rejection Handling step 4 — reviewer, attempt, artifact, stage, substage, and full blocker feedback)
-     4. Re-invoke the stage skill via Skill tool with `--revision` flag appended to the original arguments
-     5. After skill returns, re-check governance gate (return to Core Loop step 9)
-     6. If now approved: continue normally. Clean up `.aod/revision-context.md`.
-     7. If blocked again: return to this Blocked Handling flow
-     8. **Note**: The max-retry circuit breaker also applies to BLOCKED results. After 3 consecutive BLOCKED results on the same gate, the circuit breaker fires.
+     2. **Clear governance cache** for the artifact being re-invoked: `bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_clear_governance_cache "{artifact}"'`. This ensures fresh reviews are required after changes.
+     3. Write updated state
+     4. **Write revision context** to `.aod/revision-context.md` (same format as Rejection Handling step 4 — reviewer, attempt, artifact, stage, substage, and full blocker feedback)
+     5. Re-invoke the stage skill via Skill tool with `--revision` flag appended to the original arguments
+     6. After skill returns, re-check governance gate (return to Core Loop step 9)
+     7. If now approved: continue normally. Clean up `.aod/revision-context.md`.
+     8. If blocked again: return to this Blocked Handling flow
+     9. **Note**: The max-retry circuit breaker also applies to BLOCKED results. After 3 consecutive BLOCKED results on the same gate, the circuit breaker fires.
 
    - **"Override with justification"**:
      1. The user's justification is captured from the AskUserQuestion response (they provide it via the "Other" free-text option or it's implied by selecting Override)

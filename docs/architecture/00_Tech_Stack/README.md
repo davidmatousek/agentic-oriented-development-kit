@@ -113,7 +113,7 @@ These are tools used by the AOD Kit itself (not the adopter's application stack)
 | Script | Purpose | Added |
 |--------|---------|-------|
 | `.aod/scripts/bash/logging.sh` | Simple logging utility for timestamped log entries; provides `aod_log` function with configurable output path and graceful error handling | Feature 049 |
-| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads and governance caching | Feature 022, extended Feature 030 |
+| `.aod/scripts/bash/run-state.sh` | Atomic read/write/validate for orchestrator state (`.aod/run-state.json`); includes compound helpers for incremental reads and governance caching; **net-new `aod_state_signoff_present()` (F180)** — role-tagged sign-off + DoD-acknowledgment presence gate consumed by `/aod.deliver` close (0/1/2 fail-closed contract, mirrors `aod_state_cache_is_fresh`; presence only — DoD quality verdict stays human). **F182 relaxed the gate to per-artifact required roles** (spec→PM; plan→PM+Arch; tasks→PM+Arch+TL + DoD-ACK), deleting 3 of 9 role-check blocks so a normally-governed delivery passes; taxonomy, fail-closed guards, and role-scoped reads unchanged. | Feature 022, extended Features 030, 180, 182 |
 | `.aod/scripts/bash/github-lifecycle.sh` | GitHub Issue label management for stage transitions; Projects board sync (`aod_gh_reconcile_board`, `aod_gh_add_to_board`, `aod_gh_move_on_board`); `AOD_BOARD` env var support and board cache validation; **public `aod_gh_setup_labels()` for one-shot stage-label bootstrap** (F172, callable via subshell-source pattern from `init.sh`); strict title-pinned board discovery — no greedy "AOD Backlog" fallback (F172) | Pre-022, extended Features 121, 172 |
 | `.aod/scripts/bash/backlog-regenerate.sh` | Regenerate product backlog from GitHub Issues; triggers board reconciliation after BACKLOG.md write (guarded by `aod_gh_check_board`) | Pre-022, extended Feature 121 |
 | `.aod/scripts/bash/template-manifest.sh` | Line-delimited manifest parser + category lookup + glob match + precedence resolution (`while read` + `case`, bash 3.2); powers `/aod.update` | Feature 129 |
@@ -434,6 +434,7 @@ Tools that ship via stack pack `scaffold/` directories (adopter-side), not as te
 | `references/error-recovery.md` | Corrupted state and lifecycle complete handlers | Error or completion |
 
 - See ADR-002 for the design decision behind prompt segmentation
+- **Second adopter (Feature 182)**: `~aod-deliver/SKILL.md` (1,183-line core) applies the same on-demand reference loading, offloading leaf sections to `references/{delivery-lock,deliver-flags,render-tables,edge-cases,close-and-document}.md`. Loaded via MANDATORY-Read with fail-closed-on-missing; the happy-path close loads none.
 
 ### Orchestrator State
 
@@ -443,6 +444,7 @@ Tools that ship via stack pack `scaffold/` directories (adopter-side), not as te
 - Schema version: `1.0`
 - Governance cache: Verdicts stored in `governance_cache` object to eliminate redundant artifact reads (Feature 030)
 - Compound helpers: `aod_state_get_multi`, `aod_state_get_loop_context`, `aod_state_get_governance_cache` for incremental reads (Feature 030)
+- Sign-off presence gate: `aod_state_signoff_present` verifies role-tagged `APPROVED` + DoD acknowledgment across spec/plan/tasks at Deliver close (0/1/2 fail-closed; Feature 180, [ADR-015](../02_ADRs/ADR-015-canonical-dod-source.md))
 - See ADR-001 for the design decision behind atomic state management
 - See ADR-006 for the design decision behind non-fatal error handling in observability operations
 

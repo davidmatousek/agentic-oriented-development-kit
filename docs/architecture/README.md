@@ -40,6 +40,8 @@ Significant technical decisions with context and trade-offs
 - `ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md` - Multi-flag opt-out pattern and step insertion convention for `/aod.build` (Feature 080)
 - `ADR-012-stack-pack-test-contract.md` - Declarative test contract with stable exit-code taxonomy in stack packs (Feature 130)
 - `ADR-013-delivery-verification-first.md` - Hard-default delivery gate, deterministic scope guard, three-channel halt protocol, additive exit codes 10/11/12 (Feature 139)
+- `ADR-014-per-agent-model-tiering-alias-convention.md` - Per-agent model tiering via alias frontmatter (stable alias over pinned version) (Feature 178)
+- `ADR-015-canonical-dod-source.md` - Constitution Principle VII is the canonical Definition of Done; `DEFINITION_OF_DONE.md` is the conforming procedure doc (authority pointer points up) (Feature 180)
 - `ADR-NNN-decision-title.md` - Individual ADRs
 
 ### 03_patterns/

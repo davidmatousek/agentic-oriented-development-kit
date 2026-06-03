@@ -216,3 +216,21 @@ Each PRD should include relevant user stories:
 - **US-172-3** (P2): Real `gh` errors surface to the adopter when Issue creation fails - As a developer with a misconfigured `gh` CLI (expired auth, missing scope, rate limit, transient network), see the actual `gh` stderr text prefixed with kit context — not a generic "gh unavailable?" warning that misdirects debugging effort.
 
 **Stories source of truth**: GitHub Issue #172 — manual fresh-repo verification (T014) PASSED 6/6 post-fix; BATS regression suite at `tests/integration/172-adopter-bootstrap-github-fix.bats`.
+
+### Feature 182: Deliver-Skill Decomposition (BLP-01 F-3)
+
+**PRD**: [182-deliver-skill-decomposition](../02_PRD/182-deliver-skill-decomposition-2026-06-01.md)
+**Delivered**: 2026-06-02 | **PR**: #183 (squash 244d0e8) | **Tasks**: 31/31 complete | **Stories**: 3/3 passing
+
+> **Internal governance/maintainability feature** (dogfoods AOD's own `/aod.deliver` machinery). No new end-user product capability — the "user" in these stories is a maintainer running the AOD lifecycle.
+
+- **US-182-1** (P0): Correctly-governed delivery passes the close gate - As a maintainer who governs a feature to AOD's incremental sign-off convention (spec→PM, plan→PM+Architect, tasks→all three + `<!-- DOD-ACK -->`), have `/aod.deliver` recognize that as complete and close the feature, instead of halting on the spec's empty `architect_signoff` and forcing a manual human-ack override. The over-strict gate was unsatisfiable (0% of real deliveries could pass) and blocked F-2's own delivery on 2026-06-01.
+  - **AC**: Given a PM-only `spec.md`, a PM+Architect `plan.md`, and an all-three `tasks.md` with `<!-- DOD-ACK -->`, when the deliver close gate runs, then it returns exit 0 (present) and close proceeds.
+  - **AC**: Given a `spec.md` missing PM sign-off, when the gate runs, then it returns exactly exit 1 (block close).
+- **US-182-2** (P2): Routine deliver loads only its core lifecycle - As a maintainer running a routine `/aod.deliver` that never hits the E2E heal loop or halt-signal path, have the skill load only its core lifecycle, so I avoid paying context cost for branch-local machinery I don't use.
+  - **AC**: Given a happy-path deliver run, when the skill executes, then no `references/*.md` file is loaded.
+  - **AC**: Given a run that reaches an offloaded step, when that step is entered, then its reference file is loaded at that point and the section behaves identically to the pre-refactor skill (deliver test corpus stays green).
+- **US-182-3** (P2): Maintainer reads the deliver core without branch-local detail - As a maintainer opening `~aod-deliver/SKILL.md` to understand or change the deliver lifecycle, read a materially shorter core (below the 1,574-line baseline) with the heal-loop, halt-signal, and Feature-130/139 machinery in dedicated `references/*.md` files rather than inline.
+  - **AC**: Given the post-refactor skill, when `SKILL.md` line count is measured, then it is materially smaller than the 1,574-line baseline and the offloaded sections live in named `references/*.md` files.
+
+**Stories source of truth**: GitHub Issue #182 — FR-020 (P0 close-gate relaxation, pure deletion of 3 over-strict role-check blocks) + FR-019 (P2 progressive-disclosure offload, zero behavioral change). See `specs/182-deliver-skill-decomposition/spec.md`.

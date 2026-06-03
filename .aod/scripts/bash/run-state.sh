@@ -24,6 +24,7 @@
 #   aod_state_get_governance_cache <art> <rev> — Read cached governance verdict
 #   aod_state_cache_governance <art> <rev> <status> <summary> — Cache verdict
 #   aod_state_clear_governance_cache <art> — Invalidate cache for artifact
+#   aod_state_signoff_present <spec> <plan> <tasks> — Role-tagged APPROVED + DoD-ack check (0/1/2)
 #
 # Requires: jq (JSON processor)
 # Bash 3.2 compatible (macOS default)
@@ -561,3 +562,120 @@ aod_state_cache_is_fresh() {
     return 0
 }
 
+# Check whether all three artifact sign-offs are present and the DoD-ack token exists.
+# Implements FR-011 / D-1 / D-2 / Contract 1 (gate-contracts.md).
+# Mirrors aod_state_cache_is_fresh: same 0/1/2 contract, same || return 2 discipline.
+#
+# Args: $1 = spec_path   (YAML frontmatter must carry pm_signoff/architect_signoff/techlead_signoff)
+#       $2 = plan_path   (same frontmatter shape)
+#       $3 = tasks_path  (same frontmatter shape + <!-- DOD-ACK --> token in body)
+#
+# Returns:
+#   0 = PRESENT: every artifact has each role's block with status containing APPROVED
+#                AND the DoD-ack token (<!-- DOD-ACK -->) is present in tasks_path.
+#                (APPROVED_WITH_CONCERNS also satisfies — substring of status: value.)
+#   1 = ABSENT:  at least one role block is missing / non-APPROVED, or DoD-ack token absent.
+#   2 = ERROR:   an artifact is unreadable / structurally indeterminate — fail-closed.
+#
+# Match precision (D-2): role-block-scoped, NOT a blanket file grep. Each role key
+# (pm_signoff: / architect_signoff: / techlead_signoff:) is extracted from the YAML
+# frontmatter using awk, then status: is grepped WITHIN that slice only. A bare
+# "APPROVED" substring in prose / notes outside a status: line does NOT pass the gate.
+# CHANGES_REQUESTED / BLOCKED / PENDING / null do NOT contain the APPROVED substring
+# on the status: line so they correctly fail.
+#
+# Bash 3.2 and set -euo pipefail safe: every external call carries || return 2.
+aod_state_signoff_present() {
+    local spec="$1"
+    local plan="$2"
+    local tasks="$3"
+
+    # --- Fail-closed: all three paths must be non-empty and readable ---------------
+    [[ -n "$spec"  ]] || return 2
+    [[ -n "$plan"  ]] || return 2
+    [[ -n "$tasks" ]] || return 2
+    [[ -r "$spec"  ]] || return 2
+    [[ -r "$plan"  ]] || return 2
+    [[ -r "$tasks" ]] || return 2
+
+    # --- Helper: extract a named role block from a file's YAML frontmatter ---------
+    # Uses awk to print lines from the role-key line up to (but not including) the
+    # next same-depth role key, the closing frontmatter "---", or EOF.
+    # Piped result is consumed by the caller; awk exit status propagated via ||.
+    #
+    # The frontmatter delimiters are "---" lines; we only scan between the first pair.
+    # Role keys match as: two leading spaces + the key name + colon (e.g. "  pm_signoff:").
+    # The "next role" stop pattern covers all three role keys so extraction halts at
+    # any sibling key, not just the one we started from.
+    #
+    # Args: $1 = file path, $2 = role key name (e.g. pm_signoff)
+    _aod_extract_role_block() {
+        local _file="$1"
+        local _role="$2"
+        awk -v role="  ${_role}:" '
+            BEGIN { in_front=0; printing=0; front_count=0 }
+            /^---$/ {
+                front_count++
+                if (front_count == 1) { in_front=1; next }
+                if (front_count == 2) { in_front=0; printing=0; exit }
+            }
+            !in_front { next }
+            printing && /^  (pm_signoff|architect_signoff|techlead_signoff):/ {
+                exit
+            }
+            $0 == role || index($0, role) == 1 { printing=1 }
+            printing { print }
+        ' "$_file"
+    }
+
+    # --- Check each artifact + its expected role(s) --------------------------------
+    # Per-artifact required roles (FR-020 / Feature 182): each artifact is checked only
+    # for the role sign-off(s) that exist by the time it is produced —
+    #   spec.md  -> pm_signoff
+    #   plan.md  -> pm_signoff + architect_signoff
+    #   tasks.md -> pm_signoff + architect_signoff + techlead_signoff (+ <!-- DOD-ACK -->)
+    # Each file's relevant role block(s) are checked for status: APPROVED (substring),
+    # so APPROVED_WITH_CONCERNS also passes (APPROVED is its substring). No blanket grep.
+    # NOTE: BLOCKED_OVERRIDDEN is a recognized status enum but does NOT contain "APPROVED",
+    # so this gate currently BLOCKS it; making it pass would be a separate behavior change.
+    # A present role block that lacks `status: APPROVED` => return 1 (absent/not-approved).
+    # An empty extraction (role key entirely missing or malformed frontmatter) => return 2
+    # via the `[[ -n "$block" ]] || return 2` guard below (fail-closed, never absent).
+
+    local block
+
+    # spec.md — pm_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$spec" "pm_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # plan.md — pm_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$plan" "pm_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # plan.md — architect_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$plan" "architect_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # tasks.md — pm_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$tasks" "pm_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # tasks.md — architect_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$tasks" "architect_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # tasks.md — techlead_signoff must be APPROVED
+    block=$(_aod_extract_role_block "$tasks" "techlead_signoff") || return 2
+    [[ -n "$block" ]] || return 2
+    echo "$block" | grep -q 'status:.*APPROVED' || return 1
+
+    # DoD-acknowledgment token (T004/C-PLAN-04 canonical): fixed-string grep in tasks.md
+    grep -qF '<!-- DOD-ACK -->' "$tasks" || return 1
+
+    return 0
+}

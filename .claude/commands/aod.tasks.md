@@ -24,6 +24,7 @@ Consider user input before proceeding (if not empty).
    - Strip `--revision` from `$ARGUMENTS` (trim extra whitespace)
    - Read `.aod/revision-context.md` for reviewer feedback (contains reviewer name, attempt number, artifact path, and full feedback text)
    - Store feedback as `revision_feedback`
+   - **Clear governance cache explicitly**: Call `aod_state_clear_governance_cache "tasks"` so the upcoming triple review is treated as fresh regardless of mtime-staleness backstop. (Belt-and-suspenders: do NOT rely on the mtime backstop alone.)
 2. Default: `revision_mode = false`
 
 ## Overview
@@ -170,6 +171,29 @@ Every task MUST strictly follow this format:
   - Each phase should be a complete, independently testable increment
 - **Final Phase**: Polish & Cross-Cutting Concerns
 
+## Step 2f: Rubric Preload (Team-Lead Feasibility Self-Check)
+
+Before invoking governance, self-check the generated tasks against the Team-Lead reviewer's feasibility axes. Load `.claude/skills/triad/teamlead-review.md` and evaluate the tasks against sections 1–4 (feasibility axes only):
+
+1. **Task Feasibility** — Are tasks achievable with available resources? Is the timeline realistic? Are dependencies correctly identified?
+2. **Agent Assignments** — Are tasks assigned to appropriate agent types? Is workload balanced? Are skill gaps addressed?
+3. **Parallel Execution Opportunities** — Which tasks can run in parallel? Are wave assignments optimal? Are blocking dependencies minimized?
+4. **Capacity Constraints** — Are there bottleneck agents? Is there slack for unexpected issues? Is the critical path identified?
+
+**Excluded**: Do NOT apply the Team-Lead's strategic-veto authority (NOT_FEASIBLE / BLOCKED status decisions) — that is the reviewer's prerogative, not the producer's self-check.
+
+For each axis, note whether the tasks satisfy it. If any axis is unmet, fix the tasks now (before submitting for governance). Display a brief self-check summary:
+
+```
+Rubric Self-Check (teamlead-review.md feasibility axes):
+- Task feasibility: [PASS | FIX: <issue>]
+- Agent assignments: [PASS | FIX: <issue>]
+- Parallel execution: [PASS | FIX: <issue>]
+- Capacity constraints: [PASS | FIX: <issue>]
+```
+
+Fix any FIX items before proceeding to Step 3.
+
 ## Step 3: Triple Sign-off (Parallel)
 
 Launch **three Task agents in parallel** (single message, three Task tool calls):
@@ -198,9 +222,10 @@ NOTES: [Your detailed feedback]
 
 **Any CHANGES_REQUESTED**:
 1. Display feedback from reviewers who requested changes
-2. Use architect agent to update tasks addressing the feedback
+2. Route the revision to the **authoring role** of `tasks.md` — the **team-lead** (the tasks/assignments author) updates the tasks addressing the feedback. Do NOT hard-code the architect here; the author role is derived from the artifact (tasks.md → team-lead).
 3. Re-run reviews only for reviewers who requested changes
-4. Loop until all approved or user aborts
+4. Loop until all approved or the **max 5** revision iterations are reached
+5. **On exhaustion** (5 revision iterations without all-APPROVED): STOP looping, escalate to a human, and leave the artifact **In Review** (or **Blocked** if a reviewer's last verdict was BLOCKED) — **never** auto-Approve an artifact that did not earn approval (C-012 human-verdict invariant)
 
 **Any BLOCKED**:
 1. Display blocker with veto domain (PM=scope, Architect=technical, Team-Lead=timeline)
