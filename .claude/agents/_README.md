@@ -37,8 +37,8 @@ model generation without re-drifting on a version bump.
 
 | Tier | Agents | Rationale |
 |------|--------|-----------|
-| `opus` | architect, product-manager, team-lead | Triad **verdict gates** — highest-judgment sign-off authority |
-| `sonnet` | code-reviewer, security-analyst, senior-backend-engineer, frontend-developer, devops, tester, debugger, orchestrator, ux-ui-designer | Implementation, review, and near-verdict work |
+| `opus` | architect, product-manager, team-lead, code-reviewer | **Verdict gates** — Triad sign-off authority + the binding code-review gate (`code-reviewer` promoted from `sonnet` 2026-06-11; it renders binding APPROVED/CHANGES_REQUESTED) |
+| `sonnet` | security-analyst, senior-backend-engineer, frontend-developer, devops, tester, debugger, orchestrator, ux-ui-designer | Implementation, near-verdict review, and gate-grade test authoring |
 | `haiku` | web-researcher | High-volume retrieval/lookup; no verdict authority |
 
 **Invariant**: `tester` is never `haiku` — verdict-bearing validation warrants at least the mid tier.
