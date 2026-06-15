@@ -1197,46 +1197,61 @@ EOF
     echo "ignore        —      —         —        —        (not inspected)"
     echo ""
 
-    # Per-file list for owned + personalized + merge.
+    # Per-file lists, grouped by category. We iterate UPDATE_OPERATIONS ONCE PER
+    # CATEGORY (three passes) rather than a single path-ordered pass. A single
+    # pass printed each header on first occurrence, but UPDATE_OPERATIONS is
+    # path-sorted (git ls-files order), so an owned file sorting AFTER the first
+    # merge file rendered under the "Merge changes" header — making an overwrite
+    # look like a skip (the invisible-clobber bug, #191). Per-category passes keep
+    # each section contiguous and correctly labelled regardless of path order.
     local op path category winning change_type action
-    local printed_owned=0 printed_personalized=0 printed_merge=0
+    local printed_any=0 printed_header
 
+    # Pass 1 — owned (will be overwritten verbatim).
+    printed_header=0
     for op in "${UPDATE_OPERATIONS[@]}"; do
         IFS="$UPDATE_OP_SEP" read -r path category winning change_type action <<< "$op"
-
-        case "$category:$action" in
-            owned:copy)
-                if [ "$printed_owned" = "0" ]; then
-                    echo "Owned changes (will be overwritten):"
-                    printed_owned=1
-                fi
-                case "$change_type" in
-                    added)    printf '  + %s\n' "$path" ;;
-                    modified) printf '  ~ %s\n' "$path" ;;
-                    *)        printf '  = %s\n' "$path" ;;
-                esac
-                ;;
-            personalized:substitute)
-                if [ "$printed_personalized" = "0" ]; then
-                    if [ "$printed_owned" = "1" ]; then echo ""; fi
-                    echo "Personalized changes (placeholders re-applied):"
-                    printed_personalized=1
-                fi
-                case "$change_type" in
-                    added)    printf '  + %s\n' "$path" ;;
-                    modified) printf '  ~ %s\n' "$path" ;;
-                    *)        printf '  = %s\n' "$path" ;;
-                esac
-                ;;
-            merge:warn-and-skip)
-                if [ "$printed_merge" = "0" ]; then
-                    if [ "$printed_personalized" = "1" ] || [ "$printed_owned" = "1" ]; then echo ""; fi
-                    echo "Merge changes (P0 warn-and-skip — resolve manually):"
-                    printed_merge=1
-                fi
-                printf '  ! %s\n' "$path"
-                ;;
+        if [ "$category:$action" != "owned:copy" ]; then continue; fi
+        if [ "$printed_header" = "0" ]; then
+            if [ "$printed_any" = "1" ]; then echo ""; fi
+            echo "Owned changes (will be overwritten):"
+            printed_header=1; printed_any=1
+        fi
+        case "$change_type" in
+            added)    printf '  + %s\n' "$path" ;;
+            modified) printf '  ~ %s\n' "$path" ;;
+            *)        printf '  = %s\n' "$path" ;;
         esac
+    done
+
+    # Pass 2 — personalized (placeholders re-applied).
+    printed_header=0
+    for op in "${UPDATE_OPERATIONS[@]}"; do
+        IFS="$UPDATE_OP_SEP" read -r path category winning change_type action <<< "$op"
+        if [ "$category:$action" != "personalized:substitute" ]; then continue; fi
+        if [ "$printed_header" = "0" ]; then
+            if [ "$printed_any" = "1" ]; then echo ""; fi
+            echo "Personalized changes (placeholders re-applied):"
+            printed_header=1; printed_any=1
+        fi
+        case "$change_type" in
+            added)    printf '  + %s\n' "$path" ;;
+            modified) printf '  ~ %s\n' "$path" ;;
+            *)        printf '  = %s\n' "$path" ;;
+        esac
+    done
+
+    # Pass 3 — merge (warn-and-skip; NOT written in P0).
+    printed_header=0
+    for op in "${UPDATE_OPERATIONS[@]}"; do
+        IFS="$UPDATE_OP_SEP" read -r path category winning change_type action <<< "$op"
+        if [ "$category:$action" != "merge:warn-and-skip" ]; then continue; fi
+        if [ "$printed_header" = "0" ]; then
+            if [ "$printed_any" = "1" ]; then echo ""; fi
+            echo "Merge changes (P0 warn-and-skip — resolve manually):"
+            printed_header=1; printed_any=1
+        fi
+        printf '  ! %s\n' "$path"
     done
     echo ""
 }
