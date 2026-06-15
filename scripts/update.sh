@@ -1626,7 +1626,14 @@ aod_update_main() {
     # Register cleanup trap AFTER preflight succeeds (so we have sane state).
     trap 'aod_update_cleanup_on_exit' EXIT INT TERM
 
-    aod_update_acquire_lock
+    # Dry-run never writes outside its own UUID staging dir, so it does not need
+    # the cross-process lock. Acquiring it is also a footgun: the read-only preview
+    # can be killed by a signal NOT in our trap (e.g. SIGPIPE when the operator
+    # pipes output to `head`/a pager), which skips cleanup and leaks the lock —
+    # making the next invocation fail with exit 2 until manual removal (#189).
+    if [ "$UPDATE_MODE" != "dry-run" ]; then
+        aod_update_acquire_lock
+    fi
 
     # TEST-ONLY injection point for lock-contention integration test (T053).
     # Gated behind AOD_UPDATE_TEST_STALL_AFTER_LOCK env var (secs as integer)
