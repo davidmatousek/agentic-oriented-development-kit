@@ -946,3 +946,26 @@ Self-modifying governance hardening (BLP-01 F-2) — 10 fixes across define/plan
 - **Reference lazy-load**: MANDATORY-Read trigger · fail-closed-on-missing · re-read-after-large-output. Loads only when a step is reached (happy path loads none).
 
 See [plan.md](../../../specs/182-deliver-skill-decomposition/plan.md) + [data-model.md](../../../specs/182-deliver-skill-decomposition/data-model.md) (handoff manifests §4). FR-020 refines FR-011/ADR-015 §109 — no new ADR. FR-019 is a second application of the [On-Demand Reference File Segmentation](../03_patterns/README.md#pattern-on-demand-reference-file-segmentation) pattern (ADR-002) — no new pattern.
+
+### Feature 193: code-economy-ruleset
+
+**Planned**: 2026-06-25 (Plan stage; PR #194)
+
+**Tech Stack**: N/A — no runtime stack. Markdown agent/command instructions under `.claude/`, reusing the existing `git diff --name-only main...HEAD` primitive (bash 3.2-compatible). No new dependency, language, or service.
+
+**Components** (planned state):
+
+| Component | File | Change |
+|-----------|------|--------|
+| Code Economy rule file | `.claude/rules/code-economy.md` (NEW, ~1 page) | The single source of truth: laziness ladder + safety carve-outs (stated first) + `AOD-SIMPLIFICATION:` doc-marker + "When This Applies" footer. Modeled on `design-quality.md`; auto-loaded as a project instruction. |
+| Economy Gate | `.claude/commands/aod.build.md` (EDIT) | New Step 0h `--no-economy`; new gate step cloning Step 6/7 — diff-scoped (`git diff main...HEAD`), content-triggered, judgment sub-agent verdict (mirrors Step 7 security skill, not grep), skip artifact `economy-check.md`, Step 8 report block. |
+| Generation salience pointers | `frontend-developer.md`, `senior-backend-engineer.md`, `architect.md` (EDIT, ~2 ln each) | Decision-point nudge to climb the ladder in `code-economy.md`. Salience, not loading; no rule text. |
+| Over-engineering review lens | `code-reviewer.md` (EDIT) | Extends the **existing** Code Quality Review step (duplication/single-responsibility) with over-build detection + carve-out-survival check; ~2-line pointer. No new command/section. |
+| Flag docs | `CLAUDE.md`, `.claude/rules/commands.md` (EDIT) | List `--no-economy` alongside `--no-security` / `--no-design-check`. |
+
+**Data Flow**:
+- **Generation**: agent reads `code-economy.md` (already in context) → climbs ladder, rung 1 ("does the spec require this?") anchored to `spec.md` (Triad-governed scope) → reuse → stdlib → native → installed dep → one-liner → minimal new code; safety carve-outs framed before the ladder, never traded away.
+- **Build gate**: `/aod.build` → Economy Gate diffs `main...HEAD` → no non-doc code files ⇒ skip "no code files changed" (expected on the template); else judgment sub-agent verdict → PASS | FINDINGS (autonomous auto-ack, else Fix/Acknowledge/Abort) → status block in Step 8 report.
+- **Review**: `code-reviewer`'s existing Code Quality Review step now also flags over-build + confirms carve-outs survived.
+
+See [plan.md](../../../specs/193-code-economy-ruleset/plan.md) + [spec.md](../../../specs/193-code-economy-ruleset/spec.md). Reuses the `/aod.build` Step 6/7 gate pattern and the `design-quality.md` rule-file model — no new ADR, no new pattern. Single source of truth (ladder/carve-out text lives only in `code-economy.md`); all other surfaces reference it.

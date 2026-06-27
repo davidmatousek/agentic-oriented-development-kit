@@ -34,7 +34,7 @@ Significant technical decisions with context and trade-offs
 - `ADR-005-serialization-trade-off.md` - Serialization trade-off for parallel Triad reviews (Feature 047)
 - `ADR-006-non-fatal-observability-operations.md` - Non-fatal error handling for observability and circuit-breaker functions (Feature 054)
 - `ADR-007-stack-pack-dual-surface-injection.md` - Dual-surface injection pattern for stack pack context loading (Feature 058)
-- `ADR-008-opt-out-flag-for-default-quality-gates.md` - Opt-out flag (`--no-simplify`) for default-on quality gate steps in commands (Feature 065)
+- `ADR-008-opt-out-flag-for-default-quality-gates.md` - Opt-out flag (`--no-X`) convention for default-on quality gate steps in commands; instances `--no-simplify` (F065), `--no-security` (F080), `--no-design-check` (F097), `--no-economy` (F193)
 - `ADR-009-template-variable-expansion-scope.md` - Expanding `{{PROJECT_NAME}}` placeholder to all user-facing template files (Feature 061)
 - `ADR-010-minimal-return-architecture.md` - Minimal return architecture for subagent→main token efficiency (Feature 073)
 - `ADR-011-multi-flag-opt-out-and-step-insertion-pattern.md` - Multi-flag opt-out pattern and step insertion convention for `/aod.build` (Feature 080)
