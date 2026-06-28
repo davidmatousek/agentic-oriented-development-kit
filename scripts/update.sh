@@ -304,6 +304,134 @@ _aod_update_iso_utc() {
     date -u +%Y-%m-%dT%H:%M:%SZ
 }
 
+# Portable mtime in epoch seconds. BSD `stat -f %m`, GNU `stat -c %Y`. We pick
+# by `uname` (not trial-and-error) because GNU `stat -f` means `--file-system`
+# and would silently print a mount point instead of erroring. Echoes 0 on
+# failure so callers can do arithmetic unconditionally.
+_aod_update_mtime_epoch() {
+    local path="$1"
+    local uname_s
+    uname_s="$(uname -s 2>/dev/null || echo '')"
+    case "$uname_s" in
+        Darwin|FreeBSD|NetBSD|OpenBSD|DragonFly)
+            stat -f %m "$path" 2>/dev/null || echo 0 ;;
+        *)
+            stat -c %Y "$path" 2>/dev/null || echo 0 ;;
+    esac
+}
+
+# Liveness probe for a PID. Returns 0 (alive) only for a numeric PID that
+# `kill -0` can signal; empty / non-numeric / dead → returns 1.
+_aod_update_pid_alive() {
+    local pid="$1"
+    case "$pid" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    kill -0 "$pid" 2>/dev/null
+}
+
+# -----------------------------------------------------------------------------
+# aod_update_gc_staging — startup garbage collection of orphaned run dirs.
+# -----------------------------------------------------------------------------
+# THE backstop for staging-dir leaks. The EXIT trap (aod_update_cleanup_on_exit)
+# only reaps on success (exit 0) or decline (exit 10); failure exits 1-9
+# intentionally preserve the run dir for forensics, and untrappable signals
+# (SIGKILL) skip the trap entirely. Nothing else ever reaps those, so without
+# this sweep .aod/update-tmp/ grows without bound. SIGKILL cannot be trapped,
+# which is exactly why a startup sweep — not just a broader trap — is mandatory.
+#
+# Called from preflight BEFORE this run's dir is created (so it is never a
+# candidate). Idempotent.
+#
+# Each run dir carries a `run-meta` file (pid + started_at epoch) written at
+# creation. For a candidate dir D (immediate child of $UPDATE_STAGING_ROOT,
+# excluding this run's $UPDATE_UUID):
+#
+#   age(D)  = now - started_at (from run-meta), or now - mtime(D) when run-meta
+#             is absent/unreadable (legacy dirs from before this fix).
+#   live(D) = run-meta pid is alive (kill -0). Absent meta => not live.
+#
+# D is REAPED iff:  age(D) >= GRACE  AND  ( age(D) > TTL  OR
+#                   ( not live(D) AND D is not the most-recent dead dir ) )
+#
+#   - age < GRACE       => never touched (a concurrent run may be mid-creation,
+#                          before it has written run-meta).
+#   - live              => never touched within TTL (a concurrent run owns it;
+#                          note dry-run takes no lock, so live dirs are real).
+#   - most-recent dead  => kept as the single forensics slot, within TTL.
+#   - age > TTL         => always reaped (expired; also bounds PID-reuse risk).
+#
+# Net: at most one recent orphan survives for debugging; everything older is
+# swept; disk stays bounded across N runs.
+#
+# Tunables (env-overridable, mainly for tests):
+#   AOD_UPDATE_GC_TTL_SECS    forensic TTL grace window (default 604800 = 7d)
+#   AOD_UPDATE_GC_GRACE_SECS  min age before a dir is eligible (default 120s)
+# -----------------------------------------------------------------------------
+aod_update_gc_staging() {
+    local root="$UPDATE_STAGING_ROOT"
+    [ -n "$root" ] && [ -d "$root" ] || return 0
+
+    local ttl="${AOD_UPDATE_GC_TTL_SECS:-604800}"
+    local grace="${AOD_UPDATE_GC_GRACE_SECS:-120}"
+    local now
+    now="$(date -u +%s 2>/dev/null || echo 0)"
+    [ "$now" -gt 0 ] || return 0   # no usable clock → no safe sweep
+
+    local d base started pid age
+
+    # Pass 1: find the most-recent DEAD-and-eligible dir (the forensics keeper).
+    local keeper="" keeper_started=-1
+    for d in "$root"/*/; do
+        [ -d "$d" ] || continue
+        base="${d%/}"; base="${base##*/}"
+        if [ -n "$UPDATE_UUID" ] && [ "$base" = "$UPDATE_UUID" ]; then continue; fi
+
+        started=""; pid=""
+        if [ -f "$d/run-meta" ]; then
+            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+        fi
+        case "$started" in ''|*[!0-9]*) started="$(_aod_update_mtime_epoch "$d")" ;; esac
+        [ "$started" -gt 0 ] || continue          # age unknowable → don't judge
+        age=$((now - started))
+
+        [ "$age" -ge "$grace" ] || continue        # too young — skip
+        if _aod_update_pid_alive "$pid"; then continue; fi   # live — not a keeper
+        [ "$age" -le "$ttl" ] || continue          # expired — not a keeper
+        if [ "$started" -gt "$keeper_started" ]; then
+            keeper_started="$started"; keeper="$base"
+        fi
+    done
+
+    # Pass 2: reap.
+    for d in "$root"/*/; do
+        [ -d "$d" ] || continue
+        base="${d%/}"; base="${base##*/}"
+        if [ -n "$UPDATE_UUID" ] && [ "$base" = "$UPDATE_UUID" ]; then continue; fi
+
+        started=""; pid=""
+        if [ -f "$d/run-meta" ]; then
+            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+        fi
+        case "$started" in ''|*[!0-9]*) started="$(_aod_update_mtime_epoch "$d")" ;; esac
+        [ "$started" -gt 0 ] || continue           # age unknowable → never touch
+        age=$((now - started))
+
+        [ "$age" -ge "$grace" ] || continue        # too young — never touch
+        if [ "$age" -gt "$ttl" ]; then
+            rm -rf "$d" 2>/dev/null || true        # expired — always reap
+            continue
+        fi
+        if _aod_update_pid_alive "$pid"; then continue; fi   # live — keep
+        [ "$base" = "$keeper" ] && continue        # forensics slot — keep
+        rm -rf "$d" 2>/dev/null || true            # dead + superseded — reap
+    done
+
+    return 0
+}
+
 # -----------------------------------------------------------------------------
 # aod_update_print_usage
 # -----------------------------------------------------------------------------
@@ -489,6 +617,12 @@ aod_update_preflight() {
 
     UPDATE_STAGING_ROOT="$staging_root"
 
+    # Startup GC: reap orphaned run dirs left by past failed/killed runs BEFORE
+    # we create this run's dir (so it is never a sweep candidate). UPDATE_UUID is
+    # still empty here, which the sweep tolerates. This is the only reliable
+    # reaper for SIGKILL orphans — see aod_update_gc_staging.
+    aod_update_gc_staging
+
     # Step 5: create per-run UUID subdir.
     UPDATE_UUID="$(_aod_update_random_hex)"
     if [ -z "$UPDATE_UUID" ]; then
@@ -502,6 +636,14 @@ aod_update_preflight() {
         echo "[aod] ERROR: could not create run dir: $UPDATE_RUN_DIR" >&2
         exit 1
     fi
+
+    # Record run ownership for the startup GC sweep (aod_update_gc_staging): a
+    # future run reaps this dir only once our PID is dead (or it ages past TTL).
+    # Best-effort — a missing run-meta just makes the sweep fall back to mtime.
+    {
+        printf 'pid=%s\n' "$$"
+        printf 'started_at=%s\n' "$(date -u +%s)"
+    } > "$UPDATE_RUN_DIR/run-meta" 2>/dev/null || true
 
     # Export for downstream helpers (tests / subcommands).
     export AOD_STAGING_DIR="$UPDATE_STAGED_DIR"
@@ -519,8 +661,11 @@ aod_update_preflight() {
 # Acquire `.aod/update.lock`. Uses flock fast-path where available; otherwise
 # PID+nonce+timestamp atomic-create via `set -o noclobber` (macOS primary path).
 #
-# On contention: examine holder. If alive AND timestamp < 1h → exit 2. If dead
-# OR stale (>1h) → force-acquire with nonce re-verify; retry up to 3x.
+# On contention: examine holder. If the holder PID is alive → exit 2 (regardless
+# of age — a live PID means something is running). If the holder PID is dead →
+# force-acquire with nonce re-verify; retry up to 3x. A dead-PID lock is always
+# reclaimable because `kill -0` failing means there is no holder to protect; PID
+# reuse can only surface as a live PID (handled above), never a dead one.
 #
 # Sets UPDATE_LOCK_ACQUIRED=1 on success. Registers EXIT trap for release.
 # Exit 2 on contention.
@@ -617,14 +762,16 @@ aod_update_acquire_lock() {
             exit 2
         fi
 
-        if [ "$alive" = "0" ] && [ "$age" -lt 3600 ]; then
-            # Dead PID within 1h — conservative refusal per data-model.md §2d.
-            echo "[aod] ERROR: update.lock holder PID $holder_pid is dead but lock is <1h old (nonce $holder_nonce)" >&2
-            echo "[aod] Stale lock from recent crash; manually remove .aod/update.lock if you are sure." >&2
-            exit 2
-        fi
-
-        # Dead + stale (>1h). Force-acquire with nonce re-verify.
+        # Dead PID (any age). Reclaim it — a `kill -0` failure means there is
+        # genuinely no holder, so there is nothing to protect. (PID *reuse*
+        # surfaces as a LIVE pid above and exits 2; it never reaches here.) This
+        # is the only recovery path for a lock orphaned by an untrappable signal
+        # — without it, a SIGKILL'd run produced a spurious exit 2 on the next
+        # invocation until the operator manually removed .aod/update.lock (#198,
+        # kit#11). Force-acquire is still guarded by the nonce re-verify below,
+        # so a concurrent force-acquire race is detected and retried.
+        # See data-model.md §Entity 5 step 2c.
+        #
         # Write our line to a .tmp, mv over, re-read and confirm our nonce.
         local lock_tmp="${UPDATE_LOCK_PATH}.tmp.$$"
         if ! printf 'pid=%s\nnonce=%s\nstarted_at=%s\ncmdline=%s\n' \
@@ -1639,13 +1786,19 @@ aod_update_main() {
     aod_update_preflight
 
     # Register cleanup trap AFTER preflight succeeds (so we have sane state).
-    trap 'aod_update_cleanup_on_exit' EXIT INT TERM
+    # HUP (terminal/SSH disconnect) and PIPE (output piped to `head`/a pager
+    # that closes early) are included alongside EXIT/INT/TERM so cleanup fires
+    # on those too. SIGKILL still cannot be trapped — the startup GC sweep
+    # (aod_update_gc_staging) and the dead-PID lock reclaim are the backstops
+    # for whatever a kill leaves behind (#198, kit#11).
+    trap 'aod_update_cleanup_on_exit' EXIT INT TERM HUP PIPE
 
     # Dry-run never writes outside its own UUID staging dir, so it does not need
-    # the cross-process lock. Acquiring it is also a footgun: the read-only preview
-    # can be killed by a signal NOT in our trap (e.g. SIGPIPE when the operator
-    # pipes output to `head`/a pager), which skips cleanup and leaks the lock —
-    # making the next invocation fail with exit 2 until manual removal (#189).
+    # the cross-process lock. Keeping the read-only preview lock-free is also
+    # defense-in-depth: even with PIPE now trapped, an untrappable SIGKILL during
+    # a piped preview would otherwise orphan the lock. A leaked lock is recovered
+    # next run anyway (dead-PID reclaim), but a dry-run should never have taken
+    # one in the first place (#189).
     if [ "$UPDATE_MODE" != "dry-run" ]; then
         aod_update_acquire_lock
     fi
