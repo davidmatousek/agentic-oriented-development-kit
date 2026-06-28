@@ -75,6 +75,11 @@ scripts/extract-classification.txt
 scripts/extract.sh
 scripts/reset-templates/
 
+# Branding generation specs (maintainer artifacts — the rendered .jpg ships
+# upstream as template branding, but its generation prompt does not; the spec
+# references the public repo URL, which the deny-list defense scan flags).
+docs/branding/*.spec.md
+
 # This project's own CHANGELOG (contains PR URLs + feature history specific
 # to the private product-led-spec-kit repo). The upstream template starts
 # its own CHANGELOG from scratch.

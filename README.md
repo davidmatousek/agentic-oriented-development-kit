@@ -28,7 +28,7 @@
 
 ## Three Loops, One Triad
 
-![AOD Kit Three Loops poster showing Kickstart, Blueprint, and Sprint loops with the Governance Triad of PM, Architect, and Team Lead at the center](docs/branding/aod-kit-loop-poster.jpg)
+![AOD Kit Three Loops poster showing Kickstart, Blueprint, and Loop with the Governance Triad of PM, Architect, and Team Lead at the center](docs/branding/aod-kit-loop-poster.jpg)
 
 AOD Kit runs at three frequencies. Coding harnesses only address the smallest. Project harnesses address all three, with the same Triad (PM, Architect, Team-Lead) signing off at every gate.
 
@@ -45,9 +45,9 @@ Batch a dependency-ordered, ICE-scored planning increment of stories. SAFe calls
 
 - `/aod.blueprint` generates the next batch of stories from the consumer guide and pushes them to GitHub Issues.
 
-### 3. Sprint (per feature)
+### 3. Loop (per feature)
 
-Six governed stages. PM, Architect, and Team-Lead sign off at every gate.
+Six governed stages. PM, Architect, and Team-Lead sign off at every gate. This is the Loop, the per-feature unit of execution: one full revolution of the lifecycle, gated end to end.
 
 - `/aod.discover` captures the idea and ICE-scores it.
 - `/aod.define` drafts a PRD with Triad review.
@@ -57,6 +57,16 @@ Six governed stages. PM, Architect, and Team-Lead sign off at every gate.
 - `/aod.document` simplifies code, updates CHANGELOG, and writes API docs.
 
 *Coding harnesses run one loop. AOD Kit runs three.*
+
+---
+
+## Why the harness, not just a loop
+
+Loops are easy. Gates are hard.
+
+Loop engineering, designing the cycle that prompts your agents instead of prompting them by hand, is having its moment. But a loop left to run unattended is a loop making mistakes unattended, only faster. The hard half is the gates, the checks that decide what each stage is allowed to ship before the next one starts.
+
+AOD Kit is that gate discipline. Every Loop runs through tier-configurable Triad sign-offs (Light, Standard, Full), so the same six stages scale from a solo prototype to a regulated launch. Anyone can write a loop. AOD Kit governs one.
 
 ---
 
@@ -84,9 +94,9 @@ Requires [Claude Code](https://claude.ai/claude-code) v2.1.16+ and `git`. Other 
 
 | Capability | What it does |
 |---|---|
-| **Three Loops, One Triad** | Kickstart (run once), Blueprint (per cycle), and Sprint (per feature). Each loop has its own commands and gates. The Triad signs off across all three. |
+| **Three Loops, One Triad** | Kickstart (run once), Blueprint (per cycle), and Loop (per feature). Each loop has its own commands and gates. The Triad signs off across all three. |
 | **SDLC Triad governance** | PM, Architect, and Team-Lead sign-offs at every phase gate (spec, plan, tasks). Triple sign-off is the minimum governance floor. |
-| **Six-stage Sprint loop** | Discover → Define → Plan → Build → Deliver → Document. The per-feature loop. Each stage has its own commands, skills, and quality gates. |
+| **Six-stage Loop** | Discover → Define → Plan → Build → Deliver → Document. The per-feature Loop, one revolution of the lifecycle. Each stage has its own commands, skills, and quality gates. |
 | **Product Discovery Lifecycle (PDL)** | Structured idea capture, ICE scoring, PM validation, and user story generation. Raw idea to backlog-ready in one flow. |
 | **Stack Packs** | Drop-in technology conventions for Next.js + Supabase, FastAPI + React, and more. Activate one with `/aod.stack use <pack>`. |
 | **Modular rules system** | `.claude/rules/` contains commit-friendly governance, design-quality, deployment, and context-loading rules. Easy to customize per project. |
