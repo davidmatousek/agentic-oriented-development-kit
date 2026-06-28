@@ -389,8 +389,13 @@ aod_update_gc_staging() {
 
         started=""; pid=""
         if [ -f "$d/run-meta" ]; then
-            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
-            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+            # `|| true`: under `set -o pipefail` a grep no-match makes the
+            # pipeline exit 1, which in a `var=$(...)` assignment trips `set -e`
+            # and SILENTLY kills the whole script. A concurrent sibling writing
+            # its run-meta (or a legacy/corrupt one) can lack a line, so guard
+            # every read. Without this the GC aborts update.sh under concurrency.
+            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2 || true)"
+            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2 || true)"
         fi
         case "$started" in ''|*[!0-9]*) started="$(_aod_update_mtime_epoch "$d")" ;; esac
         [ "$started" -gt 0 ] || continue          # age unknowable → don't judge
@@ -412,8 +417,13 @@ aod_update_gc_staging() {
 
         started=""; pid=""
         if [ -f "$d/run-meta" ]; then
-            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
-            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2)"
+            # `|| true`: under `set -o pipefail` a grep no-match makes the
+            # pipeline exit 1, which in a `var=$(...)` assignment trips `set -e`
+            # and SILENTLY kills the whole script. A concurrent sibling writing
+            # its run-meta (or a legacy/corrupt one) can lack a line, so guard
+            # every read. Without this the GC aborts update.sh under concurrency.
+            started="$(grep -m1 '^started_at=' "$d/run-meta" 2>/dev/null | cut -d= -f2 || true)"
+            pid="$(grep -m1 '^pid=' "$d/run-meta" 2>/dev/null | cut -d= -f2 || true)"
         fi
         case "$started" in ''|*[!0-9]*) started="$(_aod_update_mtime_epoch "$d")" ;; esac
         [ "$started" -gt 0 ] || continue           # age unknowable → never touch
@@ -617,11 +627,12 @@ aod_update_preflight() {
 
     UPDATE_STAGING_ROOT="$staging_root"
 
-    # Startup GC: reap orphaned run dirs left by past failed/killed runs BEFORE
-    # we create this run's dir (so it is never a sweep candidate). UPDATE_UUID is
-    # still empty here, which the sweep tolerates. This is the only reliable
-    # reaper for SIGKILL orphans — see aod_update_gc_staging.
-    aod_update_gc_staging
+    # NOTE: the startup GC sweep (aod_update_gc_staging) runs in the dispatcher
+    # AFTER lock acquisition — not here. Doing it pre-lock added variable latency
+    # to every racing invocation's path to the lock, which let a fast winner
+    # finish and release before the losers contended (spurious extra "winners",
+    # SC-007). Sweeping under the lock keeps contention tight and makes the reap
+    # exclusive (no two invocations rm-racing the same orphan).
 
     # Step 5: create per-run UUID subdir.
     UPDATE_UUID="$(_aod_update_random_hex)"
@@ -712,24 +723,34 @@ aod_update_acquire_lock() {
 
         local holder_pid="" holder_nonce="" holder_started=""
         # Parse the lock file safely (no sourcing — we don't trust contents).
-        holder_pid="$(grep -m1 '^pid=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2)"
-        holder_nonce="$(grep -m1 '^nonce=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2)"
-        holder_started="$(grep -m1 '^started_at=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2)"
+        # `|| true` on every read: under `set -o pipefail` a grep no-match makes
+        # the pipeline exit non-zero, and in a `var=$(...)` assignment that trips
+        # `set -e` and silently kills update.sh. A loser can read the lock in the
+        # O_EXCL-create → printf-body window and see missing lines, so guard each.
+        holder_pid="$(grep -m1 '^pid=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2 || true)"
+        holder_nonce="$(grep -m1 '^nonce=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2 || true)"
+        holder_started="$(grep -m1 '^started_at=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2 || true)"
 
-        # Liveness probe (bash 3.2: `kill -0` + `2>/dev/null`).
+        # Liveness probe (bash 3.2: `kill -0` + `2>/dev/null`). We distinguish
+        # THREE states, not two: a numeric PID that is alive, a numeric PID that
+        # is dead, and an *unreadable* holder (empty / non-numeric). The third
+        # state matters because the lock body is written by `printf` AFTER the
+        # O_EXCL create, so a loser can read the file in the create→write window
+        # and see an empty `pid=`. That is NOT an ownerless lock — treating it as
+        # dead and force-acquiring would clobber the live winner mid-write.
         local alive=0
-        if [ -n "$holder_pid" ]; then
-            case "$holder_pid" in
-                ''|*[!0-9]*)
-                    alive=0
-                    ;;
-                *)
-                    if kill -0 "$holder_pid" 2>/dev/null; then
-                        alive=1
-                    fi
-                    ;;
-            esac
-        fi
+        local pid_readable=0
+        case "$holder_pid" in
+            ''|*[!0-9]*)
+                pid_readable=0
+                ;;
+            *)
+                pid_readable=1
+                if kill -0 "$holder_pid" 2>/dev/null; then
+                    alive=1
+                fi
+                ;;
+        esac
 
         # Staleness — compute age in seconds from ISO timestamp. We parse the
         # ISO by stripping non-numeric and converting via `date -j` (BSD) or
@@ -762,7 +783,27 @@ aod_update_acquire_lock() {
             exit 2
         fi
 
-        # Dead PID (any age). Reclaim it — a `kill -0` failure means there is
+        if [ "$pid_readable" = "0" ]; then
+            # Holder PID empty / non-numeric: the lock file EXISTS (someone won
+            # the O_EXCL create) but its body (the `pid=` line) is not readable —
+            # almost always because we caught the winner in the create→printf
+            # window, occasionally a corrupt lock. Either way the lock is taken,
+            # so this is contention: exit 2.
+            #
+            # We deliberately do NOT force-acquire (nor retry-with-sleep) here.
+            # Force-acquiring would clobber a live winner mid-write — the
+            # regression the concurrent-10 stress test caught. Sleeping to "let
+            # the writer finish" is also wrong: it widens the window enough for a
+            # fast winner to finish AND release, letting this loser acquire too
+            # (two winners). A genuine SIGKILL orphan is different — it leaves a
+            # COMPLETE lock with a valid-but-dead PID, handled by the reclaim
+            # path below — so exiting 2 here costs that recovery nothing.
+            echo "[aod] ERROR: update.lock is held but its holder PID is unreadable (another run is acquiring it, or the lock is corrupt)." >&2
+            echo "[aod] Re-run; if this persists, inspect and remove .aod/update.lock manually." >&2
+            exit 2
+        fi
+
+        # Dead PID (valid numeric, any age). Reclaim it — a `kill -0` failure means there is
         # genuinely no holder, so there is nothing to protect. (PID *reuse*
         # surfaces as a LIVE pid above and exits 2; it never reaches here.) This
         # is the only recovery path for a lock orphaned by an untrappable signal
@@ -785,9 +826,9 @@ aod_update_acquire_lock() {
             continue
         fi
 
-        # Nonce re-verify.
+        # Nonce re-verify. `|| true` guards the same pipefail/set -e foot-gun.
         local observed_nonce
-        observed_nonce="$(grep -m1 '^nonce=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2)"
+        observed_nonce="$(grep -m1 '^nonce=' "$UPDATE_LOCK_PATH" 2>/dev/null | cut -d= -f2 || true)"
         if [ "$observed_nonce" = "$UPDATE_LOCK_NONCE" ]; then
             UPDATE_LOCK_ACQUIRED=1
             return 0
@@ -1802,6 +1843,14 @@ aod_update_main() {
     if [ "$UPDATE_MODE" != "dry-run" ]; then
         aod_update_acquire_lock
     fi
+
+    # Startup GC: reap orphaned run dirs from past failed/killed runs. Runs AFTER
+    # the lock so apply-mode losers exit 2 immediately (tight contention, exactly
+    # one winner per SC-007) and the winner sweeps exclusively (no rm-race). For
+    # dry-run there is no lock, but dry-runs do not race for one. UPDATE_UUID is
+    # set by now, so the sweep correctly excludes this run's own dir. This is the
+    # only reliable reaper for SIGKILL orphans — see aod_update_gc_staging.
+    aod_update_gc_staging
 
     # TEST-ONLY injection point for lock-contention integration test (T053).
     # Gated behind AOD_UPDATE_TEST_STALL_AFTER_LOCK env var (secs as integer)
