@@ -17,8 +17,11 @@ With 1M context, all three artifacts and their reviews fit comfortably in a sing
 
 1. Get branch: `git branch --show-current` → extract NNN prefix
 2. If on `main` and a PRD exists (e.g., `docs/product/02_PRD/{NNN}-*.md`), **automatically create the feature branch** (`git checkout -b {NNN}-{kebab-name}`) per git workflow rules. Do NOT ask the user — feature branches are mandatory, not optional.
-3. **Open Draft PR**: After creating the branch, push it and open a draft PR so work is visible early:
+3. **Pin the PR mode, then open Draft PR**: After creating the branch, resolve and pin the `pr_per_cycle` mode (both modes write the pin), then push and open a draft PR so work is visible early:
    ```bash
+   source .aod/scripts/bash/aod-config.sh
+   PR_MODE=$(aod_pr_mode "{NNN}-{kebab-name}")   # single|split; rc 4 = invalid config (interactive: warns and uses split)
+   git add ".aod/pr-mode/{NNN}"                  # the pin rides in the branch-opening commit
    git commit --allow-empty -m "chore({NNN}): open feature branch"
    git push -u origin {NNN}-{kebab-name}
    gh pr create --draft \
@@ -26,6 +29,22 @@ With 1M context, all three artifacts and their reviews fit comfortably in a sing
      --body "Draft PR for feature {NNN}. Opened automatically at plan stage."
    ```
    If `gh` is unavailable, skip silently (graceful degradation). Store the PR number for later use.
+   If you are already on a feature branch (for example a re-run) and `.aod/pr-mode/{NNN}` is missing, resolve and write the pin there and commit it as `chore({NNN}): pin pr_per_cycle=<mode>` with the trailer `Co-Authored-By: Claude <noreply@anthropic.com>`. `aod_pr_mode` writes a pin only when HEAD is the `{NNN}-*` feature branch, never on `main` or an unrelated branch.
+<!-- pr_per_cycle:single -->
+   #### Draft PR body (single mode)
+
+   When `PR_MODE=single`, create the draft PR with this body instead of the one above. The body appends `Closes #$((10#{NNN}))` (unpadded issue number) and the machine-readable mode marker:
+   ```bash
+   gh pr create --draft \
+     --title "{NNN}: {Feature Name}" \
+     --body "Draft PR for feature {NNN}. Opened automatically at plan stage.
+
+   Closes #$((10#{NNN}))
+
+   <!-- aod:pr_per_cycle=single -->"
+   ```
+   Under `/aod.run` this step is not reached (aod-run invokes the sub-commands directly), so no plan-time PR exists. In single mode the PR is created by `/aod.deliver`.
+<!-- /pr_per_cycle:single -->
 4. Derive specs directory: `specs/{NNN}-*/`
 5. If no specs directory found, check `.aod/spec.md` as fallback
 6. If no feature context found: warn and suggest `/aod.define` first
@@ -178,16 +197,19 @@ If the user previously completed spec.md and plan.md (both approved) and runs `/
 | Rationalization | Reality |
 |---|---|
 | "I know what's done, I'll skip re-reading state between sub-steps" | Step 5 Loop point 3 mandates re-read after each sub-step — assumed-state advancement misses lost approvals. |
-| "This branch is small, I'll commit straight to main" | Step 1 point 2 auto-creates the feature branch on main — bypassing it skips the draft PR opened in point 3. |
+| "This branch is small, I'll commit straight to main" | Step 1 point 2 auto-creates the feature branch on main — bypassing it skips the mode pin and the draft PR opened in point 3. |
 | "spec.md exists, the gate must already be green" | Step 4 decision table requires `pm_signoff.status` approved per Step 2 — existence alone routes back to `/aod.spec`. |
 | "Light tier means skip triple sign-off on tasks too" | Step 4 invariant (line 100) keeps tasks.md triple sign-off as the floor for ALL tiers, including Light. |
 | "Approved with concerns is close enough — I'll fix later" | Step 4 recognized list (line 52) treats it as approved, but the concerns must still be addressed before delivery. |
+<!-- pr_per_cycle:single -->
+| "The draft PR body is boilerplate, `Closes #N` can wait (single mode)" | Step 1 point 3 (single mode) requires `Closes #$((10#{NNN}))` and the `aod:pr_per_cycle=single` marker at creation. GitHub closes the issue on merge, and the marker identifies the PR's mode. |
+<!-- /pr_per_cycle:single -->
 
 ## Red Flags
 
 - Agent advances past an approved sub-step without re-running Step 4's decision table.
 - Agent invokes `/aod.tasks` directly when plan.md lacks dual sign-off per the Step 4 plan row.
-- Agent skips the draft PR open in Step 1 point 3 because `gh` "felt slow."
+- Agent skips the mode pin or the draft PR open in Step 1 point 3 because `gh` "felt slow."
 - Agent treats a missing `triad:` block as approved instead of `not_approved` per Step 3 rule 3.
 - Agent reports "Plan stage complete" without all three artifacts hitting the Step 4 final row.
 - Agent ignores the Light-tier note in Step 4 and re-runs `/aod.spec` for a PM sign-off the tier doesn't require.

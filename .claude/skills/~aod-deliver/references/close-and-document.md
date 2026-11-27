@@ -14,6 +14,12 @@ After all retrospective steps are complete, metrics posted, and KB entries creat
 
 This step MUST be the very last GitHub operation, after all metrics, KB entries, and BACKLOG.md regeneration from Step 8 are complete. BACKLOG.md regeneration is owned exclusively by Step 8 — do NOT re-run it here.
 
+<!-- pr_per_cycle:single -->
+#### Issue handling at Step 12 (single mode)
+
+In single mode skip both sub-steps above: do not move the label off `stage:deliver` and do not close the issue. The issue stays open at `stage:deliver`, and `/aod.document` finalizes it when the PR merges. Proceed to Step 13.
+<!-- /pr_per_cycle:single -->
+
 ---
 
 ## Step 13: Prompt for /aod.document
@@ -29,3 +35,10 @@ Run `/aod.document` now? (Y/n)
 
 - If user selects "Y" or presses enter: Invoke `/aod.document`
 - If user selects "n": Display: `"Skipped. Run /aod.document when ready for post-delivery quality review."`
+
+<!-- pr_per_cycle:single -->
+#### Document prompt at Step 13 (single mode)
+
+In single mode skip the in-skill prompt above. The delivery command's Step 13 owns the hand-off, after the lock is released in Step 14 (standalone interactive: prompt; standalone autonomous: auto-invoke; orchestrated: never).
+<!-- /pr_per_cycle:single -->
+

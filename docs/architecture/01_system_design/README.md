@@ -154,6 +154,12 @@ Deliver completes → Context boundary → GitHub label: stage:document
 → GitHub label: stage:done → Lifecycle Complete (6/6)
 ```
 
+<!-- pr_per_cycle:single -->
+#### Data flow (single mode)
+
+With `pr_per_cycle: single`, Deliver does not hand off to a separate document branch. Document runs on the feature branch, and closeout (`pr-closeout.sh`) sets `stage:done` and merges the one PR. Lifecycle Complete follows only a confirmed merge. Split mode is unchanged. See [docs/guides/PR_PER_CYCLE.md](../../guides/PR_PER_CYCLE.md).
+<!-- /pr_per_cycle:single -->
+
 #### Tech Stack
 
 - Markdown (skill/command files), Bash 3.2 (shell scripts), JSON/jq (state management)
@@ -969,3 +975,42 @@ See [plan.md](../../../specs/182-deliver-skill-decomposition/plan.md) + [data-mo
 - **Review**: `code-reviewer`'s existing Code Quality Review step now also flags over-build + confirms carve-outs survived.
 
 See [plan.md](../../../specs/193-code-economy-ruleset/plan.md) + [spec.md](../../../specs/193-code-economy-ruleset/spec.md). Reuses the `/aod.build` Step 6/7 gate pattern and the `design-quality.md` rule-file model — no new ADR, no new pattern. Single source of truth (ladder/carve-out text lives only in `code-economy.md`); all other surfaces reference it.
+
+### Feature 204: single-pr-per-cycle
+
+**Delivered**: 2026-11-27 (PR #205, squash commit `14c65cb`; 35/35 tasks)
+
+**Tech Stack**: Bash 3.2 (two new sourced libraries) · `git` · `jq` (already required by the halt, lock and run-state libraries) · `gh` ≥ 2.40 (optional; same minimum as the `github-lifecycle.sh` board code) · Markdown command/skill prose · `*.test.sh` corpus with a local bare remote and a dedicated mocked `gh`. No new dependencies, languages, or services.
+
+**Components** (delivered state):
+
+| Component | File | Change |
+|-----------|------|--------|
+| Config + mode resolver | `.aod/scripts/bash/aod-config.sh` (NEW) | Validated reads (`aod_config_get`: rc 3 on malformed JSON / non-object root / missing `jq`) and tmp+`mv` jq-merge writes that preserve other keys (`aod_config_set_string`, now also used by `aod-orchestrate` Step 2.5). `aod_pr_mode` is the single entry point: pin first, then config via `aod_pr_mode_from_config` (`has()` + `type == "string"`, never jq `//`; invalid → rc 4, prints `split`). gh-free `aod_default_branch`, and `aod_feature_branch_candidates` as the one definition of "the feature branch for NNN" (`NNN-*`, local or `origin/`, excluding `*-heal-*` and `*-document-stage`), shared with `pr-closeout.sh resolve`. |
+| Per-feature pin | `.aod/pr-mode/{NNN}` (committed, `user\|` in the manifest, not shipped) | One line, `single` or `split`. Keyed by NNN only, so it never creates or depends on a `specs/` dir. Written by plan Step 1, `~aod-run` after Discover, or the first stage that resolves on the feature branch; never on the default branch. Wins over later config changes and lands on main with the squash. |
+| Closeout | `.aod/scripts/bash/pr-closeout.sh` (NEW, standalone entry point) | Subcommands `resolve` / `verify` / `prepare` / `merge` / `post-merge` / `outcome` (contract: [pr-closeout-cli.md](../../../specs/204-single-pr-per-cycle/contracts/pr-closeout-cli.md)). One shared diff-based classifier, `_commits_needing_verification` (code-touching, non-merge commits after the newest `docs: close Feature NNN - update all documentation` anchor), feeds both `verify` and the `_prc_gate` verification gate. |
+| Document halt record | `halt-signal.sh::write_document_halt_record` (NEW sibling function) | Atomic tmp+`mv` `document-{NNN}.halt.json` under `AOD_HALT_STATE_DIR`; closed reason enum (`head_mismatch`, `conflict`, `checks_failed`, `tests_failed`, `heal_pr_open`, `gh_unavailable`, `not_merged`, `invalid_config`, `precondition_failed`). Deliver's `write_halt_record` is untouched. |
+| Tripwire | `check-no-merge-heal.sh` (EDIT) | Adds a `.claude/commands/**/*.md` scan root next to `.claude/skills/`, same pattern and exclusions. |
+| Mode-branching prose | `~aod-plan`, `aod.deliver.md` + `~aod-deliver` references, `aod.document.md`, `~aod-run`, `aod-orchestrate` (EDIT) | Branch on the resolved mode and call the libraries; no merge decision lives in prose. Deliver gains `--orchestrated`. |
+
+**Merge-authorization flow** (single mode, Document Step 5b → Step 6):
+- **`verify`** (every entry, including re-entry): no in-scope commit → `skipped`. Otherwise run the active stack pack's `TEST_COMMAND` and commit `specs/{NNN}-*/test-results/post-refactor.json` (`verified_sha`, `result`). No stack pack → `not_reverified` (allowed, reported). A stack pack whose command cannot be resolved → `tests_failed`.
+- **`prepare`**: branch == feature ≠ default, clean tree → gh check → PR `OPEN` → preconditions (no `e2e-heal` / `requires-review` label, no open heal PR on the branch, no deliver halt record, `delivery.md` tracked at HEAD) → **verification gate** (every in-scope commit an ancestor of a `pass` `verified_sha`, or `not_reverified` while no command is resolvable) → merge `origin/<default>` (regenerable-only conflicts auto-resolved, else `conflict`) → `gh pr ready` → finalize (`stage:done` on the **issue**, BACKLOG + extract snapshot, push to `refs/heads/<F>`) → head guard (remote ref and `headRefOid` == HEAD) → bounded tri-state required checks + `mergeStateStatus` → prints `pr= sha= checks= verify=`.
+- **Ask / auto**: interactive asks in chat with that sha; autonomous proceeds.
+- **`merge`** re-asserts prepare's authorization (KB 41: every entry point into the authorization path carries its own full gate): 40-hex `--sha` == local HEAD, clean tree, labels and heal-PR re-check, no Document halt record, deliver preconditions, the same `_prc_gate`, and one non-polling checks + `mergeStateStatus` + `isDraft` read. Calling `merge` without `prepare` cannot bypass the gate. Then `gh pr merge --squash --match-head-commit <sha>` (never `--admin`, `--auto` or `--delete-branch`).
+- **Verify the merge**: success is `gh pr view` `state == MERGED`, regardless of gh's rc. Not merged with gh rc 0 → `not_merged detail=queued`.
+- **`post-merge`**: close the issue if still open, ff-pull the default branch, delete the remote branch, delete the local branch only if it equals the merged head, prune. Failures here are warnings (`post_merge=partial`), never a halt.
+- **`outcome`** (`~aod-run` after Document): decides from `gh pr view` facts, never transcript text → `completed` (MERGED) / `failed` (record present, PR closed or missing, or autonomous with no merge and no record) / `awaiting_merge` (interactive, PR open; stage stays `in_progress`, no Lifecycle Complete).
+
+**Fail-closed guarantees**:
+- Any `prepare` or `merge` failure before a verified `MERGED` writes a Document halt record, prints the Channel-1 halt line, and exits 10. Nothing writes a record after `MERGED` is verified.
+- Invalid config or pin under `--autonomous` → rc 4 → `invalid_config`, before any stage and with no pin written. Interactive warns and uses `split`.
+- `gh` missing or below 2.40 or unauthenticated: autonomous halts `gh_unavailable` (in `~aod-run`, before any stage). Interactive prints the manual closeout steps.
+- Classifier or git errors → `tests_failed`. Ambiguous feature PR (rc 5) → autonomous `precondition_failed`.
+- `prepare` deletes a stale Document record and re-evaluates from scratch. The gate reads branch history, not the halt record or the current session.
+
+**Split / single mode boundary**:
+- **Default `split`** (this repo runs split): stage flow, PR bodies, deliver auto-merge, `git push origin main` plus its exception note, the `{NNN}-document-stage` branch and the `stage:done` story-export gate are byte-identical to the pre-204 behavior, pinned by `tests/unit/pr-cycle-contracts.test.sh`. The only split-visible additions are the pin file, the mode resolution and its rc 4 halt, and the widened tripwire scope (FR-032 audit in plan.md).
+- **`single`**: one PR from `/aod.plan` (or Deliver Step 1 under `/aod.run`) with `Closes #N` and `<!-- aod:pr_per_cycle=single -->`. Deliver pushes to the feature ref, stops at a ready PR and leaves the issue at `stage:deliver`, skipping cleanup and upstream sync. Document runs on the same branch, and `pr-closeout.sh` is the only place that merges. `~aod-run` skips the post-Deliver relabel and BACKLOG regen so main stays untouched until the squash.
+
+See [plan.md](../../../specs/204-single-pr-per-cycle/plan.md) (D-1..D-12) + [contracts/](../../../specs/204-single-pr-per-cycle/contracts/) + [docs/guides/PR_PER_CYCLE.md](../../guides/PR_PER_CYCLE.md). The single-mode data-flow note under Feature 108 above describes the Document handoff. No new ADR: ADR-013 (verification before delivery completes) holds, and its appended Feature 204 note records that the merge moves to the end of Document. The tripwire scope note is in [03_patterns](../03_patterns/README.md). No new pattern.

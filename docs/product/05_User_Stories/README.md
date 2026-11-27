@@ -234,3 +234,28 @@ Each PRD should include relevant user stories:
   - **AC**: Given the post-refactor skill, when `SKILL.md` line count is measured, then it is materially smaller than the 1,574-line baseline and the offloaded sections live in named `references/*.md` files.
 
 **Stories source of truth**: GitHub Issue #182 — FR-020 (P0 close-gate relaxation, pure deletion of 3 over-strict role-check blocks) + FR-019 (P2 progressive-disclosure offload, zero behavioral change). See `specs/182-deliver-skill-decomposition/spec.md`.
+
+### Feature 204: Single PR per AOD Cycle (`pr_per_cycle` setting)
+
+**PRD**: [204-single-pr-per-cycle](../02_PRD/204-single-pr-per-cycle-2026-11-26.md)
+**Delivered**: 2026-11-27 | **PR**: #205 (squash 14c65cb) | **Tasks**: 35/35 complete | **Stories**: 6/6 delivered
+**Adopter guide**: [`docs/guides/PR_PER_CYCLE.md`](../../guides/PR_PER_CYCLE.md)
+
+> **Opt-in lifecycle setting for adopters.** `pr_per_cycle: "single"` gives one PR per feature, from `/aod.plan` to one verified squash-merge at the end of `/aod.document`. The default stays `split` (missing key = split), so nothing changes for adopters who don't opt in. This repo itself stays on split, so the single path is covered by mocked-`gh` tests and a scripted end-to-end run (`tests/integration/single-pr-cycle-e2e.test.sh`), not by a real cycle here.
+
+- **US-204-1** (P1): Opt in to single mode, safely - As an adopter, set `pr_per_cycle: "single"` in `.aod/config.json` to get the single-PR lifecycle without editing commands, and without a typo quietly sending me back to the flow that pushes to main.
+  - **AC**: Given no config or no key, the mode is `split`. Given `single`, `/aod.plan` pins the mode for the feature at `.aod/pr-mode/NNN`, and later config changes don't change that feature's mode.
+  - **AC**: Given an invalid value, malformed JSON or missing `jq`, interactive runs warn and use `split`, and `--autonomous` runs halt with `invalid_config`. `/aod.orchestrate` keeps existing config keys when it writes `project_id`.
+- **US-204-2** (P1): Deliver stays on the feature branch - As a maintainer running `/aod.deliver` in single mode, have all delivery output committed and pushed to the feature branch and the PR marked ready, with no merge, no branch delete, no push to main and no issue close.
+  - **AC**: Given single mode, deliver releases its lock before offering `/aod.document`, never starts Document itself under `/aod.run`, and defers upstream sync until after the final merge.
+- **US-204-3** (P1): Document stays on the same branch - As a maintainer running `/aod.document` in single mode, work on the feature branch with no `{NNN}-document-stage` branch and no second PR.
+  - **AC**: Given single mode, the CHANGELOG section cites the PR number and a re-run adds no duplicate entries. If simplify or docs-lint committed changes, the feature's tests re-run, and a failure halts autonomous runs or blocks the merge prompt.
+- **US-204-4** (P1): Closeout and one verified merge - As a maintainer, have closeout finish the issue on the branch and merge once: after I say yes in interactive runs, on its own in autonomous runs.
+  - **AC**: Given a heal label or open heal PR, a deliver halt record, a missing delivery doc, a non-regenerable conflict, failing or timed-out required checks, a head SHA mismatch, or a queued (not merged) PR, closeout does not merge and an autonomous run halts with the matching reason.
+  - **AC**: Given a confirmed `MERGED` state, closeout makes sure the issue is closed, updates local main and prunes refs. An interactive "no" leaves the PR ready and reports "done — awaiting merge".
+- **US-204-5** (P2): `/aod.run` and `/aod.orchestrate` treat the merge as the last gate - As an operator running autonomous cycles back to back, never have the next cycle start on a stale main.
+  - **AC**: Given a Document halt record, `/aod.run` marks the stage failed, fails closed, and never shows Lifecycle Complete. On success it records the PR URL and merge commit SHA. A `gh` that is missing or not signed in is caught in preflight, not at the end.
+- **US-204-6** (P1): Split mode is unchanged - As an adopter who hasn't opted in, upgrade without relearning or re-approving my merge flow.
+  - **AC**: Given split mode, plan/deliver/document behave as before (no closing keyword in the plan PR body; deliver and document merge, delete, push and close as today), and existing tests stay green (0 regressions).
+
+**Stories source of truth**: GitHub Issue #204. Shipped the mode reader and pin (`aod-config.sh`, `.aod/pr-mode/NNN`), the closeout library (`pr-closeout.sh`), the post-refactor re-verification gate, a fail-closed `/aod.run` outcome, `check-no-merge-heal.sh` extended to scan `.claude/commands`, and 9 new or extended test suites. See `specs/204-single-pr-per-cycle/spec.md`.

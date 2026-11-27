@@ -362,6 +362,12 @@ What you CAN do:
 - **Ignore the halt record**: the file at `.aod/state/deliver-{NNN}.halt.json` is per-feature and overwritten on next run. If you don't read it, it's effectively inert. It's cleaned on clean exit; on halt, it persists until next run.
 - **Map the exit code to success** (strongly discouraged): your CI can treat exit 10 as success, but you defeat the PRD's entire purpose. Don't.
 
+<!-- pr_per_cycle:single -->
+#### Halt record cleanup (single mode)
+
+With `pr_per_cycle: single`, `/aod.deliver` removes a stale halt record for the feature on a clean successful run. Split mode is unchanged. See PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->
+
 ---
 
 ## Troubleshooting

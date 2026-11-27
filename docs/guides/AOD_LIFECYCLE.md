@@ -25,6 +25,12 @@ The AOD Lifecycle is a single, linear sequence of **6 stages** organized into **
 
 Stages 1-5 are orchestrated by `/aod.run`. Stage 6 (Document) is a separate human-driven command (`/aod.document`) for post-delivery quality review.
 
+<!-- pr_per_cycle:single -->
+#### Document stage (single mode)
+
+With `pr_per_cycle: single`, Document runs on the same feature branch and PR as Deliver, and merges that PR once at the end. `/aod.run` runs Document as its own stage and reports Lifecycle Complete only after the merge is confirmed. See PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->
+
 ### Lifecycle with Governance Gates
 
 Governance gates are Triad approval checkpoints that operate **between stages**, not as stages themselves. Gates determine who approves before work advances.
@@ -261,6 +267,12 @@ Which gates activate at each stage, per tier.
 ```
 
 Six commands. `/aod.plan` auto-advances through 3 sequential sub-steps (spec → project-plan → tasks). Run it up to 3 times — each invocation advances to the next sub-step on approval. `/aod.document` runs separately after delivery for human-driven quality review.
+
+<!-- pr_per_cycle:single -->
+#### Command flow (single mode)
+
+With `pr_per_cycle: single`, `/aod.deliver` does not merge; `/aod.document` merges the cycle's single PR. See PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->
 
 ---
 

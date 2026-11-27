@@ -318,6 +318,18 @@ esac
 
 Adopter migration walkthrough: `docs/guides/DELIVERY_HARD_GATE_MIGRATION.md`. AC-coverage migration (legacy prose specs): `docs/guides/AC_COVERAGE_MIGRATION.md`. No new CI workflows are added for this feature — the gate is internal to the `/aod.deliver` skill.
 
+**Added in Feature 204.** Single-PR-per-cycle closeout (`pr_per_cycle: single` in `.aod/config.json`; requires `gh` >= 2.40) respects the following environment variables. They exist for the test suite. **NOT public contract.**
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `AOD_CLOSEOUT_CHECKS_TIMEOUT` | `document.checks_timeout_seconds` (1800) | Test override for the PR checks wait timeout. |
+| `AOD_CLOSEOUT_CHECKS_INTERVAL` | script default | Test override for the PR checks poll interval. |
+| `AOD_CLOSEOUT_HEAD_POLLS` | script default | Test override for the number of PR head-SHA polls. |
+| `AOD_CLOSEOUT_HEAD_INTERVAL` | script default | Test override for the head-SHA poll interval. |
+| `AOD_CLOSEOUT_BACKLOG_CMD` | script default | Test override for the backlog regeneration command. |
+
+CI status: no pipeline changes in Feature 204. Running the new `tests/**/*.test.sh` in CI is out of scope and is a candidate follow-up.
+
 ---
 
 ## Update-Script Environment Variables

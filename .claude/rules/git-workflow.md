@@ -50,3 +50,9 @@ Open a **draft PR early** (at branch creation) and mark it ready at delivery:
 3. **Deliver stage**: `/aod.deliver` marks the PR ready via `gh pr ready` — this signals "ready for review/merge"
 
 **Why draft-first**: Provides remote backup during long builds, gives visibility into in-progress work, and enables early review comments. The squash-merge at delivery still produces a clean `main` history.
+
+<!-- pr_per_cycle:single -->
+#### Draft PR lifecycle (single mode)
+
+With `pr_per_cycle: single`, one PR carries the whole cycle. `/aod.deliver` marks it ready (`gh pr ready`) but does not merge; `/aod.document` then runs on the same feature branch and merges the PR once through `pr-closeout.sh`. No `{NNN}-document-stage` branch or second PR is created. Split mode is unchanged. See ../../docs/guides/PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->

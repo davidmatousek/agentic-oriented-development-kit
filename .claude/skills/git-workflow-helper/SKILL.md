@@ -209,6 +209,12 @@ gh pr view --web
 - `/aod.deliver` marks the PR ready via `gh pr ready` when work is complete
 - If no draft PR exists (e.g., ad-hoc branches), create a regular PR directly
 
+<!-- pr_per_cycle:single -->
+#### Draft vs Ready (single mode)
+
+With `pr_per_cycle: single`, `/aod.deliver` marks the PR ready but never merges it; the one merge happens at the end of `/aod.document`. See ../../../docs/guides/PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->
+
 ## Examples
 
 ### Example 1: Commit Changes

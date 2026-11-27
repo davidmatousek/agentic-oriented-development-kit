@@ -291,6 +291,9 @@ user|.aod/memory/**
 # Feature history
 user|specs/**
 
+# Per-feature pr_per_cycle mode pins (Feature 204): adopter-owned, not shipped
+user|.aod/pr-mode/**
+
 # Ephemeral session artifacts that happen to be tracked (closures are historic
 # feature summaries; handoff is cross-session context; archive is old run-state
 # snapshots — all adopter-owned)

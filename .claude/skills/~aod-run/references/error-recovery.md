@@ -130,6 +130,12 @@ Artifacts:
   - ...
 ```
 
+<!-- pr_per_cycle:single -->
+#### Lifecycle Complete artifacts (single mode)
+
+In single mode Lifecycle Complete is reached only after `pr-closeout.sh outcome` reports `completed`. The Document artifacts include `PR {pr_url}` and `merge {merge_commit}`; list both under Artifacts. An `awaiting_merge` or `failed` outcome never reaches this section. See [`docs/guides/PR_PER_CYCLE.md`](../../../../docs/guides/PR_PER_CYCLE.md).
+<!-- /pr_per_cycle:single -->
+
 4. **Archive state file**: Copy the state file to the specs directory for permanent record:
    ```
    bash -c 'source .aod/scripts/bash/run-state.sh && aod_state_archive "specs/{NNN}-{feature_name}/run-state.json"'

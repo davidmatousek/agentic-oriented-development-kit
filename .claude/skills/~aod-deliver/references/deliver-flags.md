@@ -13,6 +13,18 @@ This reference is loaded at Step 0, on every `/aod.deliver` run.
 
 No mutation of `AOD_NO_TESTS_FOUND`, `AOD_NO_TESTS_REASON`, or `invocation_command` occurs between Step 0 and their downstream consumers. Carry them verbatim.
 
+<!-- pr_per_cycle:single -->
+#### Single-mode carry-forward (single mode)
+
+The `/aod.deliver` command strips `--orchestrated` from its arguments, resolves the mode, and carries these additional values into the skill. Carry them verbatim; the skill never re-parses `--orchestrated`.
+
+| Variable / Value | Downstream Consumer |
+|---|---|
+| `orchestrated` (true/false) | Command Step 13: never chain `/aod.document` when true |
+| `PR_MODE` (`single` or `split`) | Every single-mode block in the command and in the skill references |
+| `FEATURE` / `NNN` | Step 14 lock release (release under the key acquired in Step 0.5) |
+<!-- /pr_per_cycle:single -->
+
 ---
 
 ## Step 0: Parse Arguments (Feature 139 — PRD FR-001, FR-002, FR-034)

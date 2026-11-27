@@ -1127,6 +1127,12 @@ fi
 
 If `gh` is unavailable or no draft PR exists, skip silently (graceful degradation). If no draft PR exists, create a regular PR: `gh pr create --title "{NNN}: {Feature Name}" --body "..."`.
 
+<!-- pr_per_cycle:single -->
+#### 11f note (single mode)
+
+In single mode 11f is unchanged: it finds the PR by head branch and `gh pr ready` is idempotent. The heal-PR (Step 9e) targets the live feature branch (FR-013), because `heal-pr.sh` creates it with `--base "$feature_branch"`.
+<!-- /pr_per_cycle:single -->
+
 ### 11g: Display Delivery Document
 
 After writing (or after fallback display if write failed), show the full document content in the terminal so the developer can review it immediately.
@@ -1150,7 +1156,7 @@ Follow Steps 12 and 13 in `references/close-and-document.md`. After Step 13 comp
 
 ---
 
-## Step 14: Release Delivery Lock & Cleanup (US-7, Feature 139 — FR-031)
+## Step 14: Lock Release & Cleanup (US-7, Feature 139 — FR-031)
 
 **MANDATORY**: You MUST use the Read tool to load `references/delivery-lock.md` before proceeding with delivery lock release. Do NOT rely on memory of prior delivery-lock content. If the file cannot be read, display an error and STOP.
 
