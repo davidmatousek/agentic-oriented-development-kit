@@ -17,6 +17,7 @@
 - **Postman/Insomnia**: API testing
 - **jq**: JSON processor, required by `.aod/scripts/bash/run-state.sh` for the Full Lifecycle Orchestrator (`brew install jq` on macOS, `apt-get install jq` on Linux)
 - **GitHub CLI (`gh`)**: Used by `make init` to auto-create a GitHub Projects board for backlog tracking and to bootstrap the 7 lifecycle stage labels (`stage:discover`, `stage:define`, `stage:plan`, `stage:build`, `stage:deliver`, `stage:document`, `stage:done`) on the repository. Both bootstraps are idempotent — re-running `make init` produces no duplicate-label or duplicate-board errors. Requires the `project` OAuth scope (`gh auth refresh -s project`). If not installed or not authenticated, init continues without creating the board or labels. Install via `brew install gh` on macOS or see [cli.github.com](https://cli.github.com)
+- **GitHub CLI (`gh`) >= 2.40** (Feature 204): optional runtime requirement, needed only for single-mode closeout (`pr_per_cycle: single`). Not required for the default `split` mode.
 - **BATS** (`bats-core`): Bash test framework used by the shell test suite introduced in feature 129. Install via `brew install bats-core` (macOS), `apt-get install bats` (Linux), or as a git submodule (`git submodule add https://github.com/bats-core/bats-core.git tests/vendor/bats-core`). Only required if you will run or contribute to the bash test suite. See `CONTRIBUTING.md` for the authoritative setup guide.
 
 ### make init Personalization
@@ -121,6 +122,8 @@ The `AOD_BOARD` variable pins the GitHub Projects board number for issue-board s
 - `AOD_BOOTSTRAP_TECH_STACK_DATABASE`, `AOD_BOOTSTRAP_TECH_STACK_VECTOR`, `AOD_BOOTSTRAP_TECH_STACK_AUTH`, `AOD_BOOTSTRAP_CLOUD_PROVIDER`: required in `--yes` mode (always-prompt architecture values).
 - `AOD_BOOTSTRAP_<FIELD>`: required in `--yes` mode for any auto-discovered field that falls back to low-confidence detection. Pattern `AOD_BOOTSTRAP_<UPPERCASE_FIELD_NAME>=<value>` (e.g., `AOD_BOOTSTRAP_PROJECT_NAME`).
 - `AOD_UPSTREAM_URL`: fallback upstream URL when `CANONICAL_URL=...` is not findable in `scripts/sync-upstream.sh`. In `--yes` mode with no `CANONICAL_URL` discoverable, this env var is required.
+
+**Closeout test overrides** (feature 204, test use only, not public contract): `AOD_CLOSEOUT_CHECKS_TIMEOUT`, `AOD_CLOSEOUT_CHECKS_INTERVAL`, `AOD_CLOSEOUT_HEAD_POLLS`, `AOD_CLOSEOUT_HEAD_INTERVAL`, `AOD_CLOSEOUT_BACKLOG_CMD`. See `docs/devops/CI_CD_GUIDE.md`.
 
 See `docs/devops/CI_CD_GUIDE.md` → "Update-Script Environment Variables" and `docs/guides/DOWNSTREAM_UPDATE.md` for the full contract.
 
@@ -313,6 +316,8 @@ cp .aod/config.json.example .aod/config.json
 | `version` | `1` | Schema version (const `1`). Bump only on breaking changes. |
 | `deliver.heal_attempts` | `2` | Max bounded auto-fix loop attempts before escalating to a heal-PR. Set to `0` to disable the loop (every failure routes straight to heal-PR). |
 | `deliver.heal_max_timeout_multiplier` | `1.5` | Upper bound on how much the auto-fix loop may inflate an existing test timeout. Raise (e.g. `2.0`) for slower CI. |
+| `pr_per_cycle` | `split` | Feature 204. `split` keeps the current per-stage PR flow; `single` opts into one PR per AOD cycle (requires `gh` >= 2.40). |
+| `document.checks_timeout_seconds` | `1800` | Feature 204. Max seconds single-mode closeout waits for PR checks. |
 
 Full field documentation: `.aod/config.json.example.md`. Reader-contract spec: `specs/139-delivery-verified-not-documented/contracts/config-schema.md`.
 

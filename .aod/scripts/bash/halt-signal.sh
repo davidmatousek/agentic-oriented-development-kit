@@ -148,3 +148,105 @@ write_halt_record() {
 
     return 0
 }
+
+# Feature 204 document-closeout halt record (sibling of write_halt_record).
+# Canonical contract: specs/204-single-pr-per-cycle/contracts/document-halt-record.md
+# Atomically writes ${AOD_HALT_STATE_DIR}/document-{NNN}.halt.json via write-then-rename.
+# Args:
+#   $1 feature      Feature id, e.g. "204-single-pr-per-cycle"
+#   $2 reason       One of: head_mismatch | conflict | checks_failed | tests_failed |
+#                   heal_pr_open | gh_unavailable | not_merged | invalid_config |
+#                   precondition_failed
+#   $3 pr_number    Integer as string; empty or "null" -> JSON null
+#   $4 head_sha     String; empty or "null" -> JSON null
+#   $5 detail       Human-readable single line (newlines replaced by spaces)
+# Returns:
+#   0 on successful atomic write
+#   1 on invalid reason (nothing written) or any write failure (stdout + exit
+#     code channels remain, per ADR-006).
+write_document_halt_record() {
+    local feature="${1:-}"
+    local reason="${2:-}"
+    local pr_number="${3:-}"
+    local head_sha="${4:-}"
+    local detail="${5:-}"
+
+    case "$reason" in
+        head_mismatch|conflict|checks_failed|tests_failed|heal_pr_open|gh_unavailable|not_merged|invalid_config|precondition_failed)
+            ;;
+        *)
+            echo "[aod] write_document_halt_record: invalid reason '${reason}'; no record written" >&2
+            return 1
+            ;;
+    esac
+
+    [ "$pr_number" = "null" ] && pr_number=""
+    [ "$head_sha" = "null" ] && head_sha=""
+
+    # pr_number is spliced via --argjson; only a plain integer may pass.
+    local pr_number_json
+    if [ -z "$pr_number" ]; then
+        pr_number_json="null"
+    else
+        case "$pr_number" in
+            *[!0-9]*)
+                echo "[aod] write_document_halt_record: pr_number '${pr_number}' is not an integer; no record written" >&2
+                return 1
+                ;;
+        esac
+        pr_number_json="$pr_number"
+    fi
+
+    local nnn
+    nnn=$(_halt_feature_nnn "$feature")
+
+    local tmp="${AOD_HALT_STATE_DIR}/document-${nnn}.halt.json.tmp"
+    local final="${AOD_HALT_STATE_DIR}/document-${nnn}.halt.json"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Halt record write failed; degraded to stdout+exit channels" >&2
+        return 1
+    fi
+
+    if ! mkdir -p "$AOD_HALT_STATE_DIR" 2>/dev/null; then
+        echo "Halt record write failed; degraded to stdout+exit channels" >&2
+        return 1
+    fi
+
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Single-line detail: newlines / carriage returns -> spaces.
+    detail=$(printf '%s' "$detail" | tr '\r\n' '  ')
+
+    jq -n \
+        --argjson ver 1 \
+        --arg ts "$timestamp" \
+        --arg feature "$feature" \
+        --arg reason "$reason" \
+        --argjson pr_number "$pr_number_json" \
+        --arg head_sha "$head_sha" \
+        --arg detail "$detail" \
+        '{
+            version: $ver,
+            stage: "document",
+            timestamp: $ts,
+            feature: $feature,
+            reason: $reason,
+            pr_number: $pr_number,
+            head_sha: (if $head_sha == "" then null else $head_sha end),
+            detail: $detail
+        }' > "$tmp" 2>/dev/null || {
+        echo "Halt record write failed; degraded to stdout+exit channels" >&2
+        rm -f "$tmp" 2>/dev/null
+        return 1
+    }
+
+    if ! mv "$tmp" "$final" 2>/dev/null; then
+        echo "Halt record write failed; degraded to stdout+exit channels" >&2
+        rm -f "$tmp" 2>/dev/null
+        return 1
+    fi
+
+    return 0
+}

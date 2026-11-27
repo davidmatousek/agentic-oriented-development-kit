@@ -1794,6 +1794,12 @@ Three composable mechanisms:
 
 A parallel enforcement tripwire keeps escalated artifacts out of the automation path. In the 139 implementation, `grep -r 'gh pr merge' .claude/skills/` asserts at CI time that no skill can auto-merge a PR labeled `e2e-heal`; the authorization boundary and the merge boundary are independently enforced.
 
+<!-- pr_per_cycle:single -->
+#### Tripwire scope (single mode)
+
+Feature 204: scope extended to `.claude/commands/`. `check-no-merge-heal.sh` now scans command files as well as skills, with the same pattern and exclusions, which keeps those files from auto-merging an escalated PR. Confinement of the single merge to `pr-closeout.sh` is enforced separately by `tests/unit/pr-cycle-contracts.test.sh`, which checks that no `gh pr merge` appears in any single-mode block. See ../../guides/PR_PER_CYCLE.md.
+<!-- /pr_per_cycle:single -->
+
 #### Example
 
 From `.aod/scripts/bash/scope-guard.sh` (Feature 139 — 5-rule closed set):

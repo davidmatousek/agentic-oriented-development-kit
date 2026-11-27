@@ -371,6 +371,12 @@ Stage Map:
      - If still incomplete → another session break (recursive until done)
      - If all complete → advance to Deliver
 
+<!-- pr_per_cycle:single -->
+#### Document resume (single mode)
+
+When the pin is `single` and Document is `failed` or `in_progress` (including `outcome="awaiting_merge"`), re-invoke Document. Lifecycle Complete is shown only after `pr-closeout.sh outcome` reports `completed` (see SKILL.md "After Document completes (single mode)").
+<!-- /pr_per_cycle:single -->
+
 ## Artifact Consistency Validation
 
 When resuming, verify that artifacts recorded in the state file for completed stages actually exist on disk. This catches cases where artifacts were manually deleted or moved between sessions.

@@ -1,13 +1,13 @@
 # Claude Agent Infrastructure
 
-This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 24 automation skills, 23 slash commands, and 6 design archetypes for streamlined feature development.
+This directory contains the complete agent orchestration infrastructure for {{PROJECT_NAME}}, including 13 specialized agents, 26 automation skills, 23 slash commands, and 6 design archetypes for streamlined feature development.
 
 ## Overview
 
 The infrastructure is organized into four main components:
 
 1. **Agents** (`agents/`) - 13 specialized AI agents for different development roles
-2. **Skills** (`skills/`) - 24 reusable automation capabilities
+2. **Skills** (`skills/`) - 26 reusable automation capabilities
 3. **Commands** (`commands/`) - 23 slash commands for workflow automation
 4. **Design** (`design/`) - 6 design archetypes for brand identity generation
 
@@ -108,6 +108,8 @@ Skills are reusable automation capabilities that agents can invoke to perform sp
 | **root-cause-analyzer** | Perform 5 Whys root cause analysis | Complex bugs, recurring issues, workflow blockers |
 | **code-execution-helper** | Execute code for quota checks, API validation | Pre-flight quota checks, resource validation |
 | **git-workflow-helper** | Git workflow automation (commits, PRs, branches) | Creating commits, managing branches, PR creation |
+| **skill-creator** | Guide for creating effective skills (init, structure, references, packaging) | Building a new skill or restructuring an existing one |
+| **skill-audit** | Audit a skill against best practices — 0-100 score with prioritized fixes | Reviewing skill quality, token cost, or trigger issues; `/skill-audit <name> [--fix]` |
 
 ### Stack & Design Skills
 
@@ -315,7 +317,7 @@ Task(subagent_type="tester", prompt="Implement T050-T060")
 │   ├── ux-ui-designer.md
 │   └── security-analyst.md
 │
-├── skills/           → 24 automation capabilities
+├── skills/           → 26 automation capabilities
 │   ├── ~aod-blueprint/
 │   ├── ~aod-bugfix/
 │   ├── ~aod-build/

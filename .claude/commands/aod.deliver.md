@@ -25,6 +25,33 @@ Feature number (e.g., `007` or `007-phase-brain-rag`). If omitted, detect from r
    - Strip `--require-tests` from `$ARGUMENTS` (trim extra whitespace)
    - Default: `require_tests = false`
 
+<!-- pr_per_cycle:single -->
+#### Flags (single mode)
+
+1. If `$ARGUMENTS` contains `--orchestrated`:
+   - Set `orchestrated = true`
+   - Strip `--orchestrated` from `$ARGUMENTS` (trim extra whitespace) so feature-number detection is not polluted
+   - Default: `orchestrated = false`
+<!-- /pr_per_cycle:single -->
+
+#### Mode resolution (both modes)
+
+1. Determine `FEATURE` (full `NNN-name`) and `NNN` from the remaining arguments, else from `git branch --show-current`.
+2. Resolve the mode (library: `.aod/scripts/bash/aod-config.sh`):
+
+   ```bash
+   source .aod/scripts/bash/aod-config.sh
+   rc=0
+   PR_MODE=$(aod_pr_mode "$FEATURE") || rc=$?   # add --autonomous when autonomous == true
+   ```
+
+   - rc 4: halt with `invalid_config` (print `Halted — deliver: invalid_config`, then stop).
+   - rc 6 (ambiguous feature branch): halt with `precondition_failed` (print `Halted — deliver: precondition_failed`, then stop).
+   - `aod_pr_mode` writes the pin `.aod/pr-mode/${NNN}` only while on the feature branch.
+3. Carry `PR_MODE`, `FEATURE`/`NNN` and `orchestrated` to the `~aod-deliver` skill the same way `require_tests` and `autonomous` are carried (the parameters must exist in both the command and the skill).
+4. When `PR_MODE` is not `single`, every single-mode block in this file is ignored and the split text applies unchanged.
+
+
 ## Step 1: Validate Closure Readiness
 
 Run these checks (in parallel where possible):
@@ -35,7 +62,7 @@ Run these checks (in parallel where possible):
 | PR merged | `git branch -a \| grep {NUMBER}` | Branch NOT found (deleted after merge) |
 | Tasks complete | `grep "^\- \[ \]" specs/{FEATURE}/tasks.md` | Zero incomplete tasks |
 
-### Branch & PR Handling (Automatic)
+### Branch & PR Handling (Automatic, split mode)
 
 Per git workflow rules, feature branches require PRs — handle this automatically without prompting:
 
@@ -46,6 +73,18 @@ Per git workflow rules, feature branches require PRs — handle this automatical
 5. **If PR already merged and branch deleted**: Proceed directly
 
 Only prompt the user if an automated step fails (e.g., merge conflicts, CI failure).
+
+<!-- pr_per_cycle:single -->
+### Branch & PR Handling (single mode)
+
+Single mode replaces the split rows "PR merged" and the five numbered handling rules above. Deliver stays on the feature branch and NEVER merges.
+
+1. Assert `git branch --show-current` matches `^${NNN}-` and is not the default branch (`aod_default_branch`). If the PR is already merged or the branch is missing, error out and stop. Then set `FEATURE=$(git branch --show-current)`. Every refspec in this command (`git push origin HEAD:refs/heads/$FEATURE`) uses this value, never the command argument (which may be only `NNN`).
+2. Commit pending changes with a conventional commit message, then push with an explicit refspec: `git push origin HEAD:refs/heads/$FEATURE`.
+3. If no PR exists for the branch, create it via `gh pr create` with a body containing `Closes #$((10#$NNN))` (the unpadded issue number) and the line `<!-- aod:pr_per_cycle=single -->`.
+4. If `gh` is unavailable: commit and push, print "Open the PR manually; its body must contain `Closes #<issue>` (the unpadded issue number, e.g. `#204` or `#21`) and `<!-- aod:pr_per_cycle=single -->`", and continue (the skill's PR-ready step is skipped).
+5. Do not merge, delete the branch, or enable auto-merge anywhere in this command.
+<!-- /pr_per_cycle:single -->
 
 ### Other Validation Failures
 
@@ -168,10 +207,22 @@ Run the `~aod-deliver` skill's retrospective and validation flow (Steps 2-14 fro
 
 ## Step 7: Cleanup Tasks
 
+<!-- pr_per_cycle:single -->
+#### Cleanup (single mode)
+
+Skipped in single mode: the branch must survive until Document's closeout merges the PR. See `/aod.document` closeout. The split text below applies only in split mode.
+<!-- /pr_per_cycle:single -->
+
 1. **Delete feature branch** (local and remote, ignore if already deleted)
 2. **Validate**: Check `git status`, search for TBD/TODO in docs/
 
 ## Step 8: Upstream Sync (Template Repo Only)
+
+<!-- pr_per_cycle:single -->
+#### Upstream sync (single mode)
+
+Skipped in single mode with zero output; sync belongs to Document's closeout. The split text below applies only in split mode.
+<!-- /pr_per_cycle:single -->
 
 This step applies ONLY to the upstream template project. Consumer projects will never have `scripts/extract.sh` — skip this step entirely with NO output, NO message, and NO mention in the closure report.
 
@@ -199,6 +250,19 @@ Both snapshots, if regenerated, are staged alongside the docs in Step 9b.
 
 ### 9b: Stage and Commit
 
+<!-- pr_per_cycle:single -->
+#### Stage and commit (single mode)
+
+Single mode commits to the feature branch and never touches the default branch. The split staging, commit and push text below applies only in split mode.
+
+1. Assert the current branch is not the default branch (`[ "$(git branch --show-current)" != "$(aod_default_branch)" ]`) and matches `^${NNN}-`. If not, stop with an error.
+2. Stage the explicit single-mode set: `docs/`, `deployment/`, `CLAUDE.md`, any snapshots regenerated in 9a, `specs/${NNN}-*/` (delivery.md, `test-results/**`) and `.aod/pr-mode/${NNN}`.
+3. Then run `git add -u`. On a feature branch every tracked modification belongs to the feature, so this also covers `.aod/audit/*.jsonl` and any other tracked file deliver writes.
+4. Commit with the same message layout as split (subject `docs: close Feature {NUMBER} - update all documentation`, trailer `Co-Authored-By: Claude <noreply@anthropic.com>`; keep the trailer generic).
+5. Push with `git push origin HEAD:refs/heads/$FEATURE`.
+6. After the commit, if `git status --porcelain --untracked-files=no` is non-empty, list the remaining tracked changes as a warning.
+<!-- /pr_per_cycle:single -->
+
 Stage `docs/`, `deployment/`, `CLAUDE.md`, and any regenerated snapshots from Step 9a, then commit:
 
 ```
@@ -220,12 +284,28 @@ Then `git push origin main`.
 
 ## Step 10: Close GitHub Issue
 
+<!-- pr_per_cycle:single -->
+#### Issue lifecycle (single mode)
+
+In single mode the issue intentionally stays open at `stage:deliver`; Document's closeout finalizes it. The skill does not relabel or close it, and this command only confirms the issue is still open. The split text below applies only in split mode.
+<!-- /pr_per_cycle:single -->
+
 After commit and push, the skill (Steps 12 and 8) finalizes the GitHub Issue lifecycle — `stage:done` transition, issue close, and BACKLOG.md regeneration are all owned by the skill. This command step confirms the close is complete.
 
 1. Confirm the GitHub Issue is closed (performed by skill Step 12): the issue transitions to `stage:done`, closes with a delivery comment, and BACKLOG.md is regenerated.
 2. If `gh` is unavailable, skip silently (graceful degradation).
 
 ## Step 11: User Story Export
+
+<!-- pr_per_cycle:single -->
+#### Story export (single mode)
+
+In single mode the issue is still open, so the prerequisite differs from the split text below:
+
+- Prerequisite: the issue carries `stage:deliver`, `stage:document` or `stage:done`. If it carries none of them, skip with message "Story export skipped: issue is not at stage:deliver, stage:document or stage:done".
+- All other sub-steps (read issue, `## Stories` check, duplicate check, append, stage and commit) are unchanged.
+- After the export commit, push it with `git push origin HEAD:refs/heads/$FEATURE`, so a later "Document later" choice leaves no local-only commit.
+<!-- /pr_per_cycle:single -->
 
 After the GitHub Issue is closed with `stage:done`, export validated user stories to the aggregated reference.
 
@@ -265,6 +345,16 @@ Do NOT write any file in this step — the delivery document is generated by the
 
 ## Step 13: Prompt for /aod.document
 
+<!-- pr_per_cycle:single -->
+#### Document hand-off (single mode)
+
+Step 13 runs after the skill has finished, which includes the lock release (skill Step 14).
+
+- `orchestrated = true` (any `/aod.run` invocation, interactive or autonomous): never invoke or offer `/aod.document`. Print "Document runs next under /aod.run".
+- Standalone and interactive: prompt as in the split text below.
+- Standalone and `autonomous == true`: auto-invoke `/aod.document --autonomous`.
+<!-- /pr_per_cycle:single -->
+
 After delivery is complete, prompt the user about the next lifecycle step:
 
 ```
@@ -287,6 +377,20 @@ Run `/aod.document` now? (Y/n)
 | Agent fails | Show results table, prompt for retry/proceed/abort |
 | Git push fails | Report error, suggest manual push |
 
+<!-- pr_per_cycle:single -->
+#### Error Handling (single mode)
+
+The "PR not merged" row above is split-only. In single mode deliver never merges.
+
+| Scenario | Action |
+|----------|--------|
+| PR missing | Create it with `Closes #$((10#$NNN))` and the `<!-- aod:pr_per_cycle=single -->` marker; if `gh` is unavailable print the manual-PR instruction and continue |
+| PR already merged or branch missing | Error out and stop |
+| Invalid config (`aod_pr_mode` rc 4) | Halt with `invalid_config` |
+| Ambiguous feature branch (rc 6) | Halt with `precondition_failed` |
+| Tracked changes remain after 9b commit | List them as a warning |
+<!-- /pr_per_cycle:single -->
+
 ## Common Rationalizations
 
 | Rationalization | Reality |
@@ -296,6 +400,16 @@ Run `/aod.document` now? (Y/n)
 | "I'll run `/aod.deliver` while the PR is still open and unmerged" | Step 1 expects branch deleted (PR merged). Lines 40-48 auto-handle uncommitted/unpushed/un-PR'd states via `gh pr merge --squash --delete-branch`. Hand-fix only on conflict. |
 | "I'll select `n` at Step 13 — `/aod.document` is optional anyway" | Step 13 names `/aod.document` as the next lifecycle step. Skipping defers CHANGELOG, KB review, and OpenAPI sync. Run it now or schedule a follow-up. |
 
+<!-- pr_per_cycle:single -->
+#### Common Rationalizations (single mode)
+
+| Rationalization | Reality |
+|---|---|
+| "I'll merge the PR from deliver to save a step" | Single mode merges once, in Document's closeout, after verification. Deliver only commits, pushes and marks the PR ready. |
+| "I'll close the issue here, deliver is the last stage" | The issue stays at `stage:deliver` until Document's closeout finalizes it. |
+| "`--orchestrated` is only a hint, I'll still offer `/aod.document`" | Under `/aod.run` the orchestrator owns the Document transition. Never start it from Step 13. |
+<!-- /pr_per_cycle:single -->
+
 ## Red Flags
 
 - Agent invokes `/aod.deliver` with the feature branch unmerged and bypasses the Step 1 lines 40-48 auto-merge flow.
@@ -304,3 +418,13 @@ Run `/aod.document` now? (Y/n)
 - Agent reports "delivery complete" before Step 10 closes the GitHub Issue — Issue stuck at `stage:deliver` rather than `stage:done`.
 - Agent skips Step 13 (`/aod.document` prompt) and reports "delivery complete" with no scheduling of the post-delivery quality review.
 - Agent runs `/aod.deliver` in `--autonomous` mode and overrides a `BLOCKED` retrospective gate instead of halting (per skill Step 9d gate behavior).
+
+<!-- pr_per_cycle:single -->
+#### Red Flags (single mode)
+
+- Agent merges the PR from deliver while the pin is `single`.
+- Agent commits or pushes to the default branch, or pushes without the `HEAD:refs/heads/$FEATURE` refspec.
+- Agent leaves tracked changes uncommitted after 9b (skipped `git add -u`).
+- Agent starts `/aod.document` while `orchestrated = true`, or before the lock is released.
+- Agent treats an issue left at `stage:deliver` as a failure; in single mode that is the expected state.
+<!-- /pr_per_cycle:single -->

@@ -17,6 +17,7 @@
 # What it scans:
 #   - .claude/skills/**/*.md   — all skill files
 #   - .aod/scripts/bash/**/*.sh — all kit scripts
+#   - .claude/commands/**/*.md — all slash-command files (Feature 204 FR-030)
 #   Pattern: `gh pr merge.*e2e-heal` (case-sensitive)
 #
 # Exclusions:
@@ -79,6 +80,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SELF_PATH="${SCRIPT_DIR}/check-no-merge-heal.sh"
 SKILLS_DIR="${REPO_ROOT}/.claude/skills"
 SCRIPTS_DIR="${REPO_ROOT}/.aod/scripts/bash"
+COMMANDS_DIR="${REPO_ROOT}/.claude/commands"
 
 PATTERN='gh pr merge.*e2e-heal'
 # Exclusion regex: lines documenting the banned pattern rather than invoking it.
@@ -102,6 +104,14 @@ fi
 # Scan .aod/scripts/bash/**/*.sh.
 if [ -d "${SCRIPTS_DIR}" ]; then
   find "${SCRIPTS_DIR}" -type f -name '*.sh' -print0 \
+    | xargs -0 grep -H -n -E "${PATTERN}" 2>/dev/null \
+    | grep -v -E "${EXCLUDE_PATTERN}" \
+    >> "${TMP_MATCHES}" || true
+fi
+
+# Scan .claude/commands/**/*.md (Feature 204 FR-030).
+if [ -d "${COMMANDS_DIR}" ]; then
+  find "${COMMANDS_DIR}" -type f -name '*.md' -print0 \
     | xargs -0 grep -H -n -E "${PATTERN}" 2>/dev/null \
     | grep -v -E "${EXCLUDE_PATTERN}" \
     >> "${TMP_MATCHES}" || true

@@ -103,6 +103,19 @@ Proceed? (Y/n)
 
 **On resume** (`--resume`): If the state file contains `"autonomous_mode": true`, skip the consent prompt and continue in autonomous mode. Do not re-ask.
 
+#### Startup preflight: mode resolution (both modes)
+
+Run once, after the consent prompt and before the Core Loop. This step applies in split and single mode alike, because it is what decides the mode. Full behavior: [`docs/guides/PR_PER_CYCLE.md`](../../../docs/guides/PR_PER_CYCLE.md).
+
+1. Resolve the mode. When the feature is known (resume, or already on its feature branch) run `source .aod/scripts/bash/aod-config.sh && aod_pr_mode "{NNN}" [--autonomous]` (add `--autonomous` when `autonomous_mode == true`). If this wrote `.aod/pr-mode/{NNN}`, commit it as `chore({NNN}): pin pr_per_cycle=<mode>` with the trailer `Co-Authored-By: Claude <noreply@anthropic.com>`. For a new idea with no feature yet run `aod_pr_mode_from_config`.
+2. rc 4 (`invalid_config`) with `autonomous_mode == true`: log to `error_log` and halt with `invalid_config` before any stage runs. Interactive: warn and continue in split mode. rc 6 (ambiguous feature branch) halts as `precondition_failed`. These two halts are mode-neutral on purpose: when the config or the branch set cannot be resolved, the mode is unknown, so the halt cannot depend on it. An unattended run must not guess.
+
+<!-- pr_per_cycle:single -->
+#### Startup preflight: gh check (single mode)
+
+When step 1 above resolved `single` and `autonomous_mode == true`: check `command -v gh`, `gh --version` is 2.40 or newer, and `gh auth status --hostname <host>` succeeds. On any failure halt with `gh_unavailable` before any stage runs.
+<!-- /pr_per_cycle:single -->
+
 ### Step 2: Core State Machine Loop
 
 This is the central orchestration logic. It runs after any entry handler has established or loaded state.
@@ -254,6 +267,12 @@ Each lifecycle stage maps to an existing AOD skill invoked via the Skill tool. T
 | Deliver | — | Delivery retrospective | `aod.deliver` | `--autonomous "FEATURE: {NNN} - {name}" {deliver_flags...}` (if autonomous_mode) or `"FEATURE: {NNN} - {name}" {deliver_flags...}` (interactive). `{deliver_flags...}` expands the per-feature flags forwarded from `/aod.orchestrate` via the Task description (e.g. `--no-tests="<reason>"`). When `/aod.run` is invoked standalone (not via `/aod.orchestrate`), `{deliver_flags...}` is empty. See aod-orchestrate SKILL.md Step 4.7 and Step 7.1.1 step 2.5 for the upstream contract. |
 | Document | — | Documentation review | `aod.document` | `--autonomous` (if autonomous_mode) or no args |
 
+<!-- pr_per_cycle:single -->
+#### Deliver args (single mode)
+
+When the pin is `single`, append `--orchestrated` to the Deliver args in both interactive and autonomous runs, for example `args: "--orchestrated --autonomous FEATURE: {NNN} - {feature_name} {deliver_flags...}"` (autonomous) or `args: "--orchestrated FEATURE: {NNN} - {feature_name} {deliver_flags...}"` (interactive). Deliver then never starts `/aod.document`; Document runs as its own stage and merges once through `pr-closeout.sh`. Split args are unchanged.
+<!-- /pr_per_cycle:single -->
+
 **Invocation pattern**: Use the Skill tool with `skill: "{skill_name}"` and pass arguments as `args: "{arguments}"`.
 
 **Context passing between stages** (FR-012):
@@ -300,6 +319,10 @@ After each stage skill returns, the orchestrator extracts context from the produ
 4. Create the feature branch if not already on it: `git checkout -b {branch}` (or confirm current branch matches)
 5. Record artifacts: Add the GitHub Issue URL to `stages.discover.artifacts`
 6. Write updated state atomically
+
+#### Mode pin after Discover (both modes)
+
+Right after step 4 (`git checkout -b {branch}`), run `source .aod/scripts/bash/aod-config.sh && aod_pr_mode "{feature_id}" [--autonomous]` to write the pin (a `split` pin for split features, a `single` pin for single), then commit it as `chore({feature_id}): pin pr_per_cycle=<mode>` with the trailer `Co-Authored-By: Claude <noreply@anthropic.com>`. This closes the mode-drift window across Build. Skip the commit when the pin already exists and is tracked.
 
 **After Define completes**:
 
@@ -477,6 +500,21 @@ After recording Plan:tasks artifacts and before the Core Loop advances to Build,
 3. Write updated state atomically
 4. **MANDATORY**: You MUST use the Read tool to load `references/error-recovery.md`, then follow the Lifecycle Complete instructions. If the file cannot be read, display an error and STOP.
 
+<!-- pr_per_cycle:single -->
+#### After Document completes (single mode)
+
+In single mode, replace steps 2 to 4 above with the following. The decision comes from `gh` state, never from transcript text.
+
+1. Run `bash .aod/scripts/bash/pr-closeout.sh outcome --feature {branch} [--autonomous]` and parse `outcome=<completed|failed|awaiting_merge> pr_url=… merge_commit=… reason=… verify=<pass|not_reverified|skipped|unknown>`.
+2. Map the result:
+   - `completed`: set `stages.document.status` to `completed`. Record the artifacts `PR {pr_url}` and `merge {merge_commit}` (and `verify {verify}`) in `stages.document.artifacts`. Then follow the Lifecycle Complete instructions in `references/error-recovery.md` (MANDATORY Read; STOP if unreadable).
+   - `failed`: set `status` to `failed`, copy the halt record (`.aod/state/document-{NNN}.halt.json`) into `stages.document.halt_record` if present (an interactive CLOSED or missing PR writes none: record the `reason` from the outcome line instead), log it to `error_log`, and stop. No Lifecycle Complete.
+   - `awaiting_merge`: set `status` to `in_progress` and `stages.document.outcome` to `awaiting_merge`. Record the artifact `PR {pr_url}`. Print "PR #N is ready and awaiting merge. Merge it or re-run /aod.document, then /aod.run --resume" and stop. No Lifecycle Complete.
+3. Write updated state atomically.
+
+**Resume**: `--resume` with Document `failed` or `in_progress` re-invokes Document, which re-enters at closeout, or at post-merge if the PR was merged meanwhile.
+<!-- /pr_per_cycle:single -->
+
 ### Stage Map Display
 
 Display the stage map after each stage transition to show progress. This is referenced by Core Loop step 6.
@@ -606,6 +644,12 @@ After each stage completes successfully (governance gate passed), update the Git
    bash .aod/scripts/bash/backlog-regenerate.sh 2>/dev/null || true
    ```
    This is fire-and-forget — failure does not affect orchestration.
+
+<!-- pr_per_cycle:single -->
+#### Label and BACKLOG updates (single mode)
+
+When the pin is `single`, skip the post-Deliver relabel (deliver to document) and the BACKLOG regen (Document sets `stage:document` itself and closeout regenerates BACKLOG on the feature branch), and skip the label and BACKLOG update after Document (closeout sets `stage:done`). This keeps the default branch and the Document working tree clean.
+<!-- /pr_per_cycle:single -->
 
 ### Error Logging
 

@@ -128,6 +128,46 @@ Runs on every clean exit path (success, halt after Step 9e, opt-out accepted in 
 source .aod/scripts/bash/deliver-lock.sh
 ```
 
+<!-- pr_per_cycle:single -->
+#### Step 14 guard and halt-record cleanup (single mode)
+
+Single mode only; the split text of this step is unchanged. Do both checks below BEFORE sub-step 2 (`release_lock`), because `release_lock` deletes the lock file that holds `start_timestamp`.
+
+1. **Release key**: release with the `FEATURE` carried from Step 0.5 (not re-derived). Assert the live branch still matches the feature:
+
+   ```bash
+   NNN="${FEATURE%%-*}"
+   case "$(git branch --show-current)" in
+     "${NNN}-"*) ;;
+     *)
+       echo "WARNING: branch no longer matches ^${NNN}- at lock release; releasing lock for ${FEATURE}" >&2
+       ls .aod/locks/deliver-*.lock >&2 2>/dev/null
+       ;;
+   esac
+   ```
+
+2. **Stale halt record (N2)**: capture the decision first, then release.
+
+   ```bash
+   HALT_FILE=".aod/state/deliver-${NNN}.halt.json"
+   LOCK_FILE=".aod/locks/deliver-${NNN}.lock"
+   REMOVE_STALE_HALT=false
+   if [ "${HALT_EXIT_CODE:-0}" = "0" ] && [ -f "$HALT_FILE" ] && [ -f "$LOCK_FILE" ]; then
+     start_timestamp=$(jq -r '.start_timestamp // empty' "$LOCK_FILE" 2>/dev/null)
+     halt_timestamp=$(jq -r '.timestamp // empty' "$HALT_FILE" 2>/dev/null)
+     # ISO-8601 UTC strings: strict lexical comparison
+     if [ -n "$start_timestamp" ] && [ -n "$halt_timestamp" ] && [[ "$halt_timestamp" < "$start_timestamp" ]]; then
+       REMOVE_STALE_HALT=true
+     fi
+   fi
+   ```
+
+   - `HALT_EXIT_CODE` is the existing variable (see sub-step 4 below, line 208 of this file): Step 9e sets it to 10; it is unset on the clean-success path and on Step 9d Path A (opt-out accepted). Removal is therefore allowed on those two paths and never after a 9e halt.
+   - `start_timestamp` is the field `acquire_lock` writes into `.aod/locks/deliver-${NNN}.lock` (see Step 0.5 sub-step 3, line 50 of this file).
+   - Never remove a record written in this run: its `timestamp` is not older than `start_timestamp`.
+   - After `release_lock` (sub-step 2 below), if `REMOVE_STALE_HALT` is `true`, run `rm -f "$HALT_FILE"`.
+<!-- /pr_per_cycle:single -->
+
 **2. Release the lock** (idempotent per library contract):
 
 ```bash
